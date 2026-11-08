@@ -8,6 +8,15 @@ class ClientSecretCapacityQueryTest < ActiveSupport::TestCase
     client_secret_credentials client_secret_issuances
   )
 
+  test "requires a persisted app client and an explicit writer timestamp" do
+    client = clients(:placeholder)
+
+    assert_raises(ArgumentError) do
+      ClientSecretCapacityQuery.call(client: Client.new, at: Client.database_now)
+    end
+    assert_raises(ArgumentError) { ClientSecretCapacityQuery.call(client: client, at: nil) }
+  end
+
   test "capacity separates active credentials from a live reservation" do
     client = clients(:placeholder)
     now = Client.database_now

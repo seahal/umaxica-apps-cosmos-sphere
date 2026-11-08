@@ -3,6 +3,8 @@
 
 class SocialAuthCallbackStateStore
   class << self
+    public
+
     def issue!(state:, provider:, intent: nil)
       state_class_for(provider)&.issue!(state: state, provider: provider, intent: intent)
     end

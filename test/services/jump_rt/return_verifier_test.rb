@@ -642,6 +642,23 @@ class JumpRtReturnVerifierTest < ActiveSupport::TestCase
     assert_equal "jwks_unavailable", result.error
   end
 
+  test "default fetcher fails closed when a successful response is not valid JSON" do
+    token = sign_return_token
+    connection = StreamingConnection.new(body: "{", success: true, requested: [])
+
+    result =
+      OutboundHttp::Connection.stub(:build, connection) do
+        JumpRtReturnVerifier.call(
+          token: token,
+          request_url: "https://www.umaxica.app/path?ok=1&rt=#{token}",
+          request_base_url: "https://www.umaxica.app",
+          now: @now,
+        )
+      end
+
+    assert_equal "jwks_unavailable", result.error
+  end
+
   test "default fetcher accepts bodies just below and at 64 KiB and rejects one byte above" do
     token = sign_return_token
     jwks_json = { "keys" => [@public_jwk] }.to_json

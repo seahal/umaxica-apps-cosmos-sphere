@@ -22,6 +22,19 @@ class BaseOauthAuthorizationSurfacesTest < ActionDispatch::IntegrationTest
 
   setup { Rails.configuration.x.rate_limit.fetch(:store).clear }
 
+  test "HEAD refuses a step-up callback before loading its result" do
+    host = visa_host_for_test_surface(:app)
+    host!(host)
+    https!
+
+    head "/oauth/authorize?step_up_result_ref=untrusted-reference", headers: { "Host" => host }
+
+    assert_response :bad_request
+    assert_equal "application/json", response.media_type
+    assert_empty response.body
+    assert_includes response.headers.fetch("Cache-Control"), "no-store"
+  end
+
   test "org authorize returns a scope that omits openid to the RP as invalid_request" do
     host = visa_host_for_test_surface(:org)
     params = authorize_params(realm: "operator").merge(scope: "profile")

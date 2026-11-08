@@ -387,3 +387,96 @@ class RpStepUpCallbackDispatcherTest < ActiveSupport::TestCase
     def call(*) = raise(Umaxica::Valkey::Unavailable, "unavailable")
   end
 end
+
+class RpStepUpCallbackDispatcherResponseValidationTest < ActiveSupport::TestCase
+  fixtures :clients
+  self.fixture_table_names = %w(clients)
+
+  test "malformed responses stay pending while OP errors transition through their public outcomes" do
+    actor = clients(:one)
+    cell = RpCellBinding.fetch("rp_base_app")
+    issuer = OidcIssuer.for_resource_type("client")
+    subject = OidcSubject.for(actor, resource_type: "client")
+    sid = SecureRandom.alphanumeric(21)
+    browser_binding = SecureRandom.urlsafe_base64(32)
+    session = RpCallbackCommitter.call(
+      cell:,
+      issuer:,
+      subject:,
+      sid:,
+      absolute_expires_at: 1.hour.from_now,
+    ).session
+    binding = RpBaseAppOpSessionBinding.includes(identity_binding: :principal).find(session.op_session_binding_id)
+    principal = binding.identity_binding.principal
+    access_state = BrowserRpAuthentication::AccessState.new(
+      status: :valid,
+      resource: principal,
+      rp_session: session,
+      payload: {
+        "iss" => issuer,
+        "aud" => [cell.client_id],
+        "sid" => sid,
+        "sub" => subject,
+        "client_id" => cell.client_id,
+        "authn_ctx" => AuthenticationContextValue::NORMAL_KEY,
+      },
+      security_context: nil,
+    )
+    started = RpStepUpStartIssuer.call(
+      cell:,
+      access_state:,
+      actor:,
+      browser_binding:,
+      return_target: "/settings/security",
+    )
+    state = RpStepUpState.find_by!(public_id: started.state_ref)
+    state_token = Rack::Utils.parse_nested_query(URI.parse(started.authorization_url).query).fetch("state")
+    request = {
+      cell:,
+      access_state:,
+      actor:,
+      browser_binding:,
+      issuer:,
+      state_token:,
+    }
+
+    OidcOpTokenClient.stub(:authorization_code, ->(**) { flunk("invalid responses must not be exchanged") }) do
+      empty_response = RpStepUpCallbackDispatcher.call(**request, code: nil, error: nil)
+      conflicting_response = RpStepUpCallbackDispatcher.call(
+        **request,
+        code: "authorization-code",
+        error: "access_denied",
+      )
+
+      assert_equal [:invalid, "malformed_response"], [empty_response.outcome, empty_response.reason_code]
+      assert_equal [:invalid, "malformed_response"], [conflicting_response.outcome, conflicting_response.reason_code]
+      assert_equal RpStepUpStateStatus::PENDING, state.reload.state_id
+      assert_empty state.transitions
+
+      cancelled = RpStepUpCallbackDispatcher.call(**request, code: nil, error: "access_denied")
+
+      assert_equal [:cancelled, "user_cancelled"], [cancelled.outcome, cancelled.reason_code]
+      assert_equal RpStepUpStateStatus::CANCELLED, state.reload.state_id
+      assert_equal ["user_cancelled"], state.transitions.order(:id).pluck(:reason_code)
+    end
+
+    refused_start = RpStepUpStartIssuer.call(
+      cell:,
+      access_state:,
+      actor:,
+      browser_binding:,
+      return_target: "/settings/security",
+    )
+    refused_state = RpStepUpState.find_by!(public_id: refused_start.state_ref)
+    refused_token = Rack::Utils.parse_nested_query(URI.parse(refused_start.authorization_url).query).fetch("state")
+    refusal_request = request.merge(state_token: refused_token)
+
+    OidcOpTokenClient.stub(:authorization_code, ->(**) { flunk("OP errors must not be exchanged") }) do
+      refused = RpStepUpCallbackDispatcher.call(**refusal_request, code: nil, error: "server_error")
+
+      assert_equal [:refused, "op_error"], [refused.outcome, refused.reason_code]
+      assert_equal RpStepUpStateStatus::REFUSED, refused_state.reload.state_id
+      assert_equal ["op_error"], refused_state.transitions.order(:id).pluck(:reason_code)
+    end
+  end
+end

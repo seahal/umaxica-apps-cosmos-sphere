@@ -89,4 +89,16 @@ class AccountStandingTest < ActiveSupport::TestCase
     assert_equal :good, standing.level
     assert_empty standing.decisions
   end
+
+  test "rejects an unsupported release mode on a visible case" do
+    invalid_case = FakeCase.new(
+      public_id: "case-invalid-release-mode", kind: "security_lock", reason_code: "security_incident",
+      release_mode: "unrecognized", effective_at: Time.current, expires_at: nil, principal_effect: nil,
+      authentication_method_effects: [], in_force: true, visibility: "visible",
+    )
+
+    error = assert_raises(ArgumentError) { AccountStanding.from_cases([invalid_case]) }
+
+    assert_match(/unsupported enforcement release mode/, error.message)
+  end
 end

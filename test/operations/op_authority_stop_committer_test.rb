@@ -49,6 +49,56 @@ class OpAuthorityStopCommitterTest < ActiveSupport::TestCase
     assert_not OpAppAuthorityStopEpochCutoff.exists?(stop_id: stop.id)
   end
 
+  test "an app root stop does not query each grant's device session separately" do
+    n_plus_one_queries =
+      Prosopite.pause do
+        Prosopite.n_plus_one_queries do
+          result = OpAuthorityStopCommitter.stop_root(
+            root: @root, cause: "browser_logout", principal_public_id: @client.public_id,
+            authority_evidence_ref: "test:n-plus-one",
+          )
+
+          assert_predicate result, :stopped?
+        end
+      end
+    device_session_queries =
+      n_plus_one_queries.flat_map { |notification| notification.fetch(:queries) }
+        .grep(/\bFROM "client_device_sessions"/i)
+
+    assert_empty device_session_queries, "stopping multiple grants must not repeat device-session lookups"
+  end
+
+  test "an org root stop does not query each grant's device session separately" do
+    operator = Operator.create!(
+      security_mode_id: SecurityModeConfigurable::ADVANCED, status_id: OperatorStatus::ACTIVE,
+      visibility_id: OperatorVisibility::STAFF,
+    )
+    root = OperatorToken.create!(authentication_epoch: 0, staff: operator)
+    %w(core-org-jp warp-org-jp).each do |client_id|
+      OpOrgGrant.create!(
+        authentication_epoch: 0, operator_token: root, oidc_client_id: client_id, oidc_scope: "openid",
+        oidc_jti: SecureRandom.uuid, last_used_at: Time.current, refresh_token_expires_at: 1.day.from_now,
+      )
+    end
+
+    n_plus_one_queries =
+      Prosopite.pause do
+        Prosopite.n_plus_one_queries do
+          result = OpAuthorityStopCommitter.stop_root(
+            root:, cause: "browser_logout", principal_public_id: operator.public_id,
+            authority_evidence_ref: "test:n-plus-one",
+          )
+
+          assert_predicate result, :stopped?
+        end
+      end
+    device_session_queries =
+      n_plus_one_queries.flat_map { |notification| notification.fetch(:queries) }
+        .grep(/\bFROM "operator_device_sessions"/i)
+
+    assert_empty device_session_queries, "stopping multiple grants must not repeat device-session lookups"
+  end
+
   test "the stop enqueues delivery after its commit" do
     assert_enqueued_with(job: OpOutboxDispatchJob) do
       OpAuthorityStopCommitter.stop_root(

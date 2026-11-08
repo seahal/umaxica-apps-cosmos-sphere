@@ -22,6 +22,8 @@ class OidcTokenRevoker < ApplicationService
     @revocation_endpoint_uri = revocation_endpoint_uri
   end
 
+  public
+
   def call
     return failure("invalid_client", "OIDC client authentication failed") unless authenticated_client?
 

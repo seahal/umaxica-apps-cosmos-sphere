@@ -31,6 +31,27 @@ class SessionLimitResolutionTransactionableTest < ActiveSupport::TestCase
     @initial_device_session_ids = ClientDeviceSession.pluck(:id)
   end
 
+  test "model_for maps supported actors and rejects an unsupported actor" do
+    assert_equal ClientSessionLimitResolutionTransaction, SessionLimitResolutionTransactionable.model_for(clients(:one))
+    assert_equal OperatorSessionLimitResolutionTransaction,
+                 SessionLimitResolutionTransactionable.model_for(operators(:one))
+
+    assert_raises(FlowConfigurationError) do
+      SessionLimitResolutionTransactionable.model_for(Object.new)
+    end
+  end
+
+  test "resolution class mappings reject an unregistered model subclass" do
+    unsupported_model = Class.new(ClientSessionLimitResolutionTransaction)
+
+    assert_raises(FlowConfigurationError) { unsupported_model.resolution_actor_class }
+    assert_raises(FlowConfigurationError) { unsupported_model.resolution_token_class }
+    assert_raises(FlowConfigurationError) { unsupported_model.resolution_device_session_class }
+    assert_raises(FlowConfigurationError) { unsupported_model.resolution_sign_in_flow_class }
+    assert_raises(FlowConfigurationError) { unsupported_model.resolution_oidc_authorization_transaction_class }
+    assert_raises(FlowConfigurationError) { unsupported_model.resolution_state_class }
+  end
+
   teardown do
     @chronicle_watermarks&.each { |klass, last_id| klass.where(id: (last_id + 1)..).delete_all }
     @authority_stop_watermarks&.each do |stop_class, last_id|
@@ -164,6 +185,151 @@ class SessionLimitResolutionTransactionableTest < ActiveSupport::TestCase
     assert_predicate tokens.first.reload, :currently_usable?
     assert_predicate resolution.reload, :session_selected?
     assert_predicate resolution, :open?
+  end
+
+  test "session issuance finalization reports pending, resolved, expired, and already-terminal outcomes" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    browser_binding_digest = ClientSessionLimitResolutionTransaction.digest_challenge("issuance-binding")
+    issue_resolution =
+      lambda do
+        now = ClientSignInFlow.database_now
+        flow = ClientSignInFlow.create!(
+          principal_id: actor.id,
+          state_id: ClientSignInFlow.state_id_for("SESSION_ISSUANCE_PENDING"),
+          nonce_digest: ClientSignInFlow.digest_nonce(SecureRandom.urlsafe_base64(32)),
+          issued_at: now,
+          expires_at: now + 5.minutes,
+        )
+        issuance = ClientSessionLimitResolutionTransaction.issue!(
+          sign_in_flow: flow,
+          actor: actor,
+          browser_binding_digest: browser_binding_digest,
+        )
+        [flow, issuance]
+      end
+    finalize =
+      lambda do |flow, issuance, capacity_state|
+        actor.class.connection_class_for_self.connected_to(role: :writing) do
+          actor.with_lock do
+            flow.with_cycle_lock do
+              issuance.transaction.finalize_for_session_issuance!(
+                actor: actor,
+                parent: flow,
+                challenge: issuance.challenge,
+                browser_binding_digest: browser_binding_digest,
+              ) { capacity_state }
+            end
+          end
+        end
+      end
+
+    pending_flow, pending_issuance = issue_resolution.call
+
+    assert_equal(
+      { status: :pending, capacity_state: :at_limit },
+      finalize.call(pending_flow, pending_issuance, :at_limit),
+    )
+    assert_predicate pending_issuance.transaction.reload, :pending?
+
+    assert_equal(
+      { status: :resolved, capacity_state: :within_limit }, finalize.call(
+        pending_flow, pending_issuance, :within_limit,
+      ),
+    )
+    assert_equal(
+      { status: :already_resolved, capacity_state: :within_limit }, finalize.call(
+        pending_flow, pending_issuance, :within_limit,
+      ),
+    )
+
+    expired_flow, expired_issuance = issue_resolution.call
+    expired_issuance.transaction.update!(expires_at: ClientSessionLimitResolutionTransaction.database_now - 1.second)
+
+    assert_equal({ status: :expired }, finalize.call(expired_flow, expired_issuance, :within_limit))
+    assert_predicate expired_issuance.transaction.reload, :expired?
+
+    cancelled_flow, cancelled_issuance = issue_resolution.call
+    cancelled_issuance.transaction.cancel!(
+      actor: actor,
+      challenge: cancelled_issuance.challenge,
+      browser_binding_digest: browser_binding_digest,
+    )
+
+    assert_equal({ status: :invalid }, finalize.call(cancelled_flow, cancelled_issuance, :within_limit))
+    assert_predicate cancelled_issuance.transaction.reload, :cancelled?
+  end
+
+  test "session issuance finalization rejects over-limit and unknown capacity states" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    now = ClientSignInFlow.database_now
+    flow = ClientSignInFlow.create!(
+      principal_id: actor.id,
+      state_id: ClientSignInFlow.state_id_for("SESSION_ISSUANCE_PENDING"),
+      nonce_digest: ClientSignInFlow.digest_nonce(SecureRandom.urlsafe_base64(32)),
+      issued_at: now,
+      expires_at: now + 5.minutes,
+    )
+    browser_binding_digest = ClientSessionLimitResolutionTransaction.digest_challenge("capacity-binding")
+    issuance = ClientSessionLimitResolutionTransaction.issue!(
+      sign_in_flow: flow,
+      actor: actor,
+      browser_binding_digest: browser_binding_digest,
+    )
+    finalize =
+      lambda do |capacity_state|
+        actor.class.connection_class_for_self.connected_to(role: :writing) do
+          actor.with_lock do
+            flow.with_cycle_lock do
+              issuance.transaction.finalize_for_session_issuance!(
+                actor: actor,
+                parent: flow,
+                challenge: issuance.challenge,
+                browser_binding_digest: browser_binding_digest,
+              ) { capacity_state }
+            end
+          end
+        end
+      end
+
+    assert_raises(FlowInvalidTransition) { finalize.call(:over_limit) }
+    assert_predicate issuance.transaction.reload, :pending?
+    assert_raises(FlowConfigurationError) { finalize.call(:unknown) }
+    assert_predicate issuance.transaction.reload, :pending?
+  end
+
+  test "resolving a selected session refuses a token owned by a different actor" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    foreign_actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    now = ClientSignInFlow.database_now
+    flow = ClientSignInFlow.create!(
+      principal_id: actor.id,
+      state_id: ClientSignInFlow.state_id_for("SESSION_ISSUANCE_PENDING"),
+      nonce_digest: ClientSignInFlow.digest_nonce(SecureRandom.urlsafe_base64(32)),
+      issued_at: now,
+      expires_at: now + 5.minutes,
+    )
+    foreign_token = ClientToken.create!(authentication_epoch: 0, user: foreign_actor)
+    browser_binding_digest = ClientSessionLimitResolutionTransaction.digest_challenge("foreign-token-binding")
+    issuance = ClientSessionLimitResolutionTransaction.issue!(
+      sign_in_flow: flow,
+      actor: actor,
+      browser_binding_digest: browser_binding_digest,
+    )
+    issuance.transaction.update!(
+      state_id: SessionLimitResolutionTransactionable::SESSION_SELECTED,
+      selected_session_ref: foreign_token.public_id,
+      selected_at: ClientSessionLimitResolutionTransaction.database_now,
+    )
+
+    assert_raises(FlowInvalidTransition) do
+      issuance.transaction.resolve!(
+        actor: actor,
+        challenge: issuance.challenge,
+        browser_binding_digest: browser_binding_digest,
+      )
+    end
+    assert_predicate issuance.transaction.reload, :session_selected?
+    assert_predicate foreign_token.reload, :currently_usable?
   end
 
   test "operator resolution uses its realm state and token ownership" do

@@ -17,6 +17,86 @@ class BaseOauthTokenExchangeE1Test < ActionDispatch::IntegrationTest
     @host = visa_host_for_test_surface(:app)
   end
 
+  test "public token endpoint rejects step-up assertion claims on a refresh grant" do
+    token_url = visa_app_oauth_token_url(host: @host)
+    client_assertion = OidcClientAssertionJwt.issue(
+      client_id: @client.client_id,
+      token_url: token_url,
+      step_up_expectation: OidcClientAssertionStepUpExpectationValue.new(
+        grant: "step-up-grant-public-id",
+        subject: OidcSubject.for(@user, resource_type: "client"),
+      ),
+    )
+
+    assert_predicate client_assertion, :present?
+
+    post token_url,
+         params: {
+           grant_type: "refresh_token",
+           client_id: @client.client_id,
+           client_assertion_type: OidcClientAssertionJwt::ASSERTION_TYPE,
+           client_assertion: client_assertion,
+         }
+
+    assert_response :bad_request
+    assert_equal "invalid_request", response.parsed_body.fetch("error")
+    assert_equal "step-up assertion claims require an authorization code",
+                 response.parsed_body.fetch("error_description")
+    assert_equal "no-store", response.headers.fetch("Cache-Control")
+  end
+
+  test "public token endpoint does not consume an issued code after the actor is suspended" do
+    actor = Client.create!(
+      security_mode_id: SecurityModeConfigurable::NORMAL,
+      status_id: ClientStatus::ACTIVE,
+    )
+    root_token = ClientToken.create!(
+      authentication_epoch: 0,
+      user: actor,
+      established_authentication_method: "passkey",
+      authentication_event_at: Time.current,
+    )
+    code_verifier = SecureRandom.urlsafe_base64(32)
+    code_challenge = Base64.urlsafe_encode64(Digest::SHA256.digest(code_verifier), padding: false)
+    code = OidcAuthorizationCodeIssuer.call(
+      client: @client,
+      params: {
+        client_id: @client.client_id,
+        redirect_uri: @redirect_uri,
+        code_challenge: code_challenge,
+        code_challenge_method: "S256",
+        nonce: SecureRandom.hex(16),
+        scope: "openid profile email",
+      },
+      resource: actor,
+      session_token: root_token,
+      authentication_event_at: root_token.authentication_event_at,
+    )
+    WithdrawalLifecycle.start!(actor: actor)
+    WithdrawalLifecycle.suspend!(actor: actor)
+
+    assert_not actor.reload.active?
+
+    token_url = visa_app_oauth_token_url(host: @host)
+    post token_url,
+         params: {
+           grant_type: "authorization_code",
+           code: code.code,
+           redirect_uri: @redirect_uri,
+           client_id: @client.client_id,
+           client_assertion_type: OidcClientAssertionJwt::ASSERTION_TYPE,
+           client_assertion: OidcClientAssertionJwt.issue(client_id: @client.client_id, token_url: token_url),
+           code_verifier: code_verifier,
+         }
+
+    assert_response :bad_request
+    assert_equal "invalid_grant", response.parsed_body.fetch("error")
+    assert_equal "resource is not active", response.parsed_body.fetch("error_description")
+    payload = Valkey::AuthState::AuthorizationCodeStore.new.read(code.code)
+
+    assert_equal "issued", payload.fetch("state")
+  end
+
   test "public token endpoint exchanges a bound code and rejects a different same-realm client replay" do
     code_record = issue_code!
 

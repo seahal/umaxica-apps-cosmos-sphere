@@ -21,6 +21,10 @@ class OidcRealmNormalizationTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { OidcSubject.for(Object.new) }
   end
 
+  test "subject inference assigns a client resource its client prefix" do
+    assert_equal "cli_client-reference", OidcSubject.for(Client.new(public_id: "client-reference"))
+  end
+
   test "audience lookup rejects missing empty and unknown realms" do
     [nil, "", false, 0, "unknown", "visitor", "customer"].each do |input|
       assert_raises(ArgumentError) { OidcClientRegistry.audiences_for_resource_type(input) }

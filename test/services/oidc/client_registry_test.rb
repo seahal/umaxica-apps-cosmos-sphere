@@ -144,6 +144,18 @@ class OidcClientRegistryTest < ActiveSupport::TestCase
     assert_equal original_client.redirect_uris, restored_client.redirect_uris
   end
 
+  test "static client registration rejects an unparsable configured host" do
+    original_env = ENV["PUBLIC_CORE_SERVICE_URL"]
+
+    begin
+      ENV["PUBLIC_CORE_SERVICE_URL"] = "["
+      error = assert_raises(ArgumentError) { OidcClientStoresStaticClientStore.clients }
+      assert_match(/invalid registered redirect_uri/, error.message)
+    ensure
+      original_env.nil? ? ENV.delete("PUBLIC_CORE_SERVICE_URL") : ENV["PUBLIC_CORE_SERVICE_URL"] = original_env
+    end
+  end
+
   test "shared browser clients post logout at canonical /sign/out/completion" do
     AuthBoundaryAuthorityMap.first_party_rp_client_ids.each do |client_id|
       client = OidcClientRegistry.find!(client_id)

@@ -281,6 +281,12 @@ class BaseAuthAdmissionCoordinatorTest < ActiveSupport::TestCase
         transaction:, surface: "app", base_browser_nonce: SecureRandom.urlsafe_base64(32), base_token: token,
       )
     end
+    assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+      BaseAuthAdmissionCoordinator.validate_result_browser_binding!(
+        transaction:, surface: "app", base_browser_nonce: nonce, base_token: token,
+        source_auth_session_id: auth.id,
+      )
+    end
 
     assert_predicate binding.reload, :redeemed?
     assert_nil token.reload.last_step_up_at
@@ -643,6 +649,172 @@ class BaseAuthAdmissionCoordinatorTest < ActiveSupport::TestCase
     assert_nil persisted.browser_session_ref
   end
 
+  test "result reader refuses missing unknown cross-transaction and superseded codes" do
+    client = OidcClientRegistry.find!("core-app-jp")
+    transaction = OidcAuthorizationTransactionCoordinator.issue!(
+      surface: "app",
+      intent: "sign_in",
+      params: {
+        response_type: "code",
+        client_id: client.client_id,
+        redirect_uri: client.redirect_uris_by_realm.fetch("client").first,
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        code_challenge_method: "S256",
+        state: SecureRandom.urlsafe_base64(16),
+        nonce: SecureRandom.urlsafe_base64(16),
+        scope: "openid profile",
+      },
+    ).transaction
+    OidcAuthorizationTransactionCoordinator.register_result!(
+      surface: "app",
+      login_challenge: transaction.login_challenge,
+      actor: clients(:one),
+      session_ref: "session-ref",
+      auth_method: "passkey",
+      authentication_event_at: Time.current,
+    )
+    first_issuance = BaseAuthAdmissionCoordinator.issue_result!(transaction: transaction.reload)
+
+    [nil, "unknown-result-code"].each do |raw_code|
+      assert_raises(BaseAuthAdmissionCoordinator::Denied, raw_code.inspect) do
+        BaseAuthAdmissionCoordinator.read_result!(
+          raw_code: raw_code,
+          surface: "app",
+          transaction_ref: transaction.transaction_id,
+          expected_intent: "sign_in",
+        )
+      end
+    end
+    assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+      BaseAuthAdmissionCoordinator.read_result!(
+        raw_code: first_issuance.code,
+        surface: "app",
+        transaction_ref: "another-transaction",
+        expected_intent: "sign_in",
+      )
+    end
+
+    BaseAuthAdmissionCoordinator.issue_result!(transaction: transaction.reload)
+
+    assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+      BaseAuthAdmissionCoordinator.read_result!(
+        raw_code: first_issuance.code,
+        surface: "app",
+        transaction_ref: transaction.transaction_id,
+        expected_intent: "sign_in",
+      )
+    end
+    assert_equal 2, transaction.reload.result_generation
+  end
+
+  test "step-up cancellation handoff reuse and redemption stay bound to their transaction" do
+    actor = clients(:one)
+    token = client_tokens(:one)
+    transaction = ClientStepUpCeremonyTransaction.create_transaction!(
+      actor_ref: actor.public_id,
+      session_ref: token.public_id,
+      required_scope: "settings_birthdate",
+      required_aal: "none",
+      allowed_methods: ["passkey"],
+    )
+    first = BaseAuthAdmissionCoordinator.issue_cancellation!(transaction: transaction)
+    retry_issuance = BaseAuthAdmissionCoordinator.issue_cancellation!(transaction: transaction.reload)
+
+    assert_equal first.reference, retry_issuance.reference
+    assert_equal first.handoff, retry_issuance.handoff
+
+    [
+      { handoff: "forged-handoff", surface: "app", transaction_ref: transaction.transaction_id },
+      { handoff: first.handoff, surface: "org", transaction_ref: transaction.transaction_id },
+      { handoff: first.handoff, surface: "app", transaction_ref: "another-transaction" },
+    ].each do |attempt|
+      assert_raises(BaseAuthAdmissionCoordinator::Denied, attempt.inspect) do
+        BaseAuthAdmissionCoordinator.read_cancellation_handoff!(**attempt)
+      end
+    end
+
+    redeemed = BaseAuthAdmissionCoordinator.read_cancellation_handoff!(
+      handoff: first.handoff, surface: "app", transaction_ref: transaction.transaction_id,
+    )
+    replay = BaseAuthAdmissionCoordinator.read_cancellation_handoff!(
+      handoff: first.handoff, surface: "app", transaction_ref: transaction.transaction_id,
+    )
+
+    assert_equal transaction.id, redeemed.id
+    assert_equal transaction.id, replay.id
+    assert_equal "pending", transaction.reload.status
+  end
+
+  test "cancellation handoff issuance refuses an expired step-up transaction" do
+    token = client_tokens(:one)
+    transaction = ClientStepUpCeremonyTransaction.create_transaction!(
+      actor_ref: token.user.public_id,
+      session_ref: token.public_id,
+      required_scope: "settings_birthdate",
+      required_aal: "none",
+      allowed_methods: ["passkey"],
+      expires_at: ClientStepUpCeremonyTransaction.database_now - 1.second,
+    )
+
+    error =
+      assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+        BaseAuthAdmissionCoordinator.issue_cancellation!(transaction:)
+      end
+
+    assert_equal "transaction_unavailable", error.code
+    assert_equal "pending", transaction.reload.status
+    assert_nil transaction.cancellation_handoff_ref
+    assert_nil transaction.cancellation_handoff_ciphertext
+  end
+
+  test "credential registration restart requires its original browser session scope and method" do
+    actor = clients(:one)
+    token = client_tokens(:one)
+    nonce = SecureRandom.urlsafe_base64(32)
+    transaction = ClientStepUpCeremonyTransaction.create_transaction!(
+      actor_ref: actor.public_id,
+      session_ref: token.public_id,
+      required_scope: "settings_passkey",
+      required_aal: "none",
+      allowed_methods: ["passkey"],
+      purpose: "credential_registration",
+    )
+    issuance = BaseAuthAdmissionCoordinator.issue_handoff!(
+      transaction: transaction, base_browser_nonce: nonce, base_token: token,
+    )
+    binding = BaseAuthAdmissionCoordinator.find_admission_binding!(surface: "app", reference: issuance.reference)
+
+    validated = BaseAuthAdmissionCoordinator.validate_registration_restart_browser!(
+      binding: binding,
+      surface: "app",
+      base_browser_nonce: nonce,
+      base_token: token,
+      scope: "settings_passkey",
+      method: "passkey",
+    )
+
+    assert_equal binding.id, validated.id
+    [
+      { surface: "org", base_browser_nonce: nonce, base_token: token, scope: "settings_passkey", method: "passkey" },
+      { surface: "app", base_browser_nonce: nonce, base_token: token, scope: "settings_totp", method: "passkey" },
+      { surface: "app", base_browser_nonce: nonce, base_token: token, scope: "settings_passkey", method: "totp" },
+      { surface: "app",
+        base_browser_nonce: SecureRandom.urlsafe_base64(32),
+        base_token: token,
+        scope: "settings_passkey",
+        method: "passkey", },
+      { surface: "app",
+        base_browser_nonce: nonce,
+        base_token: client_tokens(:two),
+        scope: "settings_passkey",
+        method: "passkey", },
+    ].each do |attempt|
+      assert_raises(BaseAuthAdmissionCoordinator::Denied, attempt.inspect) do
+        BaseAuthAdmissionCoordinator.validate_registration_restart_browser!(binding:, **attempt)
+      end
+    end
+  end
+
   test "authentication handoff transport lifetime is capped by its curfew" do
     @admission_nonce = SecureRandom.urlsafe_base64(32)
     issuance = OidcTestEntry.issue!(
@@ -681,6 +853,216 @@ class BaseAuthAdmissionCoordinatorTest < ActiveSupport::TestCase
     assert_operator store.options.fetch(:ttl), :>, 0
     assert_operator store.options.fetch(:ttl), :<=, 3.seconds
     assert_operator transaction.reload.result_expires_at, :<=, binding.reload.curfew_at
+  end
+
+  test "Switch request validation admits only live neutral App authentication choices" do
+    cases = [
+      { surface: "app", intent: "authentication", target: "sign_in", accepted: true },
+      { surface: "app", intent: "authentication", target: "sign_up", accepted: true },
+      { surface: "app", intent: "authentication", prompt: "login", target: "sign_up", accepted: false },
+      { surface: "app", intent: "sign_in", target: "sign_up", accepted: false },
+      { surface: "org", intent: "authentication", target: "sign_in", accepted: false },
+      { surface: "app", intent: "authentication", target: "sign_out", accepted: false },
+      { surface: "app", intent: "authentication", target: "sign_in", expired: true, accepted: false },
+    ]
+
+    cases.each do |boundary|
+      client_id, realm =
+        if boundary.fetch(:surface) == "app"
+          ["core-app-jp", "client"]
+        else
+          ["core-org-jp", "operator"]
+        end
+      client = OidcClientRegistry.find!(client_id)
+      transaction = OidcAuthorizationTransactionCoordinator.issue!(
+        surface: boundary.fetch(:surface),
+        intent: boundary.fetch(:intent),
+        params: {
+          client_id: client_id,
+          redirect_uri: client.redirect_uris_by_realm.fetch(realm).first,
+          response_type: "code",
+          scope: "openid",
+          state: SecureRandom.urlsafe_base64(24),
+          nonce: SecureRandom.urlsafe_base64(24),
+          code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+          code_challenge_method: "S256",
+          prompt: boundary[:prompt],
+        },
+      ).transaction
+      assert_equal boundary[:prompt], transaction.oidc_prompt if boundary[:prompt]
+      transaction.update_columns(expires_at: transaction.class.database_now - 1.second) if boundary[:expired]
+      transaction.reload if boundary[:expired]
+
+      if boundary.fetch(:accepted)
+        assert_nothing_raised do
+          BaseAuthAdmissionCoordinator.validate_switch_request!(
+            transaction: transaction, target: boundary.fetch(:target),
+          )
+        end
+      else
+        error =
+          assert_raises(BaseAuthAdmissionCoordinator::Denied, boundary.inspect) do
+            BaseAuthAdmissionCoordinator.validate_switch_request!(
+              transaction: transaction, target: boundary.fetch(:target),
+            )
+          end
+        assert_equal "invalid_admission", error.code, boundary.inspect
+      end
+    end
+  end
+
+  test "switch handoff reader refuses blank forged and cross-surface handoffs" do
+    client = OidcClientRegistry.find!("core-app-jp")
+    transaction = OidcAuthorizationTransactionCoordinator.issue!(
+      surface: "app", intent: "authentication",
+      params: {
+        client_id: client.client_id,
+        redirect_uri: client.redirect_uris_by_realm.fetch("client").first,
+        response_type: "code",
+        scope: "openid profile",
+        state: SecureRandom.hex(16),
+        nonce: SecureRandom.hex(16),
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        code_challenge_method: "S256",
+      },
+    ).transaction
+    browser_nonce = SecureRandom.hex(32)
+    issuance = BaseAuthAdmissionCoordinator.issue_handoff!(
+      transaction: transaction, base_browser_nonce: browser_nonce, base_token: nil,
+    )
+    binding = ClientAuthAdmissionBinding.find_by!(entry_ref: issuance.reference)
+    attached, raw_sid = ClientAuthCeremonySession.issue!
+    binding.attach_auth_session!(auth_session: attached, confirmation_ref: SecureRandom.uuid)
+    binding.confirm_base!(base_token: nil, browser_digest: binding.base_browser_digest)
+    admitted, = ClientAuthCeremonySession.rotate_and_admit!(
+      previous_raw_sid: raw_sid, admission_purpose: "authentication_handoff",
+      authorization_transaction_ref: transaction.transaction_id,
+    )
+    binding.redeem!(auth_session: attached, admitted_auth_session: admitted)
+    admitted.cancel!
+    handoff = BaseAuthAdmissionCoordinator.issue_switch_handoff!(
+      transaction: transaction, ceremony_session: admitted, target: "sign_up",
+    )
+    read_transaction, target, read_ceremony =
+      BaseAuthAdmissionCoordinator.read_switch_handoff!(handoff: handoff, surface: "app")
+
+    assert_equal transaction, read_transaction
+    assert_equal "sign_up", target
+    assert_equal admitted, read_ceremony
+
+    live_session, = ClientAuthCeremonySession.issue!
+
+    assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+      BaseAuthAdmissionCoordinator.issue_switch_handoff!(
+        transaction: transaction, ceremony_session: live_session, target: "sign_up",
+      )
+    end
+
+    [nil, "forged-switch-handoff"].each do |invalid_handoff|
+      assert_raises(BaseAuthAdmissionCoordinator::Denied, invalid_handoff.inspect) do
+        BaseAuthAdmissionCoordinator.read_switch_handoff!(handoff: invalid_handoff, surface: "app")
+      end
+    end
+    assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+      BaseAuthAdmissionCoordinator.read_switch_handoff!(handoff: handoff, surface: "org")
+    end
+
+    transaction.update_columns(expires_at: transaction.class.database_now - 1.second)
+    transaction.reload
+    assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+      BaseAuthAdmissionCoordinator.read_switch_handoff!(handoff: handoff, surface: "app")
+    end
+    assert_predicate admitted.reload, :cancelled?
+    assert_predicate transaction.reload, :pending?
+  end
+
+  test "switch admission refuses an unsupported target without replacing its canceled admission" do
+    client = OidcClientRegistry.find!("core-app-jp")
+    transaction = OidcAuthorizationTransactionCoordinator.issue!(
+      surface: "app", intent: "authentication",
+      params: {
+        client_id: client.client_id,
+        redirect_uri: client.redirect_uris_by_realm.fetch("client").first,
+        response_type: "code",
+        scope: "openid profile",
+        state: SecureRandom.hex(16),
+        nonce: SecureRandom.hex(16),
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        code_challenge_method: "S256",
+      },
+    ).transaction
+    browser_nonce = SecureRandom.urlsafe_base64(32)
+    issuance = BaseAuthAdmissionCoordinator.issue_handoff!(
+      transaction:, base_browser_nonce: browser_nonce, base_token: nil,
+    )
+    binding = BaseAuthAdmissionCoordinator.find_admission_binding!(surface: "app", reference: issuance.reference)
+    auth_session, raw_sid = ClientAuthCeremonySession.issue!
+    binding.attach_auth_session!(auth_session:, confirmation_ref: SecureRandom.uuid)
+    binding.confirm_base!(base_token: nil, browser_digest: binding.base_browser_digest)
+    admitted_session, = ClientAuthCeremonySession.rotate_and_admit!(
+      previous_raw_sid: raw_sid,
+      admission_purpose: "authentication_handoff",
+      authorization_transaction_ref: transaction.transaction_id,
+    )
+    binding.redeem!(auth_session:, admitted_auth_session: admitted_session)
+    admitted_session.cancel!
+
+    assert_no_difference -> { ClientAuthAdmissionBinding.count } do
+      error =
+        assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+          BaseAuthAdmissionCoordinator.issue_switch_admission!(
+            transaction:,
+            source_auth_session: admitted_session,
+            base_browser_nonce: browser_nonce,
+            base_token: nil,
+            target: "sign_out",
+          )
+        end
+      assert_equal "invalid_admission", error.code
+    end
+    assert_predicate binding.reload, :redeemed?
+    assert_predicate admitted_session.reload, :cancelled?
+  end
+
+  test "switch admission refuses a canceled ceremony without its redeemed source binding" do
+    client = OidcClientRegistry.find!("core-app-jp")
+    transaction = OidcAuthorizationTransactionCoordinator.issue!(
+      surface: "app", intent: "authentication",
+      params: {
+        client_id: client.client_id,
+        redirect_uri: client.redirect_uris_by_realm.fetch("client").first,
+        response_type: "code",
+        scope: "openid profile",
+        state: SecureRandom.hex(16),
+        nonce: SecureRandom.hex(16),
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        code_challenge_method: "S256",
+      },
+    ).transaction
+    source_auth_session, = ClientAuthCeremonySession.issue!
+    source_auth_session.admit!(
+      admission_purpose: "authentication_handoff",
+      authorization_transaction_ref: transaction.transaction_id,
+    )
+    source_auth_session.cancel!
+    browser_nonce = SecureRandom.urlsafe_base64(32)
+    binding_count = ClientAuthAdmissionBinding.count
+
+    error =
+      assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+        BaseAuthAdmissionCoordinator.issue_switch_admission!(
+          transaction:,
+          source_auth_session:,
+          base_browser_nonce: browser_nonce,
+          base_token: nil,
+          target: "sign_up",
+        )
+      end
+
+    assert_equal "invalid_admission", error.code
+    assert_equal binding_count, ClientAuthAdmissionBinding.count
+    assert_predicate source_auth_session.reload, :cancelled_before_authentication_progress?
+    assert_predicate transaction.reload, :pending?
   end
 
   private

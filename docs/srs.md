@@ -1,6 +1,6 @@
 # Software Requirements Specification (SRS)
 
-## Project: Umaxica App (JIT)
+## Project: Umaxica Apps Cosmos Regional
 
 ### Aligned with ISO/IEC/IEEE 29148:2018 guidance
 
@@ -10,11 +10,11 @@
 
 ### 1.1 Purpose
 
-Umaxica App (JIT) replaces the legacy edge-only portal with a unified Ruby on Rails platform that
-serves every public surface owned by Umaxica—corporate, service, staff, help, docs, news, BFF, and
-API domains. The SRS defines the business goals, functional expectations, and quality attributes
-that the Rails monolith must satisfy while orchestrating user onboarding, customer support, and
-staff tooling across `umaxica.[app|com|org]` and auxiliary subdomains.
+Umaxica Apps Cosmos Regional replaces the legacy edge-only portal with a unified Ruby on Rails
+platform that serves every public surface owned by Umaxica—corporate, service, staff, help, docs,
+news, BFF, and API domains. The SRS defines the business goals, functional expectations, and quality
+attributes that the Rails monolith must satisfy while orchestrating user onboarding, customer
+support, and staff tooling across `umaxica.[app|com|org]` and auxiliary subdomains.
 
 ### 1.2 Scope
 

@@ -219,4 +219,167 @@ class ValkeyAuthStateOpaqueAdmissionStoreTest < ActiveSupport::TestCase
     assert_equal Valkey::AuthState::OpaqueAdmissionStore.digest_for(purpose: "p", raw_code: "c"),
                  @store.digest_for(purpose: "p", raw_code: "c")
   end
+
+  test "reissue rejects missing consumed and wrong-purpose references without changing the original admission" do
+    arguments = { reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app" }
+    missing = assert_raises(Umaxica::Valkey::OperationError) { @store.reissue_reference!(**arguments) }
+
+    assert_equal "admission reference is unavailable", missing.message
+
+    raw = @store.issue!(**arguments)
+    mismatch =
+      assert_raises(Umaxica::Valkey::OperationError) do
+        @store.reissue_reference!(**arguments.merge(purpose: "authentication_result"))
+      end
+
+    assert_equal "admission reference purpose mismatch", mismatch.message
+    assert_equal "issued", @store.read(raw, purpose: "authentication_handoff").fetch("state")
+    assert_predicate @store.consume_reference!(reference: "entry-1"), :success?
+
+    replay = assert_raises(Umaxica::Valkey::OperationError) { @store.reissue_reference!(**arguments) }
+
+    assert_equal "admission reference was consumed", replay.message
+    assert_predicate @store.consume!(purpose: "authentication_handoff", raw_code: raw), :replay?
+  end
+
+  test "reissue and restore reject corrupt reference pointers" do
+    pointer_key = @connection.key("admission-reference:#{Digest::SHA256.hexdigest("reference:entry-1")}")
+    @connection.call("SET", pointer_key, "{not json")
+    arguments = { reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app" }
+
+    assert_raises(Umaxica::Valkey::SerializationError) { @store.reissue_reference!(**arguments) }
+    assert_raises(Umaxica::Valkey::SerializationError) do
+      @store.restore_reference!(**arguments, raw_code: "restored-code")
+    end
+    assert_equal "{not json", @connection.call("GET", pointer_key)
+  end
+
+  test "restore recreates an absent pointer using the original code and binding" do
+    now = Time.utc(2026, 11, 7, 12)
+    raw = @store.restore_reference!(
+      reference: "entry-1", purpose: "cancellation_handoff", actor_type: "operator", surface: "org",
+      subject_ref: "transaction-1", base_session_ref: "base-1", ceremony_session_ref: "ceremony-1",
+      result_generation: 4, raw_code: "original-code", now:,
+    )
+    payload = @store.read_reference!(reference: "entry-1", purposes: ["cancellation_handoff"])
+
+    assert_equal "original-code", raw
+    assert_equal "transaction-1", payload.fetch("subject_ref")
+    assert_equal "base-1", payload.fetch("base_session_ref")
+    assert_equal "ceremony-1", payload.fetch("ceremony_session_ref")
+    assert_equal "operator", payload.fetch("actor_type")
+    assert_equal "org", payload.fetch("surface")
+    assert_equal 4, payload.fetch("result_generation")
+    assert_equal now.iso8601, payload.fetch("issued_at")
+    assert_equal (now + 60.seconds).iso8601, payload.fetch("expires_at")
+    assert_predicate @store.consume_reference!(reference: "entry-1", purposes: ["cancellation_handoff"]), :success?
+    assert_predicate @store.consume!(purpose: "cancellation_handoff", raw_code: raw), :replay?
+  end
+
+  test "restore refuses a different purpose without replacing the original code" do
+    raw = @store.issue!(
+      reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app",
+    )
+    error =
+      assert_raises(Umaxica::Valkey::OperationError) do
+        @store.restore_reference!(
+          reference: "entry-1", purpose: "authentication_result", actor_type: "client", surface: "app",
+          raw_code: "replacement-code",
+        )
+      end
+
+    assert_equal "admission reference purpose mismatch", error.message
+    assert_equal "authentication_handoff", @store.read_reference!(reference: "entry-1").fetch("purpose")
+    assert_predicate @store.consume!(purpose: "authentication_handoff", raw_code: raw), :success?
+    assert_nil @store.read("replacement-code")
+  end
+
+  test "reference reads return nil for missing pointers and expired primary records" do
+    assert_nil @store.read_reference!(reference: "missing-entry")
+
+    raw = @store.issue!(
+      reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app",
+    )
+    digest = @store.digest_for(purpose: "authentication_handoff", raw_code: raw)
+    @connection.call("DEL", @connection.key("admission:authentication_handoff:#{digest}"))
+
+    assert_nil @store.read_reference!(reference: "entry-1")
+    assert_predicate @store.consume_reference!(reference: "entry-1"), :missing?
+  end
+
+  test "reference reads reject disallowed purposes and inconsistent or malformed stored bindings" do
+    raw = @store.issue!(
+      reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app",
+    )
+
+    assert_raises(ArgumentError) do
+      @store.read_reference!(reference: "entry-1", purposes: ["authentication_result"])
+    end
+
+    digest = @store.digest_for(purpose: "authentication_handoff", raw_code: raw)
+    primary_key = @connection.key("admission:authentication_handoff:#{digest}")
+    payload = @store.read(raw, purpose: "authentication_handoff")
+    @connection.call("SET", primary_key, JSON.generate(payload.merge("reference" => "another-entry")))
+
+    assert_raises(Umaxica::Valkey::SerializationError) { @store.read_reference!(reference: "entry-1") }
+
+    @connection.call("SET", primary_key, JSON.generate(payload.except("reference")))
+
+    assert_raises(Umaxica::Valkey::SerializationError) { @store.read_reference!(reference: "entry-1") }
+
+    @connection.call("SET", primary_key, "{not json")
+
+    assert_raises(Umaxica::Valkey::SerializationError) { @store.read_reference!(reference: "entry-1") }
+  end
+
+  test "reissue restore and reference reads preserve the cause of dependency unavailability" do
+    failure = Redis::CannotConnectError.new("connection refused")
+    @connection.stub(:call, ->(*) { raise failure }) do
+      reissue_error =
+        assert_raises(Umaxica::Valkey::Unavailable) do
+          @store.reissue_reference!(
+            reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app",
+          )
+        end
+      restore_error =
+        assert_raises(Umaxica::Valkey::Unavailable) do
+          @store.restore_reference!(
+            reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app",
+            raw_code: "original-code",
+          )
+        end
+      read_error = assert_raises(Umaxica::Valkey::Unavailable) { @store.read_reference!(reference: "entry-1") }
+
+      assert_same failure, reissue_error.cause
+      assert_same failure, restore_error.cause
+      assert_same failure, read_error.cause
+    end
+  end
+
+  test "public operations reject blank locators and unsupported purpose lists" do
+    [nil, "", " "].each do |blank|
+      assert_raises(ArgumentError) { @store.read(blank) }
+      assert_raises(ArgumentError) { @store.read_reference!(reference: blank) }
+      assert_raises(ArgumentError) { @store.consume_reference!(reference: blank) }
+      assert_raises(ArgumentError) do
+        @store.restore_reference!(
+          reference: "entry-1", purpose: "authentication_handoff", actor_type: "client", surface: "app",
+          raw_code: blank,
+        )
+      end
+    end
+    [[], ["unknown_purpose"]].each do |purposes|
+      assert_raises(ArgumentError) { @store.consume_reference!(reference: "entry-1", purposes:) }
+    end
+
+    assert_raises(ArgumentError) { @store.issue!(purpose: "unknown", actor_type: "client", surface: "app") }
+    assert_raises(ArgumentError) do
+      @store.reissue_reference!(reference: "entry-1", purpose: "unknown", actor_type: "client", surface: "app")
+    end
+    assert_raises(ArgumentError) do
+      @store.restore_reference!(
+        reference: "entry-1", purpose: "unknown", actor_type: "client", surface: "app", raw_code: "code",
+      )
+    end
+  end
 end

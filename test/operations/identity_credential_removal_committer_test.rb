@@ -61,6 +61,56 @@ class IdentityCredentialRemovalCommitterTest < ActiveSupport::TestCase
     end
   end
 
+  test "RP-local removal refuses an already-open credential transaction" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    @created_clients << actor
+    credential = actor.client_passkeys.create!(
+      webauthn_id: SecureRandom.uuid, public_key: "credential-transaction-key", uv_verified_at: Time.current,
+    )
+    evidence = StepUpEvidenceValue.new(
+      acr: "urn:test:step-up", amr: ["passkey"], auth_time: Time.current.to_i,
+      sid: "test-grant", sub: OidcSubject.for(actor, resource_type: "client"),
+      client_id: "base-app-ww", aud: ["base-app-ww"], jti: SecureRandom.uuid,
+    )
+    audit_count = ClientPasskeyAuditOutbox.where(external_id: credential.external_id).count
+
+    assert_raises(IdentityCredentialRemovalCommitter::TransactionConflict) do
+      AppZenithRecord.transaction do
+        IdentityCredentialRemovalCommitter.call!(
+          actor: actor, credential: credential, current_session: nil, step_up_evidence: evidence,
+        )
+      end
+    end
+
+    assert_equal ClientPasskeyStatus::ACTIVE, credential.reload.status_id
+    assert_equal audit_count, ClientPasskeyAuditOutbox.where(external_id: credential.external_id).count
+  end
+
+  test "RP-local removal refuses an already-open OP ticket transaction" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    @created_clients << actor
+    credential = actor.client_passkeys.create!(
+      webauthn_id: SecureRandom.uuid, public_key: "ticket-transaction-key", uv_verified_at: Time.current,
+    )
+    evidence = StepUpEvidenceValue.new(
+      acr: "urn:test:step-up", amr: ["passkey"], auth_time: Time.current.to_i,
+      sid: "test-grant", sub: OidcSubject.for(actor, resource_type: "client"),
+      client_id: "base-app-ww", aud: ["base-app-ww"], jti: SecureRandom.uuid,
+    )
+    audit_count = ClientPasskeyAuditOutbox.where(external_id: credential.external_id).count
+
+    assert_raises(IdentityCredentialRemovalCommitter::TransactionConflict) do
+      OpBaseAppRecord.transaction do
+        IdentityCredentialRemovalCommitter.call!(
+          actor: actor, credential: credential, current_session: nil, step_up_evidence: evidence,
+        )
+      end
+    end
+
+    assert_equal ClientPasskeyStatus::ACTIVE, credential.reload.status_id
+    assert_equal audit_count, ClientPasskeyAuditOutbox.where(external_id: credential.external_id).count
+  end
+
   test "a non-joinable outer OP transaction is refused before credential removal" do
     actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
     @created_clients << actor

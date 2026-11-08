@@ -3,6 +3,106 @@
 require "test_helper"
 
 class DeprecationNotificationSubscriberTest < ActiveSupport::TestCase
+  test "invalid notification names and payload fields produce only an error class" do
+    payload = {
+      message: "Deprecated token=private-test-value",
+      callstack: ["vendor/library.rb:8"],
+      gem_name: "Library",
+      deprecation_horizon: "3.0",
+    }
+    cases = [
+      [nil, payload],
+      ["", payload],
+      ["deprecation.", payload],
+      ["unrelated.library", payload],
+      ["deprecation.library", nil],
+      ["deprecation.library", []],
+      ["deprecation.library", {}],
+      ["deprecation.library", payload.merge(message: nil)],
+      ["deprecation.library", payload.merge(gem_name: 3)],
+      ["deprecation.library", payload.merge(deprecation_horizon: [])],
+    ]
+    warnings = []
+    errors = []
+
+    Rails.logger.stub(:warn, ->(entry) { warnings << entry }) do
+      Rails.logger.stub(:error, ->(entry) { errors << entry }) do
+        cases.each do |name, invalid_payload|
+          event = ActiveSupport::Notifications::Event.new(name, 0, 0, "test", invalid_payload)
+          DeprecationNotificationSubscriber.new.emit(event)
+        end
+      end
+    end
+
+    assert_empty warnings
+    assert_equal cases.length, errors.length
+    errors.each_with_index do |json, index|
+      record = JSON.parse(json)
+
+      assert_equal "rails.deprecation.unrecordable", record.fetch("event"), "case #{index}"
+      expected_class = (index == 6) ? "KeyError" : "ArgumentError"
+
+      assert_equal({ "error_class" => expected_class }, record.fetch("data"), "case #{index}")
+      assert_not_includes json, "private-test-value"
+    end
+  end
+
+  test "missing malformed and unsupported callstack frames are rejected without logging their contents" do
+    callstacks = [nil, [], "private-test-value", [nil], [Object.new],
+                  ["private-test-value"], ["private-test-value:0"],]
+    warnings = []
+    errors = []
+
+    Rails.logger.stub(:warn, ->(entry) { warnings << entry }) do
+      Rails.logger.stub(:error, ->(entry) { errors << entry }) do
+        callstacks.each do |callstack|
+          event = ActiveSupport::Notifications::Event.new(
+            "deprecation.library", 0, 0, "test",
+            { message: "Deprecated call", callstack: callstack, gem_name: "Library", deprecation_horizon: "3.0" },
+          )
+          DeprecationNotificationSubscriber.new.emit(event)
+        end
+      end
+    end
+
+    assert_empty warnings
+    assert_equal callstacks.length, errors.length
+    errors.each do |json|
+      record = JSON.parse(json)
+
+      assert_equal "rails.deprecation.unrecordable", record.fetch("event")
+      assert_equal({ "error_class" => "ArgumentError" }, record.fetch("data"))
+      assert_not_includes json, "private-test-value"
+    end
+  end
+
+  test "native backtrace locations emit the first callsite without the remaining backtrace" do
+    frame = caller_locations(0, 1).first
+    warnings = []
+    event = ActiveSupport::Notifications::Event.new(
+      "deprecation.library", 0, 0, "test",
+      { message: "Deprecated call",
+        callstack: [frame, "private-test-value:99"],
+        gem_name: "Library",
+        deprecation_horizon: "3.0", },
+    )
+
+    Rails.logger.stub(:warn, ->(entry) { warnings << entry }) do
+      DeprecationNotificationSubscriber.new.emit(event)
+    end
+
+    assert_equal 1, warnings.length
+    record = JSON.parse(warnings.first)
+
+    assert_equal "rails.deprecation", record.fetch("event")
+    assert_match(
+      %r{(?:\A|/)test/subscribers/deprecation_notification_subscriber_test\.rb\z},
+      record.dig("data", "callsite", "file"),
+    )
+    assert_equal frame.lineno, record.dig("data", "callsite", "line")
+    assert_not_includes warnings.first, "private-test-value"
+  end
+
   # Production reports deprecations through :notify, so a subscriber exception would reach the
   # deprecated call site and fail an unrelated request. A record that cannot be built is reported as
   # an error record that carries only the error class.

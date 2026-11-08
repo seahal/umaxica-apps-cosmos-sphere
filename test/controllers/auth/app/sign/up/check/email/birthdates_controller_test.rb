@@ -204,6 +204,53 @@ class Auth::App::Sign::Up::Check::Email::BirthdatesControllerTest < ActionDispat
   end
   # rubocop:enable Minitest/MultipleAssertions
 
+  test "birthdate checkpoint refuses missing malformed and stale versions without mutation" do
+    clear_enqueued_jobs
+    post auth_app_sign_up_email_url(ri: "jp"),
+         params: { :client_email => { raw_address: "stale-checkpoint-#{SecureRandom.hex(4)}@example.com",
+                                      confirm_policy: "1", },
+                   "cf-turnstile-response" => "test", },
+         headers: @headers
+
+    assert_response :redirect
+    @flow_binding = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("fb")
+    cycle = ClientSignUpFlow.find_by!(public_id: session.fetch(:auth_app_up_sequence_id))
+    job = enqueued_jobs.reverse.find { |entry| entry.fetch(:job) == OtpNotifierEmailDeliveryJob }
+
+    assert_not_nil job
+    notification = ActiveJob::Arguments.deserialize(job.fetch(:args)).last
+    delivery = notification.fetch(:params).symbolize_keys
+    otp_code = OutboundSensitivePayload.decrypt_email_otp(delivery.fetch(:encrypted_hotp_token))
+
+    patch auth_app_sign_up_check_email_otp_url(ri: "jp", fb: @flow_binding),
+          params: { :client_email => { pass_code: otp_code }, "cf-turnstile-response" => "test" },
+          headers: @headers
+
+    assert_response :redirect
+    @flow_binding = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("fb")
+    flow = cycle.reload
+    actor = Client.find(flow.principal_id)
+    flow_before = flow.attributes
+
+    assert_nil actor.birthdate
+
+    [nil, "not-a-version", flow.checkpoint_version + 1].each do |version|
+      params = { requirement: "birthdate", birthdate: "1990-01-15" }
+      params[:checkpoint_version] = version if version
+
+      patch auth_app_sign_up_check_email_birthdate_url(ri: "jp", fb: @flow_binding),
+            params: params,
+            headers: @headers
+
+      assert_response :conflict, "checkpoint version #{version.inspect} must be rejected"
+      assert_equal "text/plain", response.media_type
+      assert_equal I18n.t("errors.messages.stale_checkpoint", locale: :ja), response.body
+      assert_nil response.location
+      assert_equal flow_before, flow.reload.attributes
+      assert_nil actor.reload.birthdate
+    end
+  end
+
   test "update without a sign-up ticket does not raise an unsafe cross-host redirect" do
     user = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL)
     device = ClientDeviceSession.create!(user: user)

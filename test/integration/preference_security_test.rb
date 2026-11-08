@@ -9,6 +9,39 @@ class PreferenceSecurityTest < ActionDispatch::IntegrationTest
     host! ENV.fetch("PUBLIC_BASE_SERVICE_URL")
   end
 
+  test "a validation refusal accepts only a safe internal Referer and otherwise returns to the same-host root" do
+    host = ENV.fetch("PUBLIC_BASE_SERVICE_URL")
+    host! host
+    https!
+    referers = [
+      ["/preference/theme/edit?ri=jp", "/preference/theme/edit?ri=jp"],
+      [nil, "/"],
+      ["", "/"],
+      ["https://foreign.example.test/private", "/"],
+      ["https://#{host}/preference/theme/edit?ri=jp", "/"],
+      ["//foreign.example.test/private", "/"],
+      ["/%2f%2fforeign.example.test/private", "/"],
+      ["/preference?next=https://foreign.example.test/private", "/"],
+    ]
+
+    referers.each do |referer, expected_path|
+      headers = referer.nil? ? {} : { "Referer" => referer }
+      assert_no_difference [-> { AppPreference.count }, -> { AppPreferenceCookie.count },
+                            -> { AppPreferenceConsentReceipt.count },] do
+        patch base_app_preference_cookie_path(ri: "jp"),
+              params: { preference_cookie: { consented: "1" } }, headers: headers
+      end
+
+      assert_response :redirect
+      destination = URI.parse(response.location)
+
+      assert_equal "https", destination.scheme
+      assert_equal host, destination.host
+      assert_equal expected_path, destination.request_uri
+      assert_not_includes response.location, "foreign.example.test"
+    end
+  end
+
   test "timezone update rejects unknown raw strings even with a slash" do
     get edit_base_app_preference_timezone_url(ri: "jp")
 

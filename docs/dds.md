@@ -22,11 +22,11 @@ browser navigation uses the signed Jump return contract; it is not a host-name a
 compatibility route.
 
 Visa signs protocol and access credentials with `VISA_APP` and `VISA_ORG` JWT namespaces. Base
-retains `BASE_APP` and `BASE_ORG` for its own browser-RP/Jump responsibilities. The Rails-side edge catalog is recorded in
-`docs/operations/jump-rt-visa-edges.md`; the separate Edge/Jump deployment is not changed by this
-repository.
+retains `BASE_APP` and `BASE_ORG` for its own browser-RP/Jump responsibilities. The Rails-side edge
+catalog is recorded in `docs/operations/jump-rt-visa-edges.md`; the separate Edge/Jump deployment is
+not changed by this repository.
 
-## Project: Umaxica App (JIT)
+## Project: Umaxica Apps Cosmos Regional
 
 ### Conforms to IEEE 1016:2009 and ISO/IEC/IEEE 42010:2011
 
@@ -36,9 +36,9 @@ repository.
 
 ### 1.1 Purpose
 
-This DDS translates the high-level design of the Umaxica App (JIT) into implementation-ready detail.
-It describes how each namespace, controller, concern, model, service, and infrastructure component
-collaborates to satisfy the SRS.
+This DDS translates the high-level design of the Umaxica Apps Cosmos Regional into
+implementation-ready detail. It describes how each namespace, controller, concern, model, service,
+and infrastructure component collaborates to satisfy the SRS.
 
 ### 1.2 Scope
 

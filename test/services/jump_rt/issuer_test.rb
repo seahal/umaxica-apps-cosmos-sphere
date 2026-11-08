@@ -60,6 +60,13 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     )
   end
 
+  test "kid validation accepts printable boundary lengths and rejects controls" do
+    assert SecurityJwtJumpRtTokenCodec.valid_kid?("k" * 127)
+    assert SecurityJwtJumpRtTokenCodec.valid_kid?("k" * 128)
+    assert_not SecurityJwtJumpRtTokenCodec.valid_kid?("k" * 129)
+    assert_not SecurityJwtJumpRtTokenCodec.valid_kid?("bad\nkid")
+  end
+
   test "returns nil for url with invalid percent encoding" do
     with_env(
       "JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a",

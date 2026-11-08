@@ -1250,9 +1250,11 @@ class Base::Org::AvatarOwnershipTransfersControllerTest < ActionDispatch::Integr
       avatar_public_id: token.selected_avatar_public_id,
     }
     actor_context = context.except(:avatar_public_id)
-    BaseSelectorAuthority.select!(
+    selection = BaseSelectorAuthority.select(
       surface: :org, principal: operator, session: rp_session, params: actor_context,
     )
+
+    assert_equal "selected", selection.fetch(:status)
     BaseSwitcherAuthority.switch(
       surface: :org, principal: operator, session: rp_session, params: context,
     ) if context[:avatar_public_id].present?

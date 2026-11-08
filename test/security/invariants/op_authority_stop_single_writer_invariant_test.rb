@@ -13,8 +13,13 @@ class OpAuthorityStopSingleWriterInvariantTest < ActiveSupport::TestCase
   # ceremony rows, capability grants (`revoke!(by:)`), and SignRiskEnforcer's actor-side event
   # transition. The latter commits the identity epoch before OP stops are applied.
   NON_AUTHORITY_CALLS = [
-    %r{\Aapp/models/concerns/token_status_management\.rb:\s*ceremony\.revoke!\(},
-    %r{\Aapp/services/credential_security_transition\.rb:\s*ceremony\.revoke!\(},
+    %r{\Aapp/models/concerns/token_status_management\.rb:\s*ceremony\.revoke!\s+unless\s+ceremony\.terminal\?\z},
+    %r{
+      \Aapp/operations/oidc_step_up_authorization_completion_committer\.rb:
+      \s*ceremony\.revoke!\s+unless\s+ceremony\.terminal\?\z
+    }x,
+    %r{\Aapp/services/credential_security_transition\.rb:\s*ceremony\.revoke!\s+unless\s+ceremony\.terminal\?\z},
+    %r{\Aapp/operations/org_iam_owner_mutation\.rb:\s*current\.revoke!\(by: locked_actor, reason_code:\)\z},
     %r{\Aapp/controllers/concerns/auth_ceremony_context\.rb:\s*current_auth_ceremony_session&\.revoke!\z},
     %r{\Aapp/controllers/concerns/withdrawal_ceremony_authentication\.rb:\s*ceremony\.revoke!\z},
     %r{\Aapp/operations/op_identity_event_invalidator\.rb:.*device_session_record&\.revoke!\(reason:},

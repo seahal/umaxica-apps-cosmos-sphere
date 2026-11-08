@@ -24,12 +24,15 @@ class BaseSelectorAuthority
   def self.selection_options(surface:, principal:)
     new(surface: surface, principal: principal, session: nil).selection_options
   end
+  public_class_method :prepare, :select, :selection_options
 
   def initialize(surface:, principal:, session:)
     @config = AcmeSelector.config_for(surface)
     @principal = principal
     @session = session
   end
+
+  public
 
   def prepare
     candidates = selector_candidates

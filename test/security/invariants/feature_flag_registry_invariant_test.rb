@@ -61,6 +61,16 @@ module Security
         assert_match(/unregistered feature flag/, error.message)
       end
 
+      test "passes an actor to the registered feature gate" do
+        flag = :sign_in_available_app
+        actor = Object.new
+        flipper = Minitest::Mock.new
+        flipper.expect(:enabled?, true, [flag, actor])
+
+        assert FeatureFlags.enabled?(flag, actor, flipper: flipper)
+        flipper.verify
+      end
+
       private
 
       def source_paths

@@ -1292,6 +1292,23 @@ class Auth::App::Sign::Up::EmailsControllerTest < ActionDispatch::IntegrationTes
     assert_equal I18n.t("errors.messages.already_authenticated"), response.body
   end
 
+  test "new rejects an authenticated JSON registration request with the guest-only response" do
+    user = Client.create!(
+      security_mode_id: SecurityModeConfigurable::NORMAL,
+      status_id: ClientStatus::VERIFIED_WITH_SIGN_UP,
+    )
+    get new_auth_app_sign_up_email_url(ri: "jp", format: :json),
+        headers: as_user_headers(
+          user,
+          host: ENV.fetch("PUBLIC_AUTH_SERVICE_URL"),
+          headers: { "Accept" => "application/json" },
+        )
+
+    assert_response :forbidden
+    assert_equal({ "error" => I18n.t("errors.messages.already_authenticated") }, response.parsed_body)
+    assert_nil response.location
+  end
+
   test "create rejects when user is already logged in" do
     user = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::VERIFIED_WITH_SIGN_UP)
 

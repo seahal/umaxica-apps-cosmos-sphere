@@ -24,6 +24,9 @@ class SignInPathRefusalValueTest < ActiveSupport::TestCase
     %w(turnstile_failed oidc_access_denied).each do |reason|
       assert_raises(ArgumentError) { SignInPathRefusalValue.for(reason).status }
     end
+
+    assert_predicate SignInPathRefusalValue.for("oidc_access_denied"), :protocol?
+    assert_not_predicate SignInPathRefusalValue.for("turnstile_failed"), :protocol?
   end
 
   test "an unknown reason is refused" do

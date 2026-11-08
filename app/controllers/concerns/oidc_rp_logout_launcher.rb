@@ -26,7 +26,11 @@ module OidcRpLogoutLauncher
     @current_session_public_id = @oidc_rp_logout_session.public_id
   rescue ActiveRecord::ActiveRecordError, PG::Error, OidcOpJwksClient::FetchError => e
     Rails.logger.error(
-      "auth.sign_out.rp_local_authentication_failed error_class=#{e.class.name} result=unavailable",
+      JitLogEvent.format(
+        "auth.sign_out.rp_local_authentication_failed",
+        error_class: e.class.name,
+        result: "unavailable",
+      ),
     )
     render_oidc_rp_logout_unavailable(status: :service_unavailable)
   end
@@ -54,7 +58,11 @@ module OidcRpLogoutLauncher
       revoke_oidc_rp_session_before_redirect!(session_record)
     rescue ActiveRecord::ActiveRecordError, PG::Error => e
       Rails.logger.error(
-        "auth.sign_out.rp_local_revoke_failed error_class=#{e.class.name} result=unavailable",
+        JitLogEvent.format(
+          "auth.sign_out.rp_local_revoke_failed",
+          error_class: e.class.name,
+          result: "unavailable",
+        ),
       )
       return render_oidc_rp_logout_unavailable(status: :service_unavailable)
     end
@@ -65,8 +73,11 @@ module OidcRpLogoutLauncher
   rescue OidcClientRegistry::ClientNotFound, OidcRpLogoutError, URI::InvalidURIError,
          RpSession::IssuanceRejected, ActiveRecord::ActiveRecordError => e
     Rails.logger.warn(
-      "auth.sign_out.rp_initiated_logout_rejected " \
-      "error_class=#{e.class.name} result=unavailable",
+      JitLogEvent.format(
+        "auth.sign_out.rp_initiated_logout_rejected",
+        error_class: e.class.name,
+        result: "unavailable",
+      ),
     )
     render_oidc_rp_logout_unavailable
   end
@@ -223,7 +234,11 @@ module OidcRpLogoutLauncher
     return true if result.ok?
 
     Rails.logger.error(
-      "auth.sign_out.o9_session_cancellation_failed surface=#{surface} result=#{result.status}",
+      JitLogEvent.format(
+        "auth.sign_out.o9_session_cancellation_failed",
+        surface: surface,
+        result: result.status,
+      ),
     )
     false
   end

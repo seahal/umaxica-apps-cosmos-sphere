@@ -329,6 +329,19 @@ class IdentitySocialCeremonyContractTest < ActiveSupport::TestCase
     end
   end
 
+  test "verified grant decoding rejects a payload changed after signing" do
+    travel_to @now do
+      token = IdentitySocialCeremonyGrant.issue(valid_grant_claims, issuer_id: acme_issuer_id, now: @now)
+      parts = token.split(".")
+      claims = JSON.parse(Base64.urlsafe_decode64(parts.fetch(1)))
+      parts[1] = Base64.urlsafe_encode64(claims.merge("actor_ref" => "attacker").to_json, padding: false)
+
+      assert_social_ceremony_error("token verification failed") do
+        IdentitySocialCeremonyGrant.decode(parts.join("."), issuer_id: acme_issuer_id, now: @now)
+      end
+    end
+  end
+
   test "decode_untrusted_routing_payload rejects a token whose payload is not a JSON object" do
     header = Base64.urlsafe_encode64(%q({"alg":"none"}), padding: false)
 
@@ -340,6 +353,10 @@ class IdentitySocialCeremonyContractTest < ActiveSupport::TestCase
           IdentitySocialCeremonyContract.decode_untrusted_routing_payload(token)
         end
       assert_includes error.message, "must be a JSON object", "payload #{body}"
+    end
+
+    assert_social_ceremony_error("token is invalid") do
+      IdentitySocialCeremonyContract.decode_untrusted_routing_payload("not-a-jwt")
     end
   end
 

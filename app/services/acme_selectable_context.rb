@@ -18,6 +18,8 @@ module AcmeSelectableContext
   InvalidSelection = Class.new(StandardError)
   SelectionAlreadyEstablished = Class.new(StandardError)
 
+  public
+
   # Every (account, collective, unit, avatar) combination the principal may act as. For
   # optional and unsupported Avatar modes the nil slot is explicit. Avatar candidates require
   # current ownership by the membership's collective and surface-specific avatar.view permission.
@@ -141,6 +143,8 @@ module AcmeSelectableContext
       end
     end
   end
+
+  private :persist_rp_app_selection!, :persist_rp_org_selection!
 
   # Flattened, view-friendly serialization of candidates for JSON responses.
   def serialize_candidates(candidates)

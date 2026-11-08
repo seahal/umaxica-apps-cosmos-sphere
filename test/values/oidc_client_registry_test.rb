@@ -14,6 +14,9 @@ class OidcClientRegistryTest < ActiveSupport::TestCase
     assert_equal "core-app-jp", client.client_id
     assert_equal "core-app-jp", client.aud
     assert client.redirect_uris.any? { |uri| uri.end_with?("/oidc/callback") }
+    assert_not_predicate client, :public_client?
+    assert_predicate client, :confidential_client?
+    assert_predicate client, :private_key_jwt_client?
   end
 
   test "each first-party RP registers a callback on its own surface" do
@@ -72,6 +75,39 @@ class OidcClientRegistryTest < ActiveSupport::TestCase
     assert_raises(OidcClientRegistry::ClientNotFound) do
       OidcClientRegistry.find!("unknown-client")
     end
+  end
+
+  test "client assertion authentication refuses an unknown client without returning claims" do
+    result = OidcClientRegistry.verify_client_assertion(
+      "unknown-client",
+      "untrusted-assertion",
+      token_url: "https://issuer.example.invalid/oauth/token",
+    )
+
+    assert_not_predicate result, :authenticated?
+    assert_nil result.client
+    assert_equal :none, result.step_up_claims_state
+    assert_nil result.step_up_expectation
+    assert_not_predicate result, :step_up_claims_present?
+    assert_not OidcClientRegistry.authenticate_assertion(
+      "unknown-client",
+      "untrusted-assertion",
+      token_url: "https://issuer.example.invalid/oauth/token",
+    )
+  end
+
+  test "discovery audiences and revocation authentication methods stay within each realm" do
+    client_audiences = OidcClientRegistry.audiences_for_resource_type("client")
+    operator_audiences = OidcClientRegistry.audiences_for_resource_type("staff")
+
+    assert_includes client_audiences, "core-app-jp"
+    assert_not_includes client_audiences, "core-org-jp"
+    assert_includes operator_audiences, "core-org-jp"
+    assert_not_includes operator_audiences, "core-app-jp"
+    assert_equal ["private_key_jwt"], OidcClientRegistry.revocation_endpoint_auth_methods_for("client")
+    assert_equal ["private_key_jwt"], OidcClientRegistry.revocation_endpoint_auth_methods_for("operator")
+    assert_raises(ArgumentError) { OidcClientRegistry.audiences_for_resource_type("unsupported") }
+    assert_raises(ArgumentError) { OidcClientRegistry.revocation_endpoint_auth_methods_for("unsupported") }
   end
 
   private

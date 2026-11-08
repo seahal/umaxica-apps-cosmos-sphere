@@ -1,4 +1,4 @@
-# Umaxica Apps Global — Agent Instructions
+# Umaxica Apps Cosmos Regional — Agent Instructions
 
 Production Rails application, not the Rails framework. `README.md` describes topology and routing.
 `AGENTS.md` is the shared entry point; `CLAUDE.md` imports it with `@AGENTS.md`. Keep repository

@@ -3,6 +3,182 @@
 require "test_helper"
 
 class BaseStepUpAdmissionIssuerTest < ActiveSupport::TestCase
+  test "missing ambiguous malformed and restart digest proofs refuse admission without persistence" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    token = ClientToken.create!(authentication_epoch: 0, user: actor)
+    requirement = StepUpRequirement.new(
+      step_up_required: false, scope: "settings_passkey", allowed_methods: [:passkey],
+      phishing_resistant_required: false, user_verification_required: false,
+      full_reauthentication_required: false, ttl: 15.minutes, purpose: "bootstrap",
+      audience: "step_up:app", session_binding: token.public_id, token_binding: token.public_id,
+      require_session_binding: true, actor_ref: actor.public_id, resource_ref: nil, tenant_ref: nil,
+    )
+    proofs = [
+      {}, { base_browser_nonce: "" }, { base_browser_nonce: 1 },
+      { base_browser_digest: "a" * 63 }, { base_browser_digest: "a" * 65 },
+      { base_browser_digest: "A" * 64 }, { base_browser_digest: 1 },
+      { base_browser_nonce: "browser", base_browser_digest: "a" * 64 },
+      { base_browser_digest: "a" * 64, restart_of: "restart" },
+    ]
+
+    proofs.each do |proof|
+      error = nil
+      assert_no_difference [-> { ClientStepUpCeremonyTransaction.count }, -> { ClientStepUpSession.count }] do
+        error =
+          assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+            BaseStepUpAdmissionIssuer.call!(
+              actor:, token:, requirement:, return_to: "/identity/passkeys", base_token: token, **proof,
+            )
+          end
+      end
+
+      assert_equal "session_binding_mismatch", error.code
+    end
+  end
+
+  test "foreign actors tokens and unsupported session types cannot issue an admission" do
+    client = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    foreign_client = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    client_token = ClientToken.create!(authentication_epoch: 0, user: client)
+    operator = Operator.create!(security_mode_id: SecurityModeConfigurable::ADVANCED)
+    operator_token = OperatorToken.create!(authentication_epoch: 0, staff: operator)
+    cases = [
+      { actor: foreign_client, token: client_token, base_token: client_token },
+      { actor: client, token: operator_token, base_token: operator_token },
+      { actor: client, token: client_token, base_token: operator_token },
+      { actor: client, token: nil, base_token: nil },
+    ]
+
+    cases.each do |arguments|
+      error = nil
+      assert_no_difference [-> { ClientStepUpCeremonyTransaction.count }, -> {
+        OperatorStepUpCeremonyTransaction.count
+      },] do
+        error =
+          assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+            BaseStepUpAdmissionIssuer.call!(
+              **arguments, requirement: StepUpRequirement.new(step_up_required: false),
+                           return_to: "/identity/passkeys", base_browser_nonce: "browser",
+            )
+          end
+      end
+
+      assert_equal "session_binding_mismatch", error.code
+    end
+  end
+
+  test "an unknown scope is refused before creating ceremony or session records" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    token = ClientToken.create!(authentication_epoch: 0, user: actor)
+    requirement = StepUpRequirement.new(
+      step_up_required: false, scope: "unregistered_scope", allowed_methods: [:passkey],
+      phishing_resistant_required: false, user_verification_required: false,
+      full_reauthentication_required: false, ttl: 15.minutes, purpose: "bootstrap",
+      audience: "step_up:app", session_binding: token.public_id, token_binding: token.public_id,
+      require_session_binding: true, actor_ref: actor.public_id, resource_ref: nil, tenant_ref: nil,
+    )
+    error = nil
+
+    assert_no_difference [-> { ClientStepUpCeremonyTransaction.count }, -> { ClientStepUpSession.count }] do
+      error =
+        assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+          BaseStepUpAdmissionIssuer.call!(
+            actor:, token:, requirement:, return_to: "/identity/passkeys", base_token: token,
+            base_browser_nonce: "browser",
+          )
+        end
+    end
+
+    assert_equal "malformed_request", error.code
+  end
+
+  test "a valid 64 character digest issues a bootstrap admission bound to the supplied browser proof" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    token = ClientToken.create!(authentication_epoch: 0, user: actor)
+    now = OpBaseAppRecord.database_now
+    token.device_session_record!
+    token.update!(root_login_established_at: now, established_authentication_method: "passkey")
+    token.rotate_refresh_token!(now:)
+    requirement = StepUpRequirement.new(
+      step_up_required: false, scope: "settings_passkey", allowed_methods: [:passkey],
+      phishing_resistant_required: false, user_verification_required: false,
+      full_reauthentication_required: false, ttl: 15.minutes, purpose: "bootstrap",
+      audience: "step_up:app", session_binding: token.public_id, token_binding: token.public_id,
+      require_session_binding: true, actor_ref: actor.public_id, resource_ref: nil, tenant_ref: nil,
+    )
+    issuance = BaseStepUpAdmissionIssuer.call!(
+      actor:, token:, requirement:, return_to: "/identity/passkeys", base_token: token,
+      base_browser_digest: "a" * 64,
+    )
+    binding = BaseAuthAdmissionCoordinator.find_admission_binding!(surface: "app", reference: issuance.reference)
+
+    assert_equal "a" * 64, binding.base_browser_digest
+    assert_equal token.id, binding.base_token_id
+    assert_equal "bootstrap", issuance.transaction.purpose
+    assert_equal actor.public_id, issuance.transaction.actor_ref
+    assert_equal token.public_id, issuance.transaction.session_ref
+    assert_equal issuance.transaction.transaction_id,
+                 ClientStepUpSession.find_by!(user_token_id: token.id).step_up_ceremony_transaction_ref
+    assert_nil token.reload.last_step_up_at
+  end
+
+  test "restart form bindings require the original intent browser and live session without writing state" do
+    actor = Client.create!(security_mode_id: SecurityModeConfigurable::NORMAL, status_id: ClientStatus::ACTIVE)
+    token = ClientToken.create!(authentication_epoch: 0, user: actor)
+    now = OpBaseAppRecord.database_now
+    token.device_session_record!
+    token.update!(root_login_established_at: now, established_authentication_method: "passkey")
+    token.rotate_refresh_token!(now:)
+    requirement = StepUpRequirement.new(
+      step_up_required: false, scope: "settings_passkey", allowed_methods: [:passkey],
+      phishing_resistant_required: false, user_verification_required: false,
+      full_reauthentication_required: false, ttl: 15.minutes, purpose: "bootstrap",
+      audience: "step_up:app", session_binding: token.public_id, token_binding: token.public_id,
+      require_session_binding: true, actor_ref: actor.public_id, resource_ref: nil, tenant_ref: nil,
+    )
+    issuance = BaseStepUpAdmissionIssuer.call!(
+      actor:, token:, requirement:, return_to: "/identity/passkeys", base_token: token,
+      base_browser_nonce: "original-browser",
+    )
+    arguments = {
+      actor:,
+      token:,
+      requirement:,
+      return_to: "/identity/passkeys",
+      base_token: token,
+      base_browser_nonce: "original-browser",
+      restart_of: issuance.reference,
+    }
+    before = issuance.transaction.reload.attributes
+    binding = BaseStepUpAdmissionIssuer.restart_binding_for_form!(**arguments)
+
+    assert_equal issuance.reference, binding.entry_ref
+    assert_equal before, issuance.transaction.reload.attributes
+
+    [
+      [{ base_token: nil }, "session_binding_mismatch"],
+      [{ return_to: "/identity/passkeys/new" }, "invalid_admission"],
+      [{ base_browser_nonce: "foreign-browser" }, "session_binding_mismatch"],
+    ].each do |overrides, code|
+      error =
+        assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+          BaseStepUpAdmissionIssuer.restart_binding_for_form!(**arguments.merge(overrides))
+        end
+
+      assert_equal code, error.code
+      assert_equal before, issuance.transaction.reload.attributes
+    end
+
+    token.revoke!(now:)
+    error =
+      assert_raises(BaseAuthAdmissionCoordinator::Denied) do
+        BaseStepUpAdmissionIssuer.restart_binding_for_form!(**arguments)
+      end
+
+    assert_equal "invalid_admission", error.code
+    assert_equal "revoked", issuance.transaction.reload.status
+  end
+
   test "APP and ORG refuse direct step-up admissions without an OP authorization context" do
     %w(app org).each do |surface|
       actor, token, transaction_model, session_model =

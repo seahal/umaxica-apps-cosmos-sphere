@@ -1107,6 +1107,44 @@ class Auth::App::Sign::In::EmailsControllerTest < ActionDispatch::IntegrationTes
     assert_not_nil @current_auth_ceremony.authentication_event_at
   end
 
+  test "correct email OTP does not record authentication evidence for an administratively locked client" do
+    user = clients(:one)
+    test_email = user.client_emails.create!(
+      address: "admin_locked_signin_#{SecureRandom.hex(4)}@example.com",
+    ).tap(&:finalize_binding!)
+
+    post auth_app_sign_in_email_url(ri: "jp", fb: @primary_sign_in_binding),
+         params: {
+           :user_email => { address: test_email.address },
+           "cf-turnstile-response" => "test_token",
+         },
+         headers: { "Host" => @host }
+
+    assert_equal test_email.id, SignAppInEmailAuthenticationState.load(session)&.id
+    valid_pass_code = @current_auth_ceremony.issue_email_otp!(contact: test_email, destination: test_email.address)
+    user.reload.update!(
+      access_state: AdministrativeAccessLockable::ACCESS_STATE_ADMIN_LOCKED,
+      admin_locked_at: Time.current,
+      admin_locked_by_operator_id: operators(:one).id,
+      admin_locked_reason_code: "security_incident",
+    )
+    client_token_ids = ClientToken.where(user_id: user.id).order(:id).pluck(:id)
+
+    patch auth_app_sign_in_email_url(ri: "jp", fb: @primary_sign_in_binding),
+          params: { user_email: { pass_code: valid_pass_code } },
+          headers: { "Host" => @host }
+
+    assert_response :unprocessable_content
+    assert_includes response.body, I18n.t("sign.app.authentication.email.update.invalid_code", locale: :ja)
+    assert_predicate user.reload, :admin_locked?
+    assert_not_predicate @current_auth_ceremony.reload, :authentication_evidence_recorded?
+    assert_nil @current_auth_ceremony.authentication_method
+    assert_nil @current_auth_ceremony.authentication_event_at
+    assert_equal client_token_ids, ClientToken.where(user_id: user.id).order(:id).pluck(:id)
+    assert_nil cookies[AuthenticationBase::ACCESS_COOKIE_KEY]
+    assert_nil cookies[AuthenticationBase::REFRESH_COOKIE_KEY]
+  end
+
   test "invalid OTP code returns error message" do
     user = clients(:one)
     test_email = user.client_emails.create!(

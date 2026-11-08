@@ -33,6 +33,7 @@ class OpAuthorityStopCommitter
       root: ClientToken,
       grant: OpAppGrant,
       device: ClientDeviceSession,
+      device_session_association: :client_device_session,
       root_key: :client_token_id,
       resource_type: "client",
     },
@@ -45,6 +46,7 @@ class OpAuthorityStopCommitter
       root: OperatorToken,
       grant: OpOrgGrant,
       device: OperatorDeviceSession,
+      device_session_association: :operator_device_session,
       root_key: :operator_token_id,
       resource_type: "operator",
     },
@@ -269,6 +271,10 @@ class OpAuthorityStopCommitter
     scope_rows = scope_rows.or(live.where(device_session_id: locked_root.device_session_id)) if
       locked_root.device_session_id
     grants = scope_rows.order(:id).lock.to_a
+    ActiveRecord::Associations::Preloader.new(
+      records: grants,
+      associations: config.fetch(:device_session_association),
+    ).call if grants.any?
     return [nil, []] if locked_root.revoked? && grants.empty?
 
     [locked_root, grants]

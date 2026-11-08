@@ -110,6 +110,28 @@ class BranchCoverageBatch30LibEasyArmsTest < ActiveSupport::TestCase
     assert_equal "operator", SecurityJwtOidcIdTokenCodec.resource_type_for_resource(Operator.new(security_mode_id: SecurityModeConfigurable::ADVANCED))
   end
 
+  test "SecurityJwtOidcIdTokenCodec normalizes integer NumericDate inputs" do
+    issued_at = 1_800_000_000
+    client = Struct.new(:client_id, :resource_type).new("cid", "client")
+    payload = SecurityJwtOidcIdTokenCodec.build_payload(
+      resource: Client.new(security_mode_id: SecurityModeConfigurable::NORMAL),
+      client:,
+      nonce: "n",
+      issued_at:,
+      expires_at: issued_at + 60,
+      acr: "aal1",
+      amr: nil,
+      issuer: "iss",
+      subject: "sub",
+      sid: "sid",
+      auth_time: nil,
+      step_up_until: nil,
+    )
+
+    assert_equal issued_at, payload.fetch("iat")
+    assert_equal issued_at + 60, payload.fetch("exp")
+  end
+
   test "SignInSequence expired blank expires_at is expired" do
     seq = SignInSequence.new(id: "1", expires_at: nil)
 

@@ -340,5 +340,103 @@ class StepUpCeremonyTransactionTransitionTest < ActiveSupport::TestCase
       assert_equal "verified", transaction.reload.status
       assert_equal "b" * 64, transaction.result_digest
     end
+
+    test "#{model.name} cancellation handoff retries preserve the first binding" do
+      transaction = model.create_transaction!(
+        actor_ref: "actor", session_ref: "session", required_scope: "settings_passkey",
+        required_aal: "none", allowed_methods: ["passkey"], purpose: "step_up",
+      )
+      reference = SecureRandom.uuid
+      ciphertext = "encrypted-cancellation-handoff"
+
+      transaction.prepare_cancellation_handoff!(reference:, ciphertext:)
+      transaction.prepare_cancellation_handoff!(reference:, ciphertext:)
+
+      assert_equal reference, transaction.reload.cancellation_handoff_ref
+      assert_equal ciphertext, transaction.cancellation_handoff_ciphertext
+
+      conflict =
+        assert_raises(IdentityStepUpCeremonyContract::Error) do
+          transaction.prepare_cancellation_handoff!(reference: SecureRandom.uuid, ciphertext:)
+        end
+
+      assert_equal "transaction_conflict", conflict.code
+      assert_equal reference, transaction.reload.cancellation_handoff_ref
+
+      conflict =
+        assert_raises(IdentityStepUpCeremonyContract::Error) do
+          transaction.prepare_cancellation_handoff!(reference:, ciphertext: "different-ciphertext")
+        end
+
+      assert_equal "transaction_conflict", conflict.code
+      assert_equal ciphertext, transaction.reload.cancellation_handoff_ciphertext
+    end
+
+    test "#{model.name} cancellation digest can be attached on retry and must remain the same" do
+      transaction = model.create_transaction!(
+        actor_ref: "actor", session_ref: "session", required_scope: "settings_passkey",
+        required_aal: "none", allowed_methods: ["passkey"], purpose: "step_up",
+      )
+      now = model.database_now
+
+      assert_raises(ArgumentError) { transaction.commit_cancellation!(now:, cancellation_handoff_digest: "") }
+
+      transaction.commit_cancellation!(now:)
+      digest = "a" * 64
+      transaction.commit_cancellation!(now: now + 1.second, cancellation_handoff_digest: digest)
+      transaction.commit_cancellation!(now: now + 2.seconds, cancellation_handoff_digest: digest)
+
+      assert_equal "canceled", transaction.reload.status
+      assert_equal digest, transaction.cancellation_handoff_digest
+
+      conflict =
+        assert_raises(IdentityStepUpCeremonyContract::Error) do
+          transaction.commit_cancellation!(now: now + 3.seconds, cancellation_handoff_digest: "b" * 64)
+        end
+
+      assert_equal "transaction_conflict", conflict.code
+      assert_equal digest, transaction.reload.cancellation_handoff_digest
+    end
+
+    test "#{model.name} persisted cancellation handoff fields cannot be replaced" do
+      transaction = model.create_transaction!(
+        actor_ref: "actor", session_ref: "session", required_scope: "settings_passkey",
+        required_aal: "none", allowed_methods: ["passkey"], purpose: "step_up",
+      )
+      reference = SecureRandom.uuid
+      ciphertext = "encrypted-cancellation-handoff"
+      transaction.prepare_cancellation_handoff!(reference:, ciphertext:)
+
+      assert_not transaction.update(cancellation_handoff_ref: SecureRandom.uuid)
+      assert_includes transaction.errors[:cancellation_handoff_ref], "cannot change after issuance"
+      transaction.reload
+
+      assert_not transaction.update(cancellation_handoff_ciphertext: "replacement-ciphertext")
+      assert_includes transaction.errors[:cancellation_handoff_ciphertext], "cannot change after issuance"
+      transaction.reload
+
+      digest = "a" * 64
+      transaction.commit_cancellation!(now: model.database_now, cancellation_handoff_digest: digest)
+
+      assert_not transaction.update(cancellation_handoff_digest: "b" * 64)
+      assert_includes transaction.errors[:cancellation_handoff_digest], "cannot change after cancellation"
+      assert_equal [reference, ciphertext, digest], transaction.reload.attributes.values_at(
+        "cancellation_handoff_ref", "cancellation_handoff_ciphertext", "cancellation_handoff_digest",
+      )
+    end
+
+    test "#{model.name} unavailable refusal distinguishes malformed purpose and expiry" do
+      now = model.database_now
+      transaction = model.create_transaction!(
+        actor_ref: "actor", session_ref: "session", required_scope: "settings_passkey",
+        required_aal: "none", allowed_methods: ["passkey"], purpose: "step_up",
+      )
+
+      assert_equal "malformed_request", transaction.unavailable_refusal_code(expected_purposes: [], now:)
+      assert_equal "transaction_unavailable",
+                   transaction.unavailable_refusal_code(expected_purposes: ["step_up"], now:)
+      assert_equal "transaction_expired",
+                   transaction.unavailable_refusal_code(expected_purposes: ["step_up"], now: transaction.expires_at)
+    end
   end
 end

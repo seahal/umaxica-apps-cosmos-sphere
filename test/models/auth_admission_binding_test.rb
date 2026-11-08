@@ -9,20 +9,48 @@ class AuthAdmissionBindingTest < ActiveSupport::TestCase
   test "attachment and confirmation predicates follow lifecycle status in each realm" do
     [ClientAuthAdmissionBinding, OperatorAuthAdmissionBinding].each do |binding_model|
       expected = {
-        AuthAdmissionBinding::ISSUED_STATUS_ID => [false, false],
-        AuthAdmissionBinding::ATTACHED_STATUS_ID => [true, false],
-        AuthAdmissionBinding::BASE_CONFIRMED_STATUS_ID => [true, true],
-        AuthAdmissionBinding::REDEEMED_STATUS_ID => [true, true],
-        AuthAdmissionBinding::RETIRED_STATUS_ID => [false, false],
-        AuthAdmissionBinding::SWITCHED_STATUS_ID => [true, true],
+        AuthAdmissionBinding::ISSUED_STATUS_ID => [false, false, false],
+        AuthAdmissionBinding::ATTACHED_STATUS_ID => [true, false, false],
+        AuthAdmissionBinding::BASE_CONFIRMED_STATUS_ID => [true, true, false],
+        AuthAdmissionBinding::REDEEMED_STATUS_ID => [true, true, true],
+        AuthAdmissionBinding::RETIRED_STATUS_ID => [false, false, false],
+        AuthAdmissionBinding::SWITCHED_STATUS_ID => [true, true, true],
       }
 
-      expected.each do |status_id, (attached, confirmed)|
+      expected.each do |status_id, (attached, confirmed, redeemed_or_switched)|
         binding = binding_model.new(status_id: status_id)
 
-        assert_equal [attached, confirmed], [binding.attached?, binding.confirmed?],
+        assert_equal [attached, confirmed, redeemed_or_switched],
+                     [binding.attached?, binding.confirmed?, binding.redeemed_or_switched?],
                      "#{binding_model.name} status #{status_id}"
       end
+    end
+  end
+
+  test "realm binding classes delegate browser digest validation and bind the digest to its realm" do
+    entry_ref = "00000000-0000-4000-8000-000000000001"
+    nonce = "base-browser-nonce"
+    app_digest = ClientAuthAdmissionBinding.browser_digest(surface: "app", entry_ref:, nonce:)
+    org_digest = OperatorAuthAdmissionBinding.browser_digest(surface: "org", entry_ref:, nonce:)
+
+    assert_equal AuthAdmissionBinding.browser_digest(surface: "app", entry_ref:, nonce:), app_digest
+    assert_equal AuthAdmissionBinding.browser_digest(surface: "org", entry_ref:, nonce:), org_digest
+    assert_not_equal app_digest, org_digest
+
+    [
+      [nil, entry_ref, "browser nonce is invalid"],
+      ["", entry_ref, "browser nonce is required"],
+      [nonce, nil, "entry reference is invalid"],
+      [nonce, "", "entry reference is required"],
+    ].each do |candidate_nonce, candidate_entry_ref, message|
+      error =
+        assert_raises(ArgumentError) do
+          ClientAuthAdmissionBinding.browser_digest(
+            surface: "app", entry_ref: candidate_entry_ref, nonce: candidate_nonce,
+          )
+        end
+
+      assert_equal message, error.message
     end
   end
 
@@ -41,6 +69,10 @@ class AuthAdmissionBindingTest < ActiveSupport::TestCase
       end
       reference = "00000000-0000-4000-8000-000000000001"
       binding.attach_auth_session!(auth_session:, confirmation_ref: reference)
+      binding.attach_auth_session!(auth_session:, confirmation_ref: reference)
+      assert_raises(AuthAdmissionBinding::InvalidTransition, "#{surface}: changed confirmation is refused") do
+        binding.attach_auth_session!(auth_session:, confirmation_ref: SecureRandom.uuid)
+      end
 
       assert_equal [auth_session.id, reference], [binding.reload.auth_ceremony_session_id, binding.confirmation_ref]
     end
@@ -288,9 +320,24 @@ class AuthAdmissionBindingTest < ActiveSupport::TestCase
 
     assert_not partial.valid?
     assert_includes partial.errors[:base], "Auth session and confirmation reference must be supplied together"
+
+    unsupported_purpose = ClientAuthAdmissionBinding.new(
+      attrs.merge(authorization_transaction_id: 1, purpose: "unsupported_handoff"),
+    )
+
+    assert_not unsupported_purpose.valid?
+    assert_includes unsupported_purpose.errors[:entry_intent], "does not match admission purpose"
+
+    partial_redemption = ClientAuthAdmissionBinding.new(
+      attrs.merge(authorization_transaction_id: 1, redeemed_at: Time.current),
+    )
+
+    assert_not partial_redemption.valid?
+    assert_includes partial_redemption.errors[:base],
+                    "redemption timestamp and admitted session must be supplied together"
   end
 
-  test "attaches, confirms and redeems once without reopening terminal facts" do
+  test "confirmed proof is idempotent, while redemption switches only after pre-progress cancellation" do
     parent =
       begin
         fv5019 = SecureRandom.uuid
@@ -342,8 +389,22 @@ class AuthAdmissionBindingTest < ActiveSupport::TestCase
       end
     auth_session, raw_sid = ClientAuthCeremonySession.issue!
 
-    binding.attach_auth_session!(auth_session:, confirmation_ref: SecureRandom.uuid)
+    confirmation_ref = SecureRandom.uuid
+    binding.attach_auth_session!(auth_session:, confirmation_ref:)
+
+    binding.attach_auth_session!(auth_session:, confirmation_ref:)
+    assert_raises(AuthAdmissionBinding::InvalidTransition) do
+      binding.attach_auth_session!(auth_session:, confirmation_ref: SecureRandom.uuid)
+    end
     binding.confirm_base!(base_token: client_tokens(:one), browser_digest: digest)
+    confirmed_at = binding.reload.base_confirmed_at
+
+    binding.confirm_base!(base_token: client_tokens(:one), browser_digest: digest)
+
+    assert_equal confirmed_at, binding.reload.base_confirmed_at
+    assert_raises(AuthAdmissionBinding::InvalidTransition) do
+      binding.confirm_base!(base_token: client_tokens(:one), browser_digest: "b" * 64)
+    end
 
     admitted, = ClientAuthCeremonySession.rotate_and_admit!(
       admission_purpose: "authentication_handoff", previous_raw_sid: raw_sid,
@@ -360,6 +421,15 @@ class AuthAdmissionBindingTest < ActiveSupport::TestCase
     assert_nothing_raised do
       binding.redeem!(auth_session:, admitted_auth_session: admitted)
     end
+
+    assert_raises(AuthAdmissionBinding::InvalidTransition) { binding.switch!(auth_session: admitted) }
+    admitted.cancel!
+    binding.switch!(auth_session: admitted)
+
+    assert_predicate binding.reload, :switched?
+    assert_predicate binding, :confirmed?
+    assert_predicate binding, :redeemed_or_switched?
+    assert_equal admitted.id, binding.admitted_auth_ceremony_session_id
   end
 
   test "rejects changes to immutable identity and proof facts" do
@@ -517,8 +587,12 @@ class AuthAdmissionBindingTest < ActiveSupport::TestCase
 
     assert_not expired.live?
     expired.retire!
+    retired_at = expired.reload.retired_at
+
+    expired.retire!
 
     assert_predicate expired.reload, :retired?
+    assert_equal retired_at, expired.retired_at
     assert_not expired.redeemed?
     assert_equal first.id, first.reload.id
   end

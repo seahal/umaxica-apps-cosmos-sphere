@@ -26,6 +26,29 @@ class Base::App::RootsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
+  test "a malformed RP credential is cleared before public Home renders anonymously" do
+    host! ENV.fetch("PUBLIC_BASE_SERVICE_URL")
+    access_cookie = OidcRpBrowserCredentialContract::ACCESS_COOKIE
+    session_cookie = OidcRpBrowserCredentialContract::SESSION_COOKIE
+    cookies[access_cookie] = "malformed-access-credential"
+    cookies[session_cookie] = "stale-local-session"
+
+    get base_app_root_url(ri: "jp")
+
+    assert_response :success
+    assert_equal "base/app/roots/index", inertia_component
+    assert_same false, inertia_props.dig("chrome", "account_navigation", "signed_in")
+    assert_equal "private, no-store", response.headers.fetch("Cache-Control")
+
+    set_cookie_header = Array(response.headers["Set-Cookie"]).join("\n")
+    [access_cookie, session_cookie].each do |cookie_name|
+      deletion = set_cookie_header.lines.find { |line| line.start_with?("#{cookie_name}=") }
+
+      assert_predicate deletion, :present?, "expected #{cookie_name} to be detached"
+      assert_match(/(?:max-age=0|expires=Thu, 01 Jan 1970)/i, deletion)
+    end
+  end
+
   test "preserves an incoming request id through Rails request and response handling" do
     host! ENV.fetch("PUBLIC_BASE_SERVICE_URL")
     request_id = "550e8400-e29b-41d4-a716-446655440000"

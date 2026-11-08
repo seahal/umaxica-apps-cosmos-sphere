@@ -110,6 +110,48 @@ class ClientSecretCredentialTest < ActiveSupport::TestCase
     assert_equal Float::INFINITY, credential.discard_at
   end
 
+  test "sign-in lifecycle writers reject missing durable transaction records without state changes" do
+    credential = client_secret_credentials(:one)
+    actor = credential.client
+    context = ActorValuesContext.empty.with(subject: actor, actor_type: :client, tld: :app, surface: :base)
+    attributes = credential.attributes
+    audit_count = ClientSecretAuditOutbox.count
+
+    assert_raises(ClientSecretCredential::InvalidTransition) do
+      credential.commit_sign_in_claim!(
+        actor_context: context, flow: Object.new, ceremony: Object.new, at: Client.database_now,
+      )
+    end
+    assert_raises(ClientSecretCredential::InvalidTransition) do
+      credential.commit_sign_in_retirement!(
+        actor_context: context, at: Client.database_now, purge_at: 1.day.from_now,
+        successful: false, flow: Object.new, reason: "flow_failed",
+      )
+    end
+
+    assert_raises(ClientSecretCredential::InvalidTransition) do
+      credential.commit_management_revocation!(actor_context: nil, at: Client.database_now, purge_at: 1.day.from_now)
+    end
+    assert_raises(ClientSecretCredential::InvalidTransition) do
+      credential.commit_management_revocation!(actor_context: context, at: nil, purge_at: 1.day.from_now)
+    end
+
+    assert_equal attributes, credential.reload.attributes
+    assert_equal audit_count, ClientSecretAuditOutbox.count
+  end
+
+  test "storage confirmation refuses an unowned declaration inside its source transaction" do
+    credential = ClientSecretCredential.new
+
+    ClientSecretCredential.transaction do
+      assert_raises(ClientSecretCredential::InvalidTransition) do
+        credential.commit_storage_confirmation!(actor_context: ActorValuesContext.empty, at: Client.database_now)
+      end
+    end
+
+    assert_nil credential.confirmed_at
+  end
+
   test "public_id is a fixed 21-character NanoID" do
     assert_public_id_fixed_length(::ClientSecretCredential)
   end

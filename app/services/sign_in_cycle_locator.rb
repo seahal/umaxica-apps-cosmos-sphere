@@ -33,6 +33,8 @@ class SignInCycleLocator
     @allow_principal_without_token = allow_principal_without_token
   end
 
+  public
+
   def current(include_terminal: false)
     payload = current_payload
     return nil unless payload

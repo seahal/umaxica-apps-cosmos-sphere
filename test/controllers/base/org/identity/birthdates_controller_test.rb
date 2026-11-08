@@ -90,5 +90,61 @@ class Base::Org::Identity::BirthdatesControllerTest < ActionDispatch::Integratio
     assert_equal AuthenticationContextValue::STANDBY_KEY, token.reload.authentication_context
   end
 
+  test "missing local RP step-up evidence renders a challenge for a browser document navigation" do
+    host! @host
+    https!
+    cell = RpCellBinding.for_client("base-org-ww")
+    issuer = OidcIssuer.for_resource_type("operator")
+    subject = OidcSubject.for(@operator, resource_type: "operator")
+    sid = SecureRandom.uuid
+    enrollment = RpCallbackCommitter.call(
+      cell:, issuer:, subject:, sid:, absolute_expires_at: 1.hour.from_now,
+    )
+
+    assert_predicate enrollment, :success?
+
+    key = OpenSSL::PKey::EC.generate("secp384r1")
+    now = Time.current.to_i
+    access_token = JWT.encode(
+      { "iss" => issuer,
+        "aud" => [cell.client_id],
+        "sub" => subject,
+        "sid" => sid,
+        "iat" => now,
+        "nbf" => now - 1,
+        "exp" => now + 300,
+        "jti" => SecureRandom.uuid,
+        "scope" => "openid",
+        "client_id" => cell.client_id,
+        AuthenticationContextValue::CLAIM => AuthenticationContextValue::NORMAL_KEY, },
+      key, "ES384", { "kid" => "birthdate-step-up-test", "typ" => "at+jwt" },
+    )
+    jwks = OidcOpJwksClient.new(
+      jwks_uri: OidcIssuer.jwks_uri("operator"),
+      fetcher: -> { { "keys" => [JitSecurityJwtJwk.export_public(key, kid: "birthdate-step-up-test")] } },
+    )
+    cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] = access_token
+    cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
+
+    RuntimeRole.stub(:current, "rp-base-org-ww") do
+      RuntimeRole.stub(:rp_browser_admission_open?, true) do
+        OidcOpJwksClient.stub(:for_resource_type, jwks) do
+          get base_org_identity_birthdate_url(ri: "jp", host: @host), headers: {
+            "Host" => @host,
+            "Accept" => "text/html",
+            "Sec-Fetch-Mode" => "navigate",
+            "Sec-Fetch-Dest" => "document",
+          }
+        end
+      end
+    end
+
+    assert_response :unauthorized
+    assert_equal "private, no-store", response.headers.fetch("Cache-Control")
+    assert_includes response.headers.fetch("WWW-Authenticate"), "insufficient_user_authentication"
+    assert_select "h1", text: I18n.t("auth.step_up.challenge.title")
+    assert_select "a", text: I18n.t("actions.continue")
+  end
+
   private
 end

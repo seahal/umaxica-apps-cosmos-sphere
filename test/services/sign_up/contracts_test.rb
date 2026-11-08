@@ -32,6 +32,16 @@ class SignUpContractsTest < ActiveSupport::TestCase
     assert_predicate SignUpRequirementRegistry.for_entry(surface: :app, entry_method: "apple"), :social?
   end
 
+  test "requirement registry handles unknown and incomplete requirement state" do
+    registry = SignUpRequirementRegistry.for_entry(surface: :app, entry_method: "email")
+
+    assert_empty registry.prior_requirements(:unknown)
+    assert_not registry.requirement_cleared?(nil, :otp)
+    assert_not registry.requirement_cleared?([], :otp)
+    assert_not registry.requirement_cleared?({ "otp" => { "cleared" => false } }, :otp)
+    assert registry.requirement_cleared?({ "otp" => { "cleared" => true } }, :otp)
+  end
+
   test "requirement registry rejects unknown surfaces" do
     assert_raises(ArgumentError) { SignUpRequirementRegistry.for_entry(surface: :org, entry_method: "email") }
   end

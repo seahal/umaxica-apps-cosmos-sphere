@@ -83,7 +83,6 @@ Umaxica/NoConcernInclusionHooks:
   app/models/concerns/session_oidc_connection.rb: 1
   app/models/concerns/sign_flow.rb: 1
   app/models/concerns/sign_up_flow_ticket.rb: 1
-  app/models/concerns/single_use_token.rb: 1
   app/models/concerns/social_ceremony_transactionable.rb: 1
   app/models/concerns/step_up_ceremony_transactionable.rb: 1
   app/models/concerns/telephone.rb: 1
@@ -175,9 +174,6 @@ Umaxica/ExplicitMethodVisibility:
   app/controllers/auth/org/revisions_controller.rb: 1
   app/controllers/auth/org/robots_controller.rb: 1
   app/controllers/auth/org/roots_controller.rb: 1
-  app/controllers/auth/org/settings/entras_controller.rb: 4
-  app/controllers/auth/org/settings/removals_controller.rb: 1
-  app/controllers/auth/org/settings_controller.rb: 1
   app/controllers/auth/org/sign/in/checks_controller.rb: 1
   app/controllers/auth/org/sign/in/emergency/passkey/options_controller.rb: 1
   app/controllers/auth/org/sign/in/emergency/passkey/verifications_controller.rb: 1
@@ -314,7 +310,6 @@ Umaxica/ExplicitMethodVisibility:
   app/controllers/concerns/enforcement_identifier_gate.rb: 6
   app/controllers/concerns/health_check_rendering.rb: 3
   app/controllers/concerns/oauth_authorize_rate_limit.rb: 1
-  app/controllers/concerns/oidc_callback.rb: 1
   app/controllers/concerns/oidc_sso_initiator.rb: 2
   app/controllers/concerns/passkey_sign_in_flow.rb: 2
   app/controllers/concerns/preference_core.rb: 13
@@ -519,7 +514,6 @@ Umaxica/ExplicitMethodVisibility:
   app/controllers/palm/app/healths_controller.rb: 1
   app/controllers/palm/app/revisions_controller.rb: 1
   app/controllers/palm/app/robots_controller.rb: 1
-  app/controllers/palm/app/roots_controller.rb: 1
   app/controllers/palm/app/sitemaps_controller.rb: 1
   app/controllers/unknown_hosts_controller.rb: 1
   app/controllers/warp/app/api/v0/healths_controller.rb: 1
@@ -616,16 +610,13 @@ Umaxica/ExplicitMethodVisibility:
   app/models/actor/preference.rb: 15
   app/models/app_enforcement_case.rb: 2
   app/models/app_enforcement_identifier_effect.rb: 4
-  app/models/app_preference.rb: 1
   app/models/app_preference_adult_content_gate.rb: 3
   app/models/app_preference_adult_content_gate_option.rb: 5
-  app/models/app_preference_binding_method.rb: 1
   app/models/app_preference_chronicle.rb: 2
   app/models/app_preference_chronicle_event.rb: 1
   app/models/app_preference_chronicle_level.rb: 1
   app/models/app_preference_currency_option.rb: 2
   app/models/app_preference_date_format_option.rb: 2
-  app/models/app_preference_dbsc_status.rb: 1
   app/models/app_preference_density_option.rb: 2
   app/models/app_preference_language_option.rb: 2
   app/models/app_preference_motion_option.rb: 2
@@ -701,7 +692,6 @@ Umaxica/ExplicitMethodVisibility:
   app/models/concerns/dbsc_bindable.rb: 10
   app/models/concerns/email.rb: 3
   app/models/concerns/email_verification_challengeable.rb: 6
-  app/models/concerns/enforcement_appeal.rb: 4
   app/models/concerns/enforcement_recovery_ceremony_recordable.rb: 4
   app/models/concerns/flow_sign_in.rb: 21
   app/models/concerns/flow_withdrawal.rb: 12
@@ -711,7 +701,6 @@ Umaxica/ExplicitMethodVisibility:
   app/models/concerns/oidc_connection_record.rb: 9
   app/models/concerns/operator_secret_credential_kinds.rb: 2
   app/models/concerns/passkey_ceremony_transactionable.rb: 4
-  app/models/concerns/preference_explicit_fields.rb: 5
   app/models/concerns/preference_resettable.rb: 1
   app/models/concerns/privacy_request_due_date.rb: 1
   app/models/concerns/privacy_request_state.rb: 4
@@ -731,7 +720,6 @@ Umaxica/ExplicitMethodVisibility:
   app/models/concerns/sign_flow.rb: 4
   app/models/concerns/sign_up_flow_ticket.rb: 8
   app/models/concerns/signed_session_reference.rb: 1
-  app/models/concerns/single_use_token.rb: 2
   app/models/concerns/social_ceremony_transactionable.rb: 4
   app/models/concerns/telephone.rb: 1
   app/models/concerns/telephone_normalization.rb: 1
@@ -777,16 +765,13 @@ Umaxica/ExplicitMethodVisibility:
   app/models/operator_verification.rb: 3
   app/models/org_enforcement_case.rb: 2
   app/models/org_enforcement_identifier_effect.rb: 2
-  app/models/org_preference.rb: 1
   app/models/org_preference_adult_content_gate.rb: 3
   app/models/org_preference_adult_content_gate_option.rb: 5
-  app/models/org_preference_binding_method.rb: 1
   app/models/org_preference_chronicle.rb: 3
   app/models/org_preference_chronicle_event.rb: 1
   app/models/org_preference_chronicle_level.rb: 1
   app/models/org_preference_currency_option.rb: 2
   app/models/org_preference_date_format_option.rb: 2
-  app/models/org_preference_dbsc_status.rb: 1
   app/models/org_preference_density_option.rb: 2
   app/models/org_preference_language_option.rb: 2
   app/models/org_preference_motion_option.rb: 2
@@ -887,7 +872,6 @@ Umaxica/ExplicitMethodVisibility:
   app/operations/oidc_authorization_code_issuer.rb: 1
   app/operations/oidc_connection_recorder.rb: 1
   app/operations/oidc_refresh_token_issuer.rb: 2
-  app/operations/oidc_token_revoker.rb: 1
   app/operations/operator_entra_identity_provisioner.rb: 1
   app/operations/org_operator_lifecycle_invitation_issuer.rb: 2
   app/operations/publishing/archive_entry_operation.rb: 1
@@ -974,7 +958,6 @@ Umaxica/ExplicitMethodVisibility:
   app/serializers/health_status_serializer.rb: 2
   app/serializers/publishing_entry_serializer.rb: 2
   app/services/account_session_revocation.rb: 3
-  app/services/acme_selectable_context.rb: 4
   app/services/acme_selector.rb: 1
   app/services/administrative_access_lock.rb: 4
   app/services/analytics_consent_guard.rb: 2
@@ -988,7 +971,6 @@ Umaxica/ExplicitMethodVisibility:
   app/services/avatar_lifecycle.rb: 1
   app/services/avatar_provisioning/create.rb: 1
   app/services/avatar_social_graph.rb: 6
-  app/services/base_selector_authority.rb: 4
   app/services/base_selector_bootstrap_authority.rb: 2
   app/services/base_switcher_authority.rb: 10
   app/services/chronicle_application_service.rb: 1
@@ -1061,7 +1043,6 @@ Umaxica/ExplicitMethodVisibility:
   app/services/sign_app_session_revoke_audit.rb: 1
   app/services/sign_app_up_social_cancellation.rb: 2
   app/services/sign_in_checkpoint_participant.rb: 2
-  app/services/sign_in_cycle_locator.rb: 4
   app/services/sign_in_guardrail_participant.rb: 2
   app/services/sign_in_otp_resender.rb: 3
   app/services/sign_in_selector_participant.rb: 1
@@ -1082,7 +1063,6 @@ Umaxica/ExplicitMethodVisibility:
   app/services/sign_up_requirement_registry.rb: 9
   app/services/sign_up_session_state.rb: 14
   app/services/sign_up_state_machine.rb: 2
-  app/services/social_auth_callback_state_store.rb: 2
   app/services/social_auth_link_handler.rb: 2
   app/services/social_auth_login_handler.rb: 2
   app/services/token_emergency_service.rb: 1

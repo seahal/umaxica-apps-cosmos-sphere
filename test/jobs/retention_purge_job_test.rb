@@ -56,6 +56,33 @@ class RetentionPurgeJobTest < ActiveJob::TestCase
     assert AvatarPurgeDeferral.exists?(avatar_id: avatar.id, reason_code: "ownership_history")
   end
 
+  test "purges an eligible client passkey after recording its audit event" do
+    client = clients(:one)
+    passkey = ClientPasskey.create!(
+      user: client,
+      webauthn_id: "retention-passkey-#{SecureRandom.hex(8)}",
+      public_key: "retention-public-key",
+      sign_count: 0,
+      description: "Retention test passkey",
+    )
+    passkey.update_columns(
+      created_at: 3.hours.ago,
+      discard_at: 2.hours.ago,
+      purge_eligible_at: 1.hour.ago,
+    )
+
+    RetentionPurgeJob.perform_now(batch_size: 10)
+
+    assert_not ClientPasskey.exists?(passkey.id)
+    audit = ClientPasskeyAuditOutbox.find_by!(external_id: passkey.external_id)
+
+    assert_equal "passkey.purged", audit.event_type
+    assert_equal "app", audit.surface
+    assert_nil audit.actor_ref
+    assert_equal "retention:ClientPasskey:#{passkey.public_id}", audit.operation_ref
+    assert_equal({ "reason" => "retention_purge" }, audit.metadata)
+  end
+
   test "rejects a retention batch size outside the bounded execution range" do
     error =
       assert_raises(ArgumentError) do

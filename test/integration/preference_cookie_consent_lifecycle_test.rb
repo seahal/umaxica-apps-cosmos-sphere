@@ -5,6 +5,103 @@ require "test_helper"
 
 # Cookie consent is a browser-bound recorded decision; changing it replaces the decision receipt.
 class PreferenceCookieConsentLifecycleTest < ActionDispatch::IntegrationTest
+  test "JSON boolean decisions persist every consent category and replace the receipt" do
+    host = ENV.fetch("PUBLIC_BASE_SERVICE_URL")
+    host! host
+    https!
+    previous_receipt_version = nil
+
+    [true, false].each do |decision|
+      patch base_app_preference_cookie_path(ri: "jp"),
+            params: { preference_cookie: {
+              consented: decision, functional: decision, performant: decision, targetable: decision,
+            } }, as: :json
+
+      assert_response :ok
+      assert_equal "application/json", response.media_type
+      expected = { "consented" => decision,
+                   "functional" => decision,
+                   "performant" => decision,
+                   "targetable" => decision, }
+
+      assert_equal expected, response.parsed_body.fetch("preference").slice(*expected.keys)
+      claims = PreferenceToken.decode(cookies[PreferenceCookieName.anonymous_jwt], host:)
+      preference = AppPreference.find_by!(public_id: claims.fetch("sub"))
+      cookie = AppPreferenceCookie.find_by!(preference_id: preference.id)
+      receipt = AppPreferenceConsentReceipt.find_by!(preference_id: preference.id)
+      binding = AppPreferenceBrowserBinding.find_by!(preference_id: preference.id)
+
+      assert_equal expected, cookie.attributes.slice(*expected.keys)
+      assert PreferenceBrowserBinding.matches?(cookies[PreferenceBrowserBinding::COOKIE_NAME], binding.digest)
+      assert_not_equal previous_receipt_version, receipt.version
+      previous_receipt_version = receipt.version
+    end
+  end
+
+  test "a partial screen consent decision cannot replace the existing complete decision" do
+    host = ENV.fetch("PUBLIC_BASE_SERVICE_URL")
+    host! host
+    https!
+    patch base_app_preference_cookie_path(ri: "jp"),
+          params: { preference_cookie: { consented: "1", functional: "1", performant: "0", targetable: "0" } }
+
+    assert_response :redirect
+    jwt = cookies[PreferenceCookieName.anonymous_jwt]
+    claims = PreferenceToken.decode(jwt, host:)
+    preference = AppPreference.find_by!(public_id: claims.fetch("sub"))
+    receipt = AppPreferenceConsentReceipt.find_by!(preference_id: preference.id)
+    generation = preference.jti
+    receipt_version = receipt.version
+    consent = AppPreferenceCookie.find_by!(preference_id: preference.id).attributes
+
+    assert_no_difference [-> { AppPreference.count }, -> { AppPreferenceConsentReceipt.count },
+                          -> { AppPreferenceChronicle.count },] do
+      patch base_app_preference_cookie_path(ri: "jp"),
+            params: { preference_cookie: { consented: "0", functional: "0", performant: "0" } }, as: :json
+    end
+
+    assert_response :unprocessable_content
+    assert_equal generation, preference.reload.jti
+    assert_equal receipt_version, receipt.reload.version
+    assert_equal consent, AppPreferenceCookie.find_by!(preference_id: preference.id).attributes
+    assert_equal jwt, cookies[PreferenceCookieName.anonymous_jwt]
+  end
+
+  test "invalid screen category values preserve the consent receipt generation and browser binding" do
+    host = ENV.fetch("PUBLIC_BASE_SERVICE_URL")
+    host! host
+    https!
+    patch base_app_preference_cookie_path(ri: "jp"),
+          params: { preference_cookie: { consented: "1", functional: "1", performant: "0", targetable: "0" } }
+
+    assert_response :redirect
+    jwt = cookies[PreferenceCookieName.anonymous_jwt]
+    raw_binding = cookies[PreferenceBrowserBinding::COOKIE_NAME]
+    claims = PreferenceToken.decode(jwt, host:)
+    preference = AppPreference.find_by!(public_id: claims.fetch("sub"))
+    receipt = AppPreferenceConsentReceipt.find_by!(preference_id: preference.id)
+    generation = preference.jti
+    receipt_version = receipt.version
+    consent = AppPreferenceCookie.find_by!(preference_id: preference.id).attributes
+
+    [nil, "", "unknown", 2].each do |invalid|
+      assert_no_difference [-> { AppPreference.count }, -> { AppPreferenceConsentReceipt.count },
+                            -> { AppPreferenceChronicle.count },] do
+        patch base_app_preference_cookie_path(ri: "jp"),
+              params: { preference_cookie: {
+                consented: true, functional: invalid, performant: false, targetable: false,
+              } }, as: :json
+      end
+
+      assert_response :unprocessable_content
+      assert_equal generation, preference.reload.jti
+      assert_equal receipt_version, receipt.reload.version
+      assert_equal consent, AppPreferenceCookie.find_by!(preference_id: preference.id).attributes
+      assert_equal jwt, cookies[PreferenceCookieName.anonymous_jwt]
+      assert_equal raw_binding, cookies[PreferenceBrowserBinding::COOKIE_NAME]
+    end
+  end
+
   test "granting and withdrawing consent updates the cookie and replaces its decision receipt" do
     host = ENV.fetch("PUBLIC_BASE_SERVICE_URL")
     host! host

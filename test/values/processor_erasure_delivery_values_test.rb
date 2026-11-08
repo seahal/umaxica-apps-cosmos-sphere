@@ -73,6 +73,15 @@ class ProcessorErasureDeliveryValuesTest < Minitest::Test
     assert_raises(ArgumentError) do
       ProcessorErasureDispatchResult.retryable(code: "provider token=secret", message: "temporary")
     end
+
+    assert_raises(ArgumentError) do
+      ProcessorErasureDispatchResult.new(
+        outcome: :received,
+        receipt: Object.new,
+        error_code: nil,
+        error_message: nil,
+      )
+    end
   end
 
   def test_failure_message_is_sanitized_before_it_can_be_persisted

@@ -262,6 +262,86 @@ class OpOutboxDispatchJobTest < ActiveSupport::TestCase
     end
   end
 
+  test "participant transition writers reject invalid lease and outcome values" do
+    [nil, 0, -1, "30", 1.5].each do |lease_seconds|
+      assert_raises(ArgumentError, lease_seconds.inspect) do
+        @event.claim_delivery!(lease_seconds: lease_seconds)
+      end
+      assert_raises(ArgumentError, lease_seconds.inspect) do
+        @event.renew_delivery_lease!(lease_seconds: lease_seconds)
+      end
+    end
+
+    [nil, "", " ", [:acknowledged]].each do |outcome|
+      assert_raises(ArgumentError, outcome.inspect) do
+        @event.record_delivery_result!(outcome: outcome)
+      end
+    end
+
+    [0, -1, 1.5, "30"].each do |retry_delay_seconds|
+      assert_raises(ArgumentError, retry_delay_seconds.inspect) do
+        @event.record_delivery_result!(outcome: "http_503", retry_delay_seconds: retry_delay_seconds)
+      end
+    end
+    assert_raises(ArgumentError) do
+      @event.record_delivery_result!(outcome: :acknowledged, retry_delay_seconds: 30)
+    end
+
+    assert_equal status("pending"), @event.reload.status_id
+    assert_equal 0, @event.delivery_attempts
+  end
+
+  test "each pending transition expires the participant at the deadline" do
+    now = OpAppAuthorityStopParticipant.database_now + 1
+    pending_status = OpAuthorityStopReference.participant_status_id("pending")
+
+    [
+      [-> { @event.claim_delivery!(lease_seconds: 30) }, false],
+      [-> { @event.renew_delivery_lease!(lease_seconds: 30) }, false],
+      [-> { @event.record_delivery_result!(outcome: "http_503", retry_delay_seconds: 30) }, :expired],
+    ].each do |transition, expected_result|
+      @event.update!(
+        status_id: pending_status, deadline_at: now, next_attempt_at: now - 1.second,
+        lease_expires_at: now - 1.second, last_outcome: "before-deadline",
+      )
+
+      OpAppAuthorityStopParticipant.stub(:database_now, now) do
+        assert_equal expected_result, transition.call
+      end
+
+      assert_equal status("expired"), @event.reload.status_id
+      assert_equal "expired", @event.last_outcome
+    end
+  end
+
+  test "non-pending participants ignore lease and expiry requests and return stale delivery results" do
+    now = OpAppAuthorityStopParticipant.database_now
+
+    OpAppAuthorityStopParticipant.stub(:database_now, now) do
+      @event.record_delivery_result!(outcome: "http_404")
+
+      assert_not @event.claim_delivery!(lease_seconds: 30)
+      assert_not @event.renew_delivery_lease!(lease_seconds: 30)
+      assert_equal :stale, @event.record_delivery_result!(outcome: "http_503", retry_delay_seconds: 30)
+      assert_not @event.expire_delivery_if_due!
+    end
+
+    assert_equal [status("refused"), "http_404", now],
+                 [@event.reload.status_id, @event.last_outcome, @event.lease_expires_at]
+  end
+
+  test "expiry writer leaves a live pending participant unchanged" do
+    now = OpAppAuthorityStopParticipant.database_now + 1
+    @event.update!(deadline_at: now + 1.second)
+
+    OpAppAuthorityStopParticipant.stub(:database_now, now) do
+      assert_not @event.expire_delivery_if_due!
+    end
+
+    assert_equal status("pending"), @event.reload.status_id
+    assert_equal "none", @event.last_outcome
+  end
+
   private
 
   def status(name) = OpAuthorityStopReference.participant_status_id(name)

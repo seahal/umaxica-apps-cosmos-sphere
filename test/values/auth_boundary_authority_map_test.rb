@@ -68,6 +68,14 @@ class AuthBoundaryAuthorityMapTest < ActiveSupport::TestCase
     end
   end
 
+  test "step-up callbacks are registered only for Base self RPs" do
+    AuthBoundaryAuthorityMap::BASE_SELF_RP_CLIENT_IDS.each do |client_id|
+      assert_equal "/verification/oidc/callback", AuthBoundaryAuthorityMap.step_up_callback_path_for(client_id)
+    end
+
+    assert_raises(KeyError) { AuthBoundaryAuthorityMap.step_up_callback_path_for("core-app-jp") }
+  end
+
   test "retired browser paths are listed for inventory enforcement" do
     paths = AuthBoundaryAuthorityMap.retired_browser_paths
 
