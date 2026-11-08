@@ -1,5 +1,5 @@
 {
-  "name": "umaxica-apps-global-dc",
+  "name": "umaxica-apps-cosmos-regional-dc",
   // Both entries are TRACKED files, so this configuration resolves on a fresh
   // clone with no local file created. The Dev Containers CLI passes each entry
   // to Compose as `-f`, so an entry a clone does not contain fails the whole

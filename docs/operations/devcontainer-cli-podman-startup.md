@@ -98,7 +98,7 @@ Podman network; the Edge Worker uses Cloudflare Workers VPC to reach this tunnel
 The Podman-specific properties are Compose concerns and need no flags: `userns_mode: keep-id`,
 `user: !reset null`, the `bind.selinux: Z` labels on the workspace and on the read-only
 `/etc/timezone`, `./.github`, `./bin`, and `./.devcontainer` binds, the `DOCKER_UID`/`DOCKER_GID`
-build arguments, the stable `container_name` values including `global-devcontainer-core`, the
+build arguments, the stable `container_name` values including `cosmos-regional-devcontainer-core`, the
 `host.docker.internal:host-gateway` extra host, and the published ports.
 
 ## Dev Container Features
@@ -129,7 +129,7 @@ Do not add `--mount`, `--secrets-file`, `--remote-env`, `--config`, or `--overri
 reaches past the repository's security boundary and injects host state the image is built to
 exclude.
 
-If `global-devcontainer-core` exists in Created or Exited state, use **Dev Containers: Rebuild and
+If `cosmos-regional-devcontainer-core` exists in Created or Exited state, use **Dev Containers: Rebuild and
 Reopen in Container**. Do not use a rebuild path for routine starts because it recreates the Dev
 Container.
 
@@ -138,7 +138,7 @@ Do not use `--remove-existing-container` on the CLI recovery path. It issues a b
 instead, then start it again:
 
 ```sh
-podman compose --project-name umaxicaappsglobaldc \
+podman compose --project-name umaxicaappscosmosregionaldc \
   -f compose.yaml -f .devcontainer/compose.yaml down
 
 devcontainer up \

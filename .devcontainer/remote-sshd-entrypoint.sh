@@ -166,7 +166,7 @@ if [[ -n ${TS_AUTHKEY:-} ]]; then
   echo 'remote-sshd: enrolling in the tailnet (first start only).' >&2
   /usr/bin/tailscale --socket="${ts_socket}" up \
     --authkey="${TS_AUTHKEY}" \
-    --hostname=umaxica-global-core \
+    --hostname=umaxica-cosmos-regional-core \
     --advertise-tags=tag:umaxica-devcontainer \
     --accept-dns=false
 fi

@@ -104,7 +104,7 @@ Container sessions, and the inner Podman process run as `global`.
 Host-side recovery remains available:
 
 ```sh
-podman exec --user 0 -it global-devcontainer-core /bin/bash
+podman exec --user 0 -it cosmos-regional-devcontainer-core /bin/bash
 ```
 
 Do not mount the outer Podman socket to make this command available inside `core`; that would give

@@ -1,6 +1,6 @@
 # Dev Container Usage
 
-The container definition is `umaxica-apps-global-dc` in `.devcontainer/devcontainer.json`. It runs
+The container definition is `umaxica-apps-cosmos-regional-dc` in `.devcontainer/devcontainer.json`. It runs
 on rootless Podman; see
 [VS Code Dev Containers on Rootless Podman](../operations/devcontainer-cli-podman-startup.md) for
 the required host configuration.
@@ -15,7 +15,7 @@ the required host configuration.
 ## IntelliJ IDEA (Gateway)
 
 - Install JetBrains Gateway and choose **Dev Containers** as the connection method.
-- Select the `umaxica-apps-global-dc` container definition. The `customizations.jetbrains` block
+- Select the `umaxica-apps-cosmos-regional-dc` container definition. The `customizations.jetbrains` block
   requests the IntelliJ backend with the Ruby plugin.
 - When the IDE connects, run `bin/rails db:prepare` if database setup did not finish automatically.
 

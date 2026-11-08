@@ -257,7 +257,7 @@ done
 
 Every line must read `200`. Pin the curl tag, or a digest, rather than tracking `latest`.
 
-Observed 2026-09-05: on `umaxica-apps-global-dc_frontend` this loop returns `000`, not `200`, for
+Observed 2026-09-05: on `umaxica-apps-cosmos-regional-dc_frontend` this loop returns `000`, not `200`, for
 every `*.localhost` alias, and `getent hosts core.app.localhost` in the same container answers
 `::1`. That is glibc applying RFC 6761 — names under the reserved `localhost.` domain resolve to
 loopback without consulting the container resolver — so the probe never reaches Rails through those

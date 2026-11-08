@@ -22,9 +22,9 @@ tailnet hostname and the toolchain differ. **Fix something here, fix it in all t
 | sshd config          | `/etc/ssh/remote-sshd_config` (baked, 0444 root)                                             |
 | sshd wrapper         | `/usr/local/bin/remote-sshd-entrypoint` (baked, 0555 root)                                   |
 | authorized keys      | `.secrets/codex_authorized_keys` → `/home/global/.config/umaxica/authorized_keys`, read-only |
-| sshd host key        | volume `umaxicaappsglobaldc_sshd-host-keys` → `/home/global/.local/state/remote-sshd`        |
-| Tailscale node state | volume `umaxicaappsglobaldc_tailscale-state` → `/home/global/.local/state/tailscale`         |
-| tailnet hostname     | `umaxica-global-core`                                                                        |
+| sshd host key        | volume `umaxicaappscosmosregionaldc_sshd-host-keys` → `/home/global/.local/state/remote-sshd`        |
+| Tailscale node state | volume `umaxicaappscosmosregionaldc_tailscale-state` → `/home/global/.local/state/tailscale`         |
+| tailnet hostname     | `umaxica-cosmos-regional-core`                                                                        |
 | tailnet tag          | `tag:umaxica-devcontainer`                                                                   |
 
 Tailscale runs **inside `core`**, in **userspace networking** mode: no `/dev/net/tun`, no
@@ -108,10 +108,10 @@ substitute for it.
 5. **Confirm the node registered.**
 
    ```bash
-   podman exec umaxicaappsglobaldc_core_1 tailscale status
+   podman exec umaxicaappscosmosregionaldc_core_1 tailscale status
    ```
 
-   `umaxica-global-core` should appear, tagged, and not marked ephemeral.
+   `umaxica-cosmos-regional-core` should appear, tagged, and not marked ephemeral.
 
 6. **Revoke the key, then delete the line.**
 
@@ -121,7 +121,7 @@ substitute for it.
 
    Revocation in the admin console is the half that matters — deleting the line only stops it being
    handed to the container again. From here on the node starts from
-   `umaxicaappsglobaldc_tailscale-state` alone.
+   `umaxicaappscosmosregionaldc_tailscale-state` alone.
 
    The preflight **refuses to start** while a `TS_AUTHKEY` is still set on an already-enrolled node,
    so this step cannot be quietly skipped.
@@ -129,8 +129,8 @@ substitute for it.
 ## Client configuration
 
 ```sshconfig
-Host umaxica-global-core
-  HostName umaxica-global-core.<your-tailnet>.ts.net
+Host umaxica-cosmos-regional-core
+  HostName umaxica-cosmos-regional-core.<your-tailnet>.ts.net
   User global
   Port 22
   IdentityFile ~/.ssh/id_ed25519
@@ -139,14 +139,14 @@ Host umaxica-global-core
 ```
 
 The container prints its host key fingerprint at every start
-(`podman logs umaxicaappsglobaldc_core_1`), so `known_hosts` can be verified rather than accepted
+(`podman logs umaxicaappscosmosregionaldc_core_1`), so `known_hosts` can be verified rather than accepted
 blind. The fingerprint is stable across recreates because the key lives on a volume; it changes only
 if that volume is deleted.
 
 Then:
 
 ```bash
-ssh umaxica-global-core
+ssh umaxica-cosmos-regional-core
 hostname; pwd; git status --short; ruby --version; bundle --version; node --version; bun --version
 ```
 
@@ -160,7 +160,7 @@ podman compose -f compose.yaml -f .devcontainer/compose.yaml \
   -f compose.override.yaml --profile remote-access down
 podman compose -f compose.yaml -f .devcontainer/compose.yaml \
   -f compose.override.yaml --profile remote-access up -d
-ssh umaxica-global-core hostname
+ssh umaxica-cosmos-regional-core hostname
 ```
 
 No auth key, same tailnet node, same SSH host key. `down -v` is the exception: it destroys both
@@ -209,12 +209,12 @@ volumes, which deregisters the node and forces a fresh enrolment.
   into the development image, alongside Ruby and Node. A completion checklist that expects
   `pnpm --version` is checking for a tool this repository no longer uses.
 
-- **The compose project name is `umaxicaappsglobaldc`,** set in `.devcontainer/compose.yaml`. It
+- **The compose project name is `umaxicaappscosmosregionaldc`,** set in `.devcontainer/compose.yaml`. It
   carries no separators because the Dev Containers CLI derives its own project name from
   `devcontainer.json`'s `name` by stripping every non-alphanumeric character and passes it as
   `--project-name`; a separated value in the Compose files would put a bare `podman compose` in a
-  second project that collides with the Dev Container over the `global-devcontainer-*` container
+  second project that collides with the Dev Container over the `cosmos-regional-devcontainer-*` container
   names and the published ports. Volume names are prefixed with the project name, which is why the
-  preflight looks for `umaxicaappsglobaldc_tailscale-state`. A bare
+  preflight looks for `umaxicaappscosmosregionaldc_tailscale-state`. A bare
   `podman compose -f compose.yaml -f compose.override.yaml` without `.devcontainer/compose.yaml` has
   no `core` to overlay at all. Include all three files, or expect the profile to select nothing.

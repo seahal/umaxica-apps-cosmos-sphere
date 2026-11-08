@@ -16,7 +16,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_root}"
 
 authorized_keys=.secrets/codex_authorized_keys
-state_volume=umaxica-apps-global-dc_tailscale-state
+state_volume=umaxica-apps-cosmos-regional-dc_tailscale-state
 doc=docs/operations/remote-codex-over-tailscale.md
 
 fail() {
@@ -67,7 +67,7 @@ if podman volume exists "${state_volume}" 2> /dev/null; then
   # procedure exists to avoid. Refusing to start is what makes "delete it
   # afterwards" an actual step rather than a sentence in a document.
   if [[ -n ${authkey} ]]; then
-    fail "TS_AUTHKEY is still set, but umaxica-global-core is already enrolled." \
+    fail "TS_AUTHKEY is still set, but umaxica-cosmos-regional-core is already enrolled." \
       "The key was single-use and is now only a credential sitting in a file." \
       "Revoke it in the Tailscale admin console, then remove the line:" \
       "  sed -i '/^TS_AUTHKEY=/d' .env" \

@@ -37,10 +37,10 @@ Stale local state from the RustFS era is inert but worth clearing once per devel
 ```bash
 rm -f .secrets/rustfs-access-key .secrets/rustfs-secret-key .secrets/rustfs-rpc-secret
 podman secret rm dev_rustfs_access_key dev_rustfs_secret_key dev_rustfs_rpc_secret
-podman volume rm umaxicaappsglobaldc_rustfs-data0 \
-                 umaxicaappsglobaldc_rustfs-data1 \
-                 umaxicaappsglobaldc_rustfs-data2 \
-                 umaxicaappsglobaldc_rustfs-data3
+podman volume rm umaxicaappscosmosregionaldc_rustfs-data0 \
+                 umaxicaappscosmosregionaldc_rustfs-data1 \
+                 umaxicaappscosmosregionaldc_rustfs-data2 \
+                 umaxicaappscosmosregionaldc_rustfs-data3
 ```
 
 ### 1.2 `.devcontainer/compose.override.yml`
@@ -54,17 +54,17 @@ podman volume rm umaxicaappsglobaldc_rustfs-data0 \
 +  # fakecloud needs no devcontainer override: compose.yaml already publishes it
 +  # on loopback for every developer, and it is not a Dev Container-only service.
    primary:
-     container_name: global-devcontainer-primary
+     container_name: cosmos-regional-devcontainer-primary
    replica:
-     container_name: global-devcontainer-replica
+     container_name: cosmos-regional-devcontainer-replica
    valkey-cache:
-     container_name: global-devcontainer-valkey-cache
+     container_name: cosmos-regional-devcontainer-valkey-cache
    valkey-rate-limit:
-     container_name: global-devcontainer-valkey-rate-limit
+     container_name: cosmos-regional-devcontainer-valkey-rate-limit
 -  # kafka needs no devcontainer override: it publishes no host port and its
 -  # container name is not referenced by tooling.
    loki:
-     container_name: global-devcontainer-loki
+     container_name: cosmos-regional-devcontainer-loki
 ```
 
 ### 1.3 `.devcontainer/devcontainer.json`

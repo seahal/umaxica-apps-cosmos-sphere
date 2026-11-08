@@ -129,10 +129,10 @@ once:
 ```bash
 rm -f .secrets/rustfs-access-key .secrets/rustfs-secret-key .secrets/rustfs-rpc-secret
 podman secret rm dev_rustfs_access_key dev_rustfs_secret_key dev_rustfs_rpc_secret
-podman volume rm umaxicaappsglobaldc_rustfs-data0 \
-                 umaxicaappsglobaldc_rustfs-data1 \
-                 umaxicaappsglobaldc_rustfs-data2 \
-                 umaxicaappsglobaldc_rustfs-data3
+podman volume rm umaxicaappscosmosregionaldc_rustfs-data0 \
+                 umaxicaappscosmosregionaldc_rustfs-data1 \
+                 umaxicaappscosmosregionaldc_rustfs-data2 \
+                 umaxicaappscosmosregionaldc_rustfs-data3
 ```
 
 ## Persistence
