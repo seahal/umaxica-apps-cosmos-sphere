@@ -6,7 +6,7 @@
 > ceremony-only and must not be tested as the owner of sessions, refresh, preference, dashboards,
 > account lifecycle, token issuance, logout, or step-up freshness.
 
-## Project: Umaxica Apps Cosmos Regional
+## Project: Umaxica Apps Cosmos Sphere
 
 ### Aligned with IEEE 829 / ISO/IEC/IEEE 29119 Test Documentation
 
@@ -16,8 +16,8 @@
 
 ### 1.1 Purpose
 
-This TS defines how the Rails-based Umaxica Apps Cosmos Regional will be verified across every
-public surface—top, sign, help, docs, news, BFF, and API. It covers strategy, environments, tooling,
+This TS defines how the Rails-based Umaxica Apps Cosmos Sphere will be verified across every public
+surface—top, sign, help, docs, news, BFF, and API. It covers strategy, environments, tooling,
 detailed cases, and acceptance criteria derived from the SRS and HLD.
 
 ### 1.2 References

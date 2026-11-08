@@ -257,8 +257,8 @@ done
 
 Every line must read `200`. Pin the curl tag, or a digest, rather than tracking `latest`.
 
-Observed 2026-09-05: on `umaxica-apps-cosmos-regional-dc_frontend` this loop returns `000`, not `200`, for
-every `*.localhost` alias, and `getent hosts core.app.localhost` in the same container answers
+Observed 2026-09-05: on `umaxica-apps-cosmos-sphere-dc_frontend` this loop returns `000`, not `200`,
+for every `*.localhost` alias, and `getent hosts core.app.localhost` in the same container answers
 `::1`. That is glibc applying RFC 6761 — names under the reserved `localhost.` domain resolve to
 loopback without consulting the container resolver — so the probe never reaches Rails through those
 names. It is a property of the probe container's resolver, not evidence about the connector:
@@ -313,9 +313,9 @@ change.
 
 That run also found that `palm-jp.umaxica.app` currently carries an interactive Access application.
 The observation predates Palm's move to a Browser RP: the former bearer API is retired. Before
-publishing the current browser flow, re-verify Access behavior, cookie forwarding, and private-origin
-reachability against the deployed route and callback contract. Local Rails routing does not establish
-that production or development edge routing has been published.
+publishing the current browser flow, re-verify Access behavior, cookie forwarding, and
+private-origin reachability against the deployed route and callback contract. Local Rails routing
+does not establish that production or development edge routing has been published.
 
 The Docs, Help, and News families are not published through the tunnel. `PUBLIC_DOCS_*_URL` names a
 private `*.localhost` origin and no `PUBLIC_HELP_*`/`PUBLIC_NEWS_*` value is set, so the former

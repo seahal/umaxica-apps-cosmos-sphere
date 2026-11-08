@@ -12,7 +12,7 @@ long-term support branches are maintained, and no separate security release numb
 
 Report privately through GitHub Security Advisories:
 
-- https://github.com/seahal/umaxica-apps-cosmos-regional/security/advisories/new
+- https://github.com/seahal/umaxica-apps-cosmos-sphere/security/advisories/new
 
 This is the only reporting channel. Do not open a public issue, discussion, or pull request for a
 suspected vulnerability.

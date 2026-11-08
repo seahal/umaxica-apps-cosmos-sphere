@@ -13,17 +13,17 @@ Nothing here runs automatically during normal Rails/devcontainer startup.
 
 ## Usage
 
-Against the running `cosmos-regional-devcontainer-primary` container, using its own live
+Against the running `cosmos-sphere-devcontainer-primary` container, using its own live
 `POSTGRES_USER`/`POSTGRES_PASSWORD` (do not hardcode credentials):
 
 ```sh
-podman exec -i cosmos-regional-devcontainer-primary sh -c \
+podman exec -i cosmos-sphere-devcontainer-primary sh -c \
   'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -h 127.0.0.1 -d db -v ON_ERROR_STOP=1' \
   < podman/pg-cron-poc/setup.sql
 
 # ... wait for a few scheduled executions, then inspect cron.job_run_details ...
 
-podman exec -i cosmos-regional-devcontainer-primary sh -c \
+podman exec -i cosmos-sphere-devcontainer-primary sh -c \
   'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -h 127.0.0.1 -d db -v ON_ERROR_STOP=1' \
   < podman/pg-cron-poc/teardown.sql
 ```

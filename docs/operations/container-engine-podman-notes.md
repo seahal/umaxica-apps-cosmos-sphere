@@ -38,9 +38,9 @@ There is intentionally no repository launcher. VS Code invokes the standard Dev 
 keeping one lifecycle instead of adding a project-specific bootstrap interface. The remaining
 Podman-specific properties live in Compose configuration.
 
-If an interrupted start leaves `cosmos-regional-devcontainer-core` in Created or Exited state, use **Dev
-Containers: Rebuild and Reopen in Container**. The CLI equivalent is the same `devcontainer up`
-command with `--remove-existing-container`.
+If an interrupted start leaves `cosmos-sphere-devcontainer-core` in Created or Exited state, use
+**Dev Containers: Rebuild and Reopen in Container**. The CLI equivalent is the same
+`devcontainer up` command with `--remove-existing-container`.
 
 Compose networks are repository-managed rootless Podman networks. `outer` is declared in
 `.devcontainer/compose.yaml` rather than `compose.yaml`, because `core` is its only member:

@@ -2,10 +2,10 @@
 # Dev Container application layer; shared infrastructure is in ../compose.yaml.
 # Must match `compose.yaml`'s `name:` exactly, separators included -- see the
 # comment there for why the Dev Containers CLI forces the unseparated form.
-name: umaxicaappscosmosregionaldc
+name: umaxicaappscosmosspheredc
 services:
   core:
-    container_name: cosmos-regional-devcontainer-core
+    container_name: cosmos-sphere-devcontainer-core
     build:
       context: "."
       dockerfile: "./Containerfile"

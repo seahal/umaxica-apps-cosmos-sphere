@@ -98,7 +98,7 @@ Podman network; the Edge Worker uses Cloudflare Workers VPC to reach this tunnel
 The Podman-specific properties are Compose concerns and need no flags: `userns_mode: keep-id`,
 `user: !reset null`, the `bind.selinux: Z` labels on the workspace and on the read-only
 `/etc/timezone`, `./.github`, `./bin`, and `./.devcontainer` binds, the `DOCKER_UID`/`DOCKER_GID`
-build arguments, the stable `container_name` values including `cosmos-regional-devcontainer-core`, the
+build arguments, the stable `container_name` values including `cosmos-sphere-devcontainer-core`, the
 `host.docker.internal:host-gateway` extra host, and the published ports.
 
 ## Dev Container Features
@@ -129,16 +129,16 @@ Do not add `--mount`, `--secrets-file`, `--remote-env`, `--config`, or `--overri
 reaches past the repository's security boundary and injects host state the image is built to
 exclude.
 
-If `cosmos-regional-devcontainer-core` exists in Created or Exited state, use **Dev Containers: Rebuild and
-Reopen in Container**. Do not use a rebuild path for routine starts because it recreates the Dev
-Container.
+If `cosmos-sphere-devcontainer-core` exists in Created or Exited state, use **Dev Containers:
+Rebuild and Reopen in Container**. Do not use a rebuild path for routine starts because it recreates
+the Dev Container.
 
 Do not use `--remove-existing-container` on the CLI recovery path. It issues a bare
 `podman rm -f <core>` that ignores the rest of the project. Take the whole project down first
 instead, then start it again:
 
 ```sh
-podman compose --project-name umaxicaappscosmosregionaldc \
+podman compose --project-name umaxicaappscosmosspheredc \
   -f compose.yaml -f .devcontainer/compose.yaml down
 
 devcontainer up \
@@ -175,8 +175,8 @@ compose.override.yaml               = UNTRACKED + gitignored (2026-09-14); auto-
 A fresh clone needs **no local file**:
 
 ```bash
-git clone https://github.com/seahal/umaxica-apps-cosmos-regional.git
-cd umaxica-apps-cosmos-regional
+git clone https://github.com/seahal/umaxica-apps-cosmos-sphere.git
+cd umaxica-apps-cosmos-sphere
 
 # creating a local override is NOT required
 

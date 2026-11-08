@@ -5,7 +5,7 @@ The owner instructs when the GitHub secret is changed; no GitHub write is author
 
 ## Background
 
-On 2026-11-08 the four Cosmos repositories (`umaxica-apps-cosmos-identity`, `-global`, `-regional`,
+On 2026-11-08 the four Cosmos repositories (`umaxica-apps-cosmos-access`, `-governance`, `-sphere`,
 `-press`) stopped sharing credentials keys. They had been created by copying one working tree, so
 every repository held the same master keys, and `development` and `production` shared one key.
 
@@ -18,7 +18,7 @@ every repository held the same master keys, and `development` and `production` s
 
 ## Required action
 
-In `seahal/umaxica-apps-cosmos-regional`, set the GitHub Actions secret `RAILS_MASTER_KEY` to this
+In `seahal/umaxica-apps-cosmos-sphere`, set the GitHub Actions secret `RAILS_MASTER_KEY` to this
 repository's current `config/credentials/test.key`. Today this repository has no `RAILS_MASTER_KEY`
 secret.
 

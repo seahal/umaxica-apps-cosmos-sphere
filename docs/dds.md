@@ -26,7 +26,7 @@ retains `BASE_APP` and `BASE_ORG` for its own browser-RP/Jump responsibilities. 
 catalog is recorded in `docs/operations/jump-rt-visa-edges.md`; the separate Edge/Jump deployment is
 not changed by this repository.
 
-## Project: Umaxica Apps Cosmos Regional
+## Project: Umaxica Apps Cosmos Sphere
 
 ### Conforms to IEEE 1016:2009 and ISO/IEC/IEEE 42010:2011
 
@@ -36,7 +36,7 @@ not changed by this repository.
 
 ### 1.1 Purpose
 
-This DDS translates the high-level design of the Umaxica Apps Cosmos Regional into
+This DDS translates the high-level design of the Umaxica Apps Cosmos Sphere into
 implementation-ready detail. It describes how each namespace, controller, concern, model, service,
 and infrastructure component collaborates to satisfy the SRS.
 

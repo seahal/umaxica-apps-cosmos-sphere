@@ -40,9 +40,9 @@
 # `name` by removing every non-alphanumeric character, and passes the result as
 # an explicit `--project-name`. A bare `podman compose` uses this key verbatim.
 # Any separator here therefore splits the repository into two Compose projects
-# that fight over the hardcoded `cosmos-regional-devcontainer-*` container names and the
+# that fight over the hardcoded `cosmos-sphere-devcontainer-*` container names and the
 # same host ports, so whichever entry point starts second fails.
-name: umaxicaappscosmosregionaldc
+name: umaxicaappscosmosspheredc
 
 # Shared Valkey process settings. Not a service; referenced by valkey-cache,
 # valkey-kvs, and the compatibility `valkey` instance below.
@@ -122,7 +122,7 @@ services:
       retries: 20
       start_period: 5s
   primary:
-    container_name: cosmos-regional-devcontainer-primary
+    container_name: cosmos-sphere-devcontainer-primary
     build:
       context: ./podman/psql-pub
       dockerfile: Containerfile
@@ -195,7 +195,7 @@ services:
       retries: 40
       start_period: 5s
   replica:
-    container_name: cosmos-regional-devcontainer-replica
+    container_name: cosmos-sphere-devcontainer-replica
     build:
       context: ./podman/psql-sub
       dockerfile: Containerfile
@@ -275,7 +275,7 @@ services:
   # from the previous single-service volume.
   valkey-cache:
     <<: *valkey-common
-    container_name: cosmos-regional-devcontainer-valkey-cache
+    container_name: cosmos-sphere-devcontainer-valkey-cache
     command:
       - valkey-server
       - --maxmemory
@@ -288,7 +288,7 @@ services:
       - valkey-cache-volume:/data
   valkey-kvs:
     <<: *valkey-common
-    container_name: cosmos-regional-devcontainer-valkey-kvs
+    container_name: cosmos-sphere-devcontainer-valkey-kvs
     command:
       - valkey-server
       - --maxmemory
@@ -301,13 +301,13 @@ services:
       - valkey-kvs-volume:/data
   valkey:
     <<: *valkey-common
-    container_name: cosmos-regional-devcontainer-valkey
+    container_name: cosmos-sphere-devcontainer-valkey
     ports:
       - "127.0.0.1:${VALKEY_HOST_PORT:-6379}:6379"
     volumes:
       - valkey-volume:/data
   loki:
-    container_name: cosmos-regional-devcontainer-loki
+    container_name: cosmos-sphere-devcontainer-loki
     image: docker.io/grafana/loki:3.7.7
     # Rootless podman creates named volumes as the host user. Running these
     # opt-in observability services as container root keeps their data
@@ -337,7 +337,7 @@ services:
         max-size: "10m"
         max-file: "3"
   tempo:
-    container_name: cosmos-regional-devcontainer-tempo
+    container_name: cosmos-sphere-devcontainer-tempo
     image: docker.io/grafana/tempo:2.10.5
     # See loki: rootless podman named-volume ownership needs the container
     # writer to map back to the host user.
@@ -367,7 +367,7 @@ services:
         max-size: "10m"
         max-file: "3"
   grafana:
-    container_name: cosmos-regional-devcontainer-grafana
+    container_name: cosmos-sphere-devcontainer-grafana
     image: docker.io/grafana/grafana:13.2.0
     # Grafana writes SQLite migrations under /var/lib/grafana; with rootless
     # podman the named volume can otherwise appear read-only to Grafana's UID.
@@ -419,7 +419,7 @@ services:
   # pipelines, so it replaces both the former `otel-collector` service and the
   # Prometheus scrape job that pulled that collector's :8889 endpoint.
   alloy:
-    container_name: cosmos-regional-devcontainer-alloy
+    container_name: cosmos-sphere-devcontainer-alloy
     image: docker.io/grafana/alloy:v1.19.2
     # `run` is not the image default; the entrypoint expects the subcommand and
     # the config path. --storage.path is where Alloy keeps its WAL for
