@@ -7,7 +7,7 @@ require "test_helper"
 class RouteTargetContractTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  SURFACE_CONTROLLER_PREFIX = %r{\A(?:acme|sign|core|base|palm|help|docs|news)/}
+  SURFACE_CONTROLLER_PREFIX = %r{\A(?:core|warp|palm)/}
 
   test "surface routes reference loadable controllers and routable actions" do
     missing_controllers = []

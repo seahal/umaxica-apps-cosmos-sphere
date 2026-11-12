@@ -10,8 +10,8 @@
 # it. The component names are derived from `controller_path`, which is what keeps a surface from
 # naming another surface's page.
 #
-# Include it in an auth sign-out controller that also includes `SurfaceInertiaPage`; controllers
-# still rendering the ERB templates are unaffected.
+# Include it in a browser RP sign-out controller whose surface Inertia entrypoint resolves its
+# controller path; each surface owns the page registration while sharing the sign-out behavior.
 module SignOutInertiaPages
   extend ActiveSupport::Concern
 
@@ -93,12 +93,12 @@ module SignOutInertiaPages
   end
 
   # An unverified or incomplete continuation must not present a successful completion in any realm.
-  def render_oidc_rp_logout_unavailable
+  def render_oidc_rp_logout_unavailable(status: :unprocessable_content)
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Referrer-Policy"] = "strict-origin"
     render inertia: sign_out_page_component("unavailable"),
            props: sign_out_unavailable_props,
-           status: :unprocessable_content
+           status: status
   end
 
   # A lost COMMIT response is neither success nor failure (REQ-003), so it offers no retry and does

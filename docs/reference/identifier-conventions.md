@@ -1,5 +1,10 @@
 # Identifier conventions and scoped column classification
 
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 The [identifier ADR](../../adr/identifier-contract.md) owns the approved design. The
 [identifier checklist](../checklists/identifier-contracts.md) owns observable acceptance. This
 reference connects concrete columns and consumers to those owners; it is not a complete table
@@ -170,12 +175,11 @@ recorded in [`V2J6`](../../evidence/2026-10-12-public-id-capacity-extension-V2J6
 | client_passkeys / visitor_passkeys.public_id                       | Owned non-secret management identity                                         | Existing PublicId issuance/consumers remain. Current 21-character capacity is not proof of the standard 25-character storage contract or DB immutability.                                                                                                                                               |
 | client_passkeys / visitor_passkeys / operator_passkeys.external_id | Self-generated UUID; its name does not establish provider format authority   | Not accepted as a permanent external exception. ORG currently uses it in management routes and step-up references. Preserve issued UUIDs and audit all consumers before an authorized bounded transition; do not silently reinterpret it as webauthn_id or create a redundant ID merely for formatting. |
 
-The current ORG management consumers are
-[the concrete controller](../../app/controllers/base/org/identity/passkeys_controller.rb),
-[shared management orchestration](../../app/controllers/concerns/base_identity_passkey_management.rb)
-and [OperatorPasskeyPolicy](../../app/policies/operator_passkey_policy.rb). APP/COM management
-primarily uses public_id; that fact alone does not prove external_id unused or safe to drop.
-Per-column code exception comments and a complete credential-consumer inventory remain required.
+The former ORG management route used `external_id` in its controller and policy. The Base
+controller, shared management concern and policy were removed with that surface on 2026-11-11. The
+retained passkey models and migrations remain in scope for the next database review; no conclusion
+about their safe removal follows from route retirement alone. Per-column code exception comments and
+a complete credential-consumer inventory remain required.
 
 ## Other classified areas and remaining inventory
 
@@ -218,38 +222,39 @@ handoff to the next passkey phase. New values use `PublicId.generate`; the value
 opaque transaction identity, not an Entra/OIDC provider value, protocol secret, nonce, CSRF token,
 PKCE value or database primary key. Existing serialized sessions remain readable, and the signed
 binding continues to enforce its existing ORG flow and phase contract. The focused boundary is
-covered by
-[`test/controllers/auth/org/in/passkeys_controller_test.rb`](../../test/controllers/auth/org/in/passkeys_controller_test.rb)
-and
-[`test/services/org_normal_sign_in_binding_codec_test.rb`](../../test/services/org_normal_sign_in_binding_codec_test.rb).
+covered by `test/controllers/auth/org/in/passkeys_controller_test.rb` (former reference:
+../../test/controllers/auth/org/in/passkeys_controller_test.rb) and
+`test/services/org_normal_sign_in_binding_codec_test.rb` (former reference:
+../../test/services/org_normal_sign_in_binding_codec_test.rb).
 
 `SignInSequenceCarrier` stores a separate surface-scoped workflow `id` in the Rails session. New
 sequence starts use `PublicId.generate`; this value is an internal workflow identity and is not a
 provider/protocol value, secret, database primary key or public API reference. Existing UUID-valued
 session payloads remain readable through the compatibility reader. The public `start!` boundary is
-covered by
-[`test/services/sign_in/sequence_carrier_test.rb`](../../test/services/sign_in/sequence_carrier_test.rb).
+covered by `test/services/sign_in/sequence_carrier_test.rb` (former reference:
+../../test/services/sign_in/sequence_carrier_test.rb).
 
 The pending-MFA payload created by `AuthenticationBase#set_pending_mfa!` has its own session-scoped
 workflow `public_id`. New payloads use `PublicId.generate`; the value is not a provider/protocol
 value, secret, database primary key or public API reference. The existing actor, surface, expiry and
 session-issuance fields remain authoritative, and the public APP challenge boundary covers the
-format contract in
-[`test/controllers/auth/app/in/challenges_controller_test.rb`](../../test/controllers/auth/app/in/challenges_controller_test.rb).
+format contract in `test/controllers/auth/app/in/challenges_controller_test.rb` (former reference:
+../../test/controllers/auth/app/in/challenges_controller_test.rb).
 
 `SocialAuth` stores `social_auth_flow_id` as a separate session-scoped link-intent correlation
 identity. New link intents use `PublicId.generate`; the value is not the OAuth `state`, provider
 value, Apple nonce, PKCE verifier, CSRF token, protocol secret, database primary key or public API
 reference. The existing intent, provider, TTL, callback-state, authorization and cleanup contracts
 remain authoritative. The public SocialAuth link integration boundary covers the NanoID-21 format in
-[`test/integration/social_auth_link_test.rb`](../../test/integration/social_auth_link_test.rb).
+`test/integration/social_auth_link_test.rb` (former reference:
+../../test/integration/social_auth_link_test.rb).
 
 The `SocialCeremonyResultAdapter` reference is a short-lived Valkey receiver capability, not a
-durable resource identity. It carries no raw result code and is looked up only through its
-purpose-, surface-, flow- and generation-bound store. Its browser receiver shares the strict UUID-v4
-admission transport pattern, so existing UUID references remain readable and new format changes
-require a consumer-specific transport decision. It must not be treated as public resource IDs, substituted for the
-signed/result evidence, or resolved through a cross-surface fallback. A future bounded format
+durable resource identity. It carries no raw result code and is looked up only through its purpose-,
+surface-, flow- and generation-bound store. Its browser receiver shares the strict UUID-v4 admission
+transport pattern, so existing UUID references remain readable and new format changes require a
+consumer-specific transport decision. It must not be treated as public resource IDs, substituted for
+the signed/result evidence, or resolved through a cross-surface fallback. A future bounded format
 transition would need to update the matching receiver validation and its exact legacy reader
 together; the standard NanoID rule alone is not authority to reformat these capability values.
 
@@ -261,11 +266,14 @@ performs normal model validation, permits only the named `ref` uniqueness collis
 database retry path, and retries that constraint only within `PublicId::MAX_COLLISION_RETRIES`.
 Other validation or uniqueness failures propagate to the owning ceremony contract. Existing rows are
 not rewritten and no migration, trigger or raw SQL was added. Focused coverage is in
-[`test/services/identity/totp_ceremony_contract_test.rb`](../../test/services/identity/totp_ceremony_contract_test.rb),
-[`test/services/identity/secret_credential_ceremony_contract_test.rb`](../../test/services/identity/secret_credential_ceremony_contract_test.rb),
-[`test/operations/identity_passkey_registration_committers_test.rb`](../../test/operations/identity_passkey_registration_committers_test.rb)
-and
-[`test/operations/identity_totp_enrollment_issuer_test.rb`](../../test/operations/identity_totp_enrollment_issuer_test.rb).
+`test/services/identity/totp_ceremony_contract_test.rb` (former reference:
+../../test/services/identity/totp_ceremony_contract_test.rb),
+`test/services/identity/secret_credential_ceremony_contract_test.rb` (former reference:
+../../test/services/identity/secret_credential_ceremony_contract_test.rb),
+`test/operations/identity_passkey_registration_committers_test.rb` (former reference:
+../../test/operations/identity_passkey_registration_committers_test.rb) and
+`test/operations/identity_totp_enrollment_issuer_test.rb` (former reference:
+../../test/operations/identity_totp_enrollment_issuer_test.rb).
 
 `IdentitySocialCeremonyCandidate.ref` is a self-controlled, non-secret capability reference with a
 consumer-specific transition. New candidates use `PublicId.generate` (NanoID-21), while existing
@@ -274,12 +282,12 @@ uses the candidate model's strict NanoID-or-legacy-UUID pattern; it does not wid
 `AuthAdmissionBinding::REFERENCE_PATTERN` used by unrelated admissions. Provider subject values,
 OAuth/OIDC state, callback payloads and result identities retain separate contracts, and no old
 candidate is rewritten merely to change its format. The contract is covered by
-[`test/services/identity/social_ceremony_contract_test.rb`](../../test/services/identity/social_ceremony_contract_test.rb)
-and the end-to-end link boundaries in
-[`test/integration/social_auth_link_test.rb`](../../test/integration/social_auth_link_test.rb). The
-shared candidate factory retries only a collision on the named single-column `ref` unique B-tree
-index, inside a savepoint and the finite `PublicId::MAX_COLLISION_RETRIES` budget; unrelated
-validation or uniqueness failures remain errors.
+`test/services/identity/social_ceremony_contract_test.rb` (former reference:
+../../test/services/identity/social_ceremony_contract_test.rb) and the end-to-end link boundaries in
+`test/integration/social_auth_link_test.rb` (former reference:
+../../test/integration/social_auth_link_test.rb). The shared candidate factory retries only a
+collision on the named single-column `ref` unique B-tree index, inside a savepoint and the finite
+`PublicId::MAX_COLLISION_RETRIES` budget; unrelated validation or uniqueness failures remain errors.
 
 Credential-registration Email and Telephone transaction references are a bounded P2 slice of the
 broader ceremony-purpose inventory. The six concrete realm/channel issuer paths now generate a new
@@ -291,15 +299,20 @@ nonce; no host inference or cross-purpose fallback was added. The issuers retry 
 the concrete transaction table's named, single-column `transaction_id` unique B-tree index, using a
 fresh reference inside a database savepoint and the finite `PublicId::MAX_COLLISION_RETRIES` budget.
 Unrelated validation or uniqueness failures propagate. Focused coverage is in
-[`test/operations/contact_registration_otp_issuer_test.rb`](../../test/operations/contact_registration_otp_issuer_test.rb),
-[`test/operations/email_credential_registration_otp_issuer_test.rb`](../../test/operations/email_credential_registration_otp_issuer_test.rb),
-[`test/operations/telephone_credential_registration_otp_issuer_test.rb`](../../test/operations/telephone_credential_registration_otp_issuer_test.rb),
-[`test/values/credential_registration_otp_session_value_test.rb`](../../test/values/credential_registration_otp_session_value_test.rb),
-[`test/values/contact_registration_otp_delivery_binding_value_test.rb`](../../test/values/contact_registration_otp_delivery_binding_value_test.rb)
-and
-[`test/values/email_credential_registration_otp_delivery_binding_value_test.rb`](../../test/values/email_credential_registration_otp_delivery_binding_value_test.rb).
-The remaining identifier inventory is purpose-specific rather than a blanket exception. It includes
-result identities, OTP generations, provider/protocol values, credential and authenticator values,
+`test/operations/contact_registration_otp_issuer_test.rb` (former reference:
+../../test/operations/contact_registration_otp_issuer_test.rb),
+`test/operations/email_credential_registration_otp_issuer_test.rb` (former reference:
+../../test/operations/email_credential_registration_otp_issuer_test.rb),
+`test/operations/telephone_credential_registration_otp_issuer_test.rb` (former reference:
+../../test/operations/telephone_credential_registration_otp_issuer_test.rb),
+`test/values/credential_registration_otp_session_value_test.rb` (former reference:
+../../test/values/credential_registration_otp_session_value_test.rb),
+`test/values/contact_registration_otp_delivery_binding_value_test.rb` (former reference:
+../../test/values/contact_registration_otp_delivery_binding_value_test.rb) and
+`test/values/email_credential_registration_otp_delivery_binding_value_test.rb` (former reference:
+../../test/values/email_credential_registration_otp_delivery_binding_value_test.rb). The remaining
+identifier inventory is purpose-specific rather than a blanket exception. It includes result
+identities, OTP generations, provider/protocol values, credential and authenticator values,
 short-lived capability/transport references, and operation/audit UUIDs whose consumers still require
 separate tracing. Do not change any of those values by inference from this slice. Each candidate
 needs its own issuer, storage, validation, lifetime and consumer review before a format transition;
@@ -314,11 +327,11 @@ The issuers retry only an exact named single-column `grant_jti` or `transaction_
 collision, inside a database savepoint and within the finite `PublicId::MAX_COLLISION_RETRIES`
 budget. Unrelated validation or uniqueness failures propagate, and no cross-purpose or cross-surface
 lookup fallback is introduced. Focused coverage is in
-[`test/operations/email_credential_registration_otp_issuer_test.rb`](../../test/operations/email_credential_registration_otp_issuer_test.rb)
-and
-[`test/operations/telephone_credential_registration_otp_issuer_test.rb`](../../test/operations/telephone_credential_registration_otp_issuer_test.rb);
-the broader issuer and binding tests listed in the preceding paragraph cover the surrounding purpose
-and session boundary.
+`test/operations/email_credential_registration_otp_issuer_test.rb` (former reference:
+../../test/operations/email_credential_registration_otp_issuer_test.rb) and
+`test/operations/telephone_credential_registration_otp_issuer_test.rb` (former reference:
+../../test/operations/telephone_credential_registration_otp_issuer_test.rb); the broader issuer and
+binding tests listed in the preceding paragraph cover the surrounding purpose and session boundary.
 
 Email recovery and withdrawal reentry transactions are a separate bounded P2 slice. New APP, COM and
 ORG recovery transactions, and APP/COM withdrawal transactions, receive a NanoID-21 `transaction_id`
@@ -328,9 +341,10 @@ delivery binding accepts the new NanoID-21 transaction reference or an existing 
 reference while requiring the UUID generation. Reentry issuers retry only an exact named
 single-column `transaction_id` or `grant_jti` unique B-tree collision inside a savepoint and the
 finite collision budget; unrelated failures propagate. See
-[`test/operations/email_reentry_otp_issuer_test.rb`](../../test/operations/email_reentry_otp_issuer_test.rb)
-and
-[`test/values/email_reentry_otp_delivery_binding_value_test.rb`](../../test/values/email_reentry_otp_delivery_binding_value_test.rb).
+`test/operations/email_reentry_otp_issuer_test.rb` (former reference:
+../../test/operations/email_reentry_otp_issuer_test.rb) and
+`test/values/email_reentry_otp_delivery_binding_value_test.rb` (former reference:
+../../test/values/email_reentry_otp_delivery_binding_value_test.rb).
 
 Secret Credential ceremony transactions use the same bounded distinction between a self-controlled
 ceremony identity and its proof/result values. The APP, COM and ORG concrete transaction models now
@@ -341,8 +355,9 @@ contracts. Creation retries only an exact named single-column `transaction_id` o
 B-tree collision inside a savepoint and the finite `PublicId::MAX_COLLISION_RETRIES` budget. Other
 validation or uniqueness failures propagate, and no cross-surface or cross-purpose lookup fallback
 is introduced. The result identity remains unclassified and is not generated by this boundary. See
-[`test/services/identity_secret_credential_ceremony_replay_store_test.rb`](../../test/services/identity_secret_credential_ceremony_replay_store_test.rb)
-and the related Secret Credential ceremony tests.
+`test/services/identity_secret_credential_ceremony_replay_store_test.rb` (former reference:
+../../test/services/identity_secret_credential_ceremony_replay_store_test.rb) and the related Secret
+Credential ceremony tests.
 
 Social ceremony transactions use the same boundary for the APP provider-link/login/signup workflow.
 `IdentitySocialCeremonyGrantIssuer` now obtains a separate NanoID-21 `transaction_id` and
@@ -364,9 +379,9 @@ claims, credential/session references and OTP or authenticator values retain the
 contracts. Creation retries only an exact named single-column `transaction_id` or `grant_jti` unique
 B-tree collision inside a savepoint and the finite `PublicId::MAX_COLLISION_RETRIES` budget. Other
 validation or uniqueness failures propagate without cross-surface, cross-purpose or session-issuance
-fallback. See
-[`test/services/identity/step_up_ceremony_acme_transaction_test.rb`](../../test/services/identity/step_up_ceremony_acme_transaction_test.rb)
-and the related Step-up contract, admission, verification, replay, purge and integration tests.
+fallback. See `test/services/identity/step_up_ceremony_acme_transaction_test.rb` (former reference:
+../../test/services/identity/step_up_ceremony_acme_transaction_test.rb) and the related Step-up
+contract, admission, verification, replay, purge and integration tests.
 
 OIDC authorization transactions use a separate internal transaction identity. The three concrete
 APP, COM and ORG writers now generate a NanoID-21 `transaction_id` through
@@ -437,8 +452,9 @@ TOTP transaction table. A child transaction-ID collision is retried only for tha
 unique B-tree index, inside a savepoint and within the finite shared collision budget; other
 validation or uniqueness errors propagate. The generic TOTP transaction factory remains UUID-
 compatible for unclassified callers. Focused coverage is in
-[`test/operations/identity_totp_enrollment_issuer_test.rb`](../../test/operations/identity_totp_enrollment_issuer_test.rb)
-and the surrounding TOTP ceremony tests; no protocol-secret or cross-surface format was widened.
+`test/operations/identity_totp_enrollment_issuer_test.rb` (former reference:
+../../test/operations/identity_totp_enrollment_issuer_test.rb) and the surrounding TOTP ceremony
+tests; no protocol-secret or cross-surface format was widened.
 
 `client_totp_credentials.public_id` is a separate APP-owned, non-secret management identity. It uses
 the shared `PublicId` creation boundary rather than an identifier-specific initialization callback:
@@ -460,13 +476,14 @@ single-column `transaction_id` unique B-tree index, inside a savepoint and withi
 collision budget. Caller-supplied references and unrelated validation or uniqueness errors
 propagate. The transaction reference remains distinct from generation, grant, result, actor, session
 and cross-purpose identifiers; no fallback resolves a reference in another ceremony or surface. See
-[`test/operations/email_sign_up_otp_issuer_test.rb`](../../test/operations/email_sign_up_otp_issuer_test.rb),
-[`test/operations/telephone_sign_up_otp_issuer_test.rb`](../../test/operations/telephone_sign_up_otp_issuer_test.rb),
+`test/operations/email_sign_up_otp_issuer_test.rb` (former reference:
+../../test/operations/email_sign_up_otp_issuer_test.rb),
+`test/operations/telephone_sign_up_otp_issuer_test.rb` (former reference:
+../../test/operations/telephone_sign_up_otp_issuer_test.rb),
 [`test/values/sign_up_otp_delivery_binding_value_test.rb`](../../test/values/sign_up_otp_delivery_binding_value_test.rb)
-and
-[`test/values/email_sign_up_otp_delivery_binding_value_test.rb`](../../test/values/email_sign_up_otp_delivery_binding_value_test.rb).
-This scoped transition does not classify other ceremony transaction, grant, result or OTP-generation
-issuers.
+and `test/values/email_sign_up_otp_delivery_binding_value_test.rb` (former reference:
+../../test/values/email_sign_up_otp_delivery_binding_value_test.rb). This scoped transition does not
+classify other ceremony transaction, grant, result or OTP-generation issuers.
 
 Step-Up passkey challenge references are a separate expiring workflow-state identity. The
 `passkey_challenge_ref` columns on `client_step_up_sessions`, `visitor_step_up_sessions` and
@@ -478,9 +495,8 @@ keeps its existing named single-column unique B-tree index as the final collisio
 generated collision is retried only for that index, inside a savepoint and within the finite
 `MAX_CHALLENGE_REF_COLLISION_RETRIES` budget; unrelated uniqueness or validation failures propagate.
 The protocol `passkey_challenge` value, RP/origin binding, expiry and burn semantics are unchanged.
-Focused public-boundary and model coverage is in
-[`test/controllers/auth/step_up_admission_test.rb`](../../test/controllers/auth/step_up_admission_test.rb)
-and
+Focused public-boundary and model coverage is in `test/controllers/auth/step_up_admission_test.rb`
+(former reference: ../../test/controllers/auth/step_up_admission_test.rb) and
 [`test/models/step_up_passkey_challenge_test.rb`](../../test/models/step_up_passkey_challenge_test.rb).
 
 The APP/COM sign-up Email and Telephone `grant_jti` is a separate self-controlled, non-secret grant

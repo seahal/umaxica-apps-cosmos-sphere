@@ -5,6 +5,9 @@ module Palm
   module App
     class RootsController < Palm::App::ApplicationController
       include ::SurfaceInertiaPage
+
+      inertia_share chrome: -> { surface_chrome }
+      inertia_share clear_history: -> { session[:inertia_clear_history] == true }
       include ::SessionBoundaryNotFound
 
       AUTHENTICATION_MODE = :open
@@ -37,7 +40,6 @@ module Palm
             label: t("palm.app.roots.sign_in"),
             href: palm_app_sign_show_path(ri: params[:ri]),
           },
-          sign_up: nil,
           links: [],
         }
       end

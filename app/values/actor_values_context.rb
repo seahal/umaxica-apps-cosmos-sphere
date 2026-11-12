@@ -3,8 +3,8 @@
 
 # ActorValuesContext is the immutable value object that carries one request's
 # resolved actor state. It is the canonical Actor context type: the controller
-# /authentication pipeline resolves authentication, authorization, preference,
-# selection, and step-up, builds (or merges into) an ActorValuesContext, and
+# /authentication pipeline resolves authentication and authorization,
+# and step-up, builds (or merges into) an ActorValuesContext, and
 # pushes it into Actor via Actor.install_context!.
 #
 # It is a pure value object. It performs no token decode, DB lookup, transparent
@@ -32,8 +32,6 @@ class ActorValuesContext < Data.define(
   :authn,
   :authz,
   :configuration,
-  :preferences,
-  :selection,
   :step_up,
   :trace_id,
   :span_id,
@@ -64,8 +62,6 @@ class ActorValuesContext < Data.define(
         authn: Actor::Authentication::NULL,
         authz: Actor::Authz::NULL,
         configuration: Actor::Configuration::NULL,
-        preferences: Actor::Preference::NULL,
-        selection: Actor::SelectedContext::NULL,
         step_up: Actor::StepUp::NULL,
         trace_id: nil,
         span_id: nil,

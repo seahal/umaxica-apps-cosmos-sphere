@@ -1,5 +1,9 @@
 # Social Login Provider Scope
 
+> **Retired by the 2026-11-11 hard reset:** Local Google, Apple, and Entra sign-in routes and their
+> UI have been removed. The provider rules below record the former surface contract and must not be
+> read as current route availability.
+
 > **Partially superseded by Identity Authority inversion:** The provider availability vocabulary in
 > this document remains useful only where it does not assign account linking, account lifecycle,
 > session, token, or freshness authority to `sign/id`. `acme/www` is the Session, Token, Account,
@@ -12,11 +16,11 @@ Social login availability is surface-specific.
 
 ## Production Target
 
-| Surface | Google   | Apple    | Microsoft Entra ID                          | Other external social providers     |
-| ------- | -------- | -------- | ------------------------------------------- | ----------------------------------- |
-| `app`   | Allowed  | Allowed  | Rejected                                    | Rejected unless accepted separately |
+| Surface | Google   | Apple    | Microsoft Entra ID                           | Other external social providers     |
+| ------- | -------- | -------- | -------------------------------------------- | ----------------------------------- |
+| `app`   | Allowed  | Allowed  | Rejected                                     | Rejected unless accepted separately |
 | `org`   | Rejected | Rejected | Allowed (org-only Umaxica OmniAuth strategy) | Rejected                            |
-| `com`   | Rejected | Rejected | Rejected                                    | Rejected                            |
+| `com`   | Rejected | Rejected | Rejected                                     | Rejected                            |
 
 ## Rules
 
@@ -28,8 +32,8 @@ Social login availability is surface-specific.
   `OmniAuthNonAppSocialGuard` is not the current policy.
 - Org Entra sign-in is a first stage, not a completed session: the callback resolves a
   pre-provisioned `(tid, oid)` identity and starts the actor-bound local completion stage. It does
-  not perform JIT provisioning or establish a session. Passkey is the normal completion method;
-  the existing Secret/SecretKey path supports a lost-passkey case. Org does not use TOTP. See
+  not perform JIT provisioning or establish a session. Passkey is the normal completion method; the
+  existing Secret/SecretKey path supports a lost-passkey case. Org does not use TOTP. See
   `adr/org-entra-omniauth-strategy-migration.md`, `adr/org-entra-id-sign-in-boundary.md`, and
   `docs/security/org-emergency-access.md` for the strategy and ceremony boundaries.
 - The org Entra entry page is `GET /social/entra/session/new`; its CSRF-protected form submits to

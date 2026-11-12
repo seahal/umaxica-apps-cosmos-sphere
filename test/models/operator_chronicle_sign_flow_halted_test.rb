@@ -5,10 +5,6 @@ require "test_helper"
 
 # D-134: the database makes the ORG halt audit exactly-once per transaction and halt generation.
 class OperatorChronicleSignFlowHaltedTest < ActiveSupport::TestCase
-  setup do
-    @operator = operators(:one)
-  end
-
   test "a second SIGN_FLOW_HALTED row for the same transaction and generation is rejected" do
     halt!(transaction: "txn-a", generation: "100")
 
@@ -47,9 +43,10 @@ class OperatorChronicleSignFlowHaltedTest < ActiveSupport::TestCase
   end
 
   def base_attributes
-    { actor: @operator,
+    { actor_id: 123_456_789,
+      actor_type: "Operator",
       subject_type: "OrgNormalSignInTransaction",
-      subject_id: @operator.id,
+      subject_id: 987_654_321,
       event_id: OperatorChronicleEvent::SIGN_FLOW_HALTED,
       occurred_at: Time.current, }
   end

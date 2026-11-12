@@ -12,7 +12,7 @@ require "test_helper"
 class FlipperUiSurfaceTest < ActionDispatch::IntegrationTest
   self.fixture_table_names = []
 
-  DEVELOPER_HOST = "flipper.core.dev.localhost"
+  DEVELOPER_HOST = ENV.fetch("PUBLIC_FLIPPER_URL")
   MOUNT_PATH = "/"
   TEST_USER = "flipper-test-user"
   TEST_PASSWORD = "flipper-test-password"
@@ -53,15 +53,17 @@ class FlipperUiSurfaceTest < ActionDispatch::IntegrationTest
   # A guard that falls open when its credentials are unset is worse than no guard,
   # because it reads as protection in review.
   test "developer host rejects every request when credentials are not configured" do
-    host! DEVELOPER_HOST
-    get MOUNT_PATH, headers: basic_auth_headers(TEST_USER, TEST_PASSWORD)
+    with_flipper_ui_credentials(user: nil, password: nil) do
+      host! DEVELOPER_HOST
+      get MOUNT_PATH, headers: basic_auth_headers(TEST_USER, TEST_PASSWORD)
 
-    assert_response :unauthorized
+      assert_response :unauthorized
+    end
   end
 
   test "no other surface routes the Flipper mount" do
-    ["base.app.localhost", "base.com.localhost", "base.org.localhost", "base.net.localhost",
-     "base.dev.localhost", "core.dev.localhost", "mission.core.dev.localhost",].each do |host|
+    ["docs.app.localhost", "news.com.localhost", "help.org.localhost", "info.app.localhost",
+     "edit.org.localhost", "mission.sphere.dev.localhost",].each do |host|
       assert_raises(ActionController::RoutingError, "#{host} must not route #{MOUNT_PATH}") do
         Rails.application.routes.recognize_path("http://#{host}/features", method: :get)
       end
@@ -84,7 +86,7 @@ class FlipperUiSurfaceTest < ActionDispatch::IntegrationTest
   end
 
   test "application surfaces keep the strict-dynamic script policy" do
-    host! "base.app.localhost"
+    host! Rails.configuration.x.boot_config.fetch(:hosts).core_service.host
     get "/health"
 
     assert_includes response.headers["Content-Security-Policy"], "strict-dynamic"
@@ -96,13 +98,13 @@ class FlipperUiSurfaceTest < ActionDispatch::IntegrationTest
     { "HTTP_AUTHORIZATION" => ActionController::HttpAuthentication::Basic.encode_credentials(user, password) }
   end
 
-  def with_flipper_ui_credentials(&)
+  def with_flipper_ui_credentials(user: TEST_USER, password: TEST_PASSWORD, &)
     real_creds = Rails.app.creds
     fake_creds = Object.new
     fake_creds.define_singleton_method(:option) do |key, **options|
       case key.to_sym
-      when :FLIPPER_UI_USER then TEST_USER
-      when :FLIPPER_UI_PASSWORD then TEST_PASSWORD
+      when :FLIPPER_UI_USER then user
+      when :FLIPPER_UI_PASSWORD then password
       else real_creds.option(key, **options)
       end
     end

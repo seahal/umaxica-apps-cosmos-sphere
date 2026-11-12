@@ -1,5 +1,8 @@
 # React Purity
 
+These rules apply to the retained Core, Warp, and Palm React/Inertia pages. Each surface resolves
+its own page modules and keeps its own browser entrypoint and trust boundary.
+
 Render must be a pure computation. The three principles below are independent, and violating any one
 breaks purity.
 

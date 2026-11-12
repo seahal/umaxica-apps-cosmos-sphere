@@ -1,11 +1,11 @@
 # High-Level Design Document (HLD)
 
-> Current implementation (2026-10-04): parts of this document describe an earlier shape of the
-> application. The controller namespaces it names (`Top`, `Sign`, `Bff`, `Api`) and the help contact
-> form flow are not in the current code. Current controllers live under `Auth`, `Base`, `Core`,
-> `Warp`, `Palm`, `Edit`, `Guid`, and the content surfaces `Docs`, `Help`, `Info`, and `News`, one
-> route file each in `config/routes/`. Use `README.md` ("Routing") and `docs/architecture/` for the
-> current topology.
+> **Current surface amendment (2026-11-10):** This HLD describes an earlier multi-surface design.
+> The Rails application now serves Docs, News, Help, Info, Edit (`org`), and the six operator tools
+> listed in `README.md`. The Auth, Base, Core, GUID, Palm, Tech, Visa, and Warp controller trees and
+> their browser routes have been retired. Persistence and models remain for the next removal step.
+> Use `README.md` ("Routing") and `docs/architecture/` for live route ownership. The detailed
+> sections below are historical design context unless explicitly marked current.
 
 ## Project: Umaxica Apps Cosmos Sphere
 

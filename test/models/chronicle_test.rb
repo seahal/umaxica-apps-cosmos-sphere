@@ -152,4 +152,18 @@ class ChronicleTest < ActiveSupport::TestCase
     assert_nil chronicle.changeset["recovery_code"]
     assert_equal "locked", chronicle.changeset["status"]
   end
+  test "a retained local RP principal remains a resolvable actor" do
+    principal = RpCoreAppPrincipal.create!
+    policy = ChronicleRetentionPolicy.create!(
+      code: "rp-history", name: "RP history", duration_days: 30,
+      permanent: false,
+    )
+    chronicle = Chronicle.create!(
+      event_uuid: SecureRandom.uuid, chronicle_retention_policy: policy,
+      actor: principal, action: "rp.sign_in", result: "intent", occurred_at: Time.current,
+      erasable_at: 30.days.from_now, metadata: {},
+    )
+
+    assert_equal principal, chronicle.reload.actor
+  end
 end

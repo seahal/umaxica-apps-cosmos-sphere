@@ -113,20 +113,23 @@ Preference is exposed as an immutable value object through `Actor.preferences`.
 Request code should not read preference state from controller instance variables, raw JWT claims, or
 legacy current-context APIs when `Actor.preferences` is available.
 
-`Actor::Preference` contains the resolved display preference used by authenticated app/org flows.
-In normal authenticated requests it is initialized from the verified realm Preference JWT, then supported
-request-local context values such as `ri`, `lx`, `ct`, and `tz` are overlaid when explicitly
-present. That overlay affects only the current request and must not be copied back to the database
-or JWT.
+`Actor::Preference` contains the resolved display preference used by authenticated app/org flows. In
+normal authenticated requests it is initialized from the verified realm Preference JWT, then
+supported request-local context values such as `ri`, `lx`, `ct`, and `tz` are overlaid when
+explicitly present. That overlay affects only the current request and must not be copied back to the
+database or JWT.
 
-Base preference edit screens read account-local values from the actor's Preference records. They do
-not refresh a shared Preference JWT from account storage. On Base app/org GET or HEAD, if the JWT is
-valid but its language or experience display cookie is missing or does not match, Base may rebuild
-those two display cookies from the verified snapshot, active anonymous row and explicit actor
-values. This read does not update or reissue the JWT, change row lifecycle, or extend expiry.
-Invalid or missing JWTs are not repaired from the Preference database. Other read-only hosts render
-from the verified JWT without reading the Preference database or issuing or deleting Preference
-cookies.
+Preference persistence and actor-local values remain represented by the existing models. Base
+preference browser routes are no longer served by this repository. The retained Edit and content
+surfaces use the verified read projection; this route-scope change does not alter the model or
+database contract. Historically, Base preference edit screens read account-local values from the
+actor's Preference records and did not refresh a shared Preference JWT from account storage. On Base
+app/org GET or HEAD, if the JWT was valid but its language or experience display cookie is missing
+or does not match, Base may rebuild those two display cookies from the verified snapshot, active
+anonymous row and explicit actor values. This read does not update or reissue the JWT, change row
+lifecycle, or extend expiry. Invalid or missing JWTs are not repaired from the Preference database.
+Other read-only hosts render from the verified JWT without reading the Preference database or
+issuing or deleting Preference cookies.
 
 - localization: `language`, `region`, `timezone`
 - presentation: `theme`, `motion`, `density`, `items_per_page`
@@ -172,8 +175,8 @@ authorization-library interface, not a `User` model or application-facing curren
 Do not rename the Action Policy subject to `actor`: `Actor` is already the request-local current
 context facade. Controllers should continue wiring Action Policy with
 `authorize :user, through: :current_client` or `:current_operator` as appropriate for the surface.
-Policies read token claims through `Actor.authz.token_claims`, not by
-falling back into authentication storage.
+Policies read token claims through `Actor.authz.token_claims`, not by falling back into
+authentication storage.
 
 `Actor.signed_in?` is the request-level predicate for an authenticated actor. It is true when the
 current actor type is `:client` or `:operator`.

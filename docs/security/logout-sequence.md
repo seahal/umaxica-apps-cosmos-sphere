@@ -1,8 +1,9 @@
 # Logout Sequence
 
-Visa is the OpenID Provider (OP); Base, Core, Warp, Edit, Palm and Tech are relying-party (RP)
-surfaces. Each surface owns its host-only cookies, local session and completion route. APP, COM and
-ORG are separate realms.
+Visa is the OpenID Provider (OP); Edit is the only local relying-party (RP) browser surface served
+by this repository. Visa remains a separately owned external OP. Each surface owns its host-only
+cookies, local session and completion route. APP, COM and ORG are separate realms. The former Base,
+Core, Warp, Palm, Tech, and Visa browser routes are not served by this Rails process.
 
 ## RP initiation
 
@@ -73,8 +74,9 @@ Token and Logout Token use the grant public ID as `sid`.
 
 ## Boundaries and evidence
 
-Visa refuses `logout_challenge`; Auth sign-out clears its own ceremony state and hands off to Base.
-The RP, Visa and each receiver retain separate ownership of cookies, sessions, routes and state. See
+Visa refuses `logout_challenge`. The former Auth-to-Base sign-out handoff is retired with those
+local routes; Edit's sign-out flow remains the local RP flow. The RP, Visa and each receiver retain
+separate ownership of cookies, sessions, routes and state. See
 [session management](logout-session-management.md),
 [the OP host decision](../../adr/visa-op-host.md), and
 [the separated-store logout decision](../../adr/first-party-sign-out-op-commit-and-backchannel-logout-for-separated-rp-stores.md).

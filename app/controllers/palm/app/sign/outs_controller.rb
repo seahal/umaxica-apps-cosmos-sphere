@@ -5,10 +5,12 @@ module Palm
   module App
     module Sign
       class OutsController < Palm::App::ApplicationController
-        include ::AuthenticationLogoutable
         include ::SignOutNotice
         include ::OidcRpLogoutLauncher
         include ::SurfaceInertiaPage
+
+        inertia_share chrome: -> { surface_chrome }
+        inertia_share clear_history: -> { session[:inertia_clear_history] == true }
         include ::SignOutInertiaPages
 
         AUTHENTICATION_MODE = :open

@@ -30,9 +30,9 @@ same Podman frontend network
 The gates are intentionally independent:
 
 1. **Private transport**: an ephemeral curl container on the same compose `frontend` network as the
-   running connector requests `GET /health/liveness` through every private surface alias and
-   requires HTTP `200`. No committed script performs this — `bin/` carries generated binstubs only —
-   so it is a manual procedure, written out under "Running the Transport Probe" below.
+   running connector reaches a retained content or Edit host's `/health/liveness` endpoint. Operator
+   tools own their mounted root paths and access checks, so probe those hosts at `/` using the
+   configured access credentials. No committed script performs this; the manual procedure is below.
 2. **Host Authorization**: boot Rails in development, construct `ActionDispatch::HostAuthorization`
    from the effective settings, and send `GET /` through `Rack::MockRequest` to a stub endpoint.
    Confirm HTTP 200 for the documented private origin aliases and published site hostnames; confirm
@@ -40,8 +40,8 @@ The gates are intentionally independent:
    observation is recorded in
    [evidence](../../evidence/2026-10-13-environment-test-retirement-A6V9.md). This is an operational
    check, not a test-suite guard; repeat it after changing host configuration.
-3. **Surface routing**: the route contract tests recognize non-health application resources for the
-   private Host values and assert the matching `app`, `com`, `org`, `net`, or `dev` controller.
+3. **Surface routing**: route contract tests recognize non-health resources for the configured Docs,
+   News, Help, Info, and Edit host groups. Operator-tool mounts have separate host constraints.
 4. **Podman DNS aliases**: `podman compose config` must show the private aliases on `core`'s
    `frontend` network and no new host port publication. The connector never needs an inbound host
    port and must not be given one; the only publications in the stack are `core`'s loopback-bound
@@ -62,13 +62,11 @@ therefore proves transport reachability only. It does not prove that the Host is
 
 ## Development Scope
 
-Development Rails is published through this tunnel under the browser-facing site names, behind
-Cloudflare Access. The `core` container therefore carries two sets of `frontend` aliases — the
-private `*.localhost` origins and the published site names — and development Host Authorization
-accepts both families and nothing else. See the "Development Is Tunnel-Exposed Behind Access"
-section of `docs/architecture/cloudflare-request-paths.md` for how each family reaches
-`config.hosts`, and for the `FORCE_SECURE_COOKIES` trade-off between the tunnel path and the
-plain-`http` local path.
+Development Rails is reachable through this tunnel for hostnames configured in the Cloudflare
+account. The `core` container's frontend aliases and development Host Authorization must match the
+retained route constraints for Docs, News, Help, Info, Edit, and the operator tools. The Cloudflare
+account owns published hostnames and Access policy; local route configuration does not prove that an
+external hostname is published or protected.
 
 `edit.umaxica.org` follows the same private-origin contract: its remotely managed Tunnel ingress
 uses `http://edit.org.localhost:3000` on `frontend`. The `core` aliases in
@@ -185,10 +183,10 @@ devcontainer up --workspace-folder .         # starts cloudflare-tunnel
 podman compose --profile tunnel-edge up -d   # alternative tunnel
 ```
 
-Starting both is supported: the two connectors then serve their own tunnels over the same private
-`*.localhost` origins on `frontend`. Nothing in Rails changes with the choice of tunnel — the
-ingress rules and published hostnames live in the Cloudflare account, and Rails Host Authorization
-accepts the same two hostname families either way.
+Starting both is supported: the connectors serve their own tunnels over the same private frontend
+network. Nothing in Rails changes with the choice of tunnel. Ingress rules and published hostnames
+live in the Cloudflare account, while Rails Host Authorization and route constraints remain the
+application boundary.
 
 Do not leave a standalone `docker run ... tunnel run --token ...` connector running for either
 tunnel at the same time. Inspect `docker ps` and `podman ps` on the host before switching to the
@@ -235,11 +233,10 @@ podman run --rm --network "$net" docker.io/curlimages/curl:8.16.0 \
   -sS --max-time 5 http://cloudflare-tunnel:2000/ready                    # want: {"status":200,...}
 ```
 
-Then request `/health/liveness` through each private alias. Under the 2026-09-03 text health
-contract both `/health` and `/health/liveness` return `text/plain` `200` (they no longer negotiate
-on `Accept`), so either works; `/health/liveness` is the narrower, dependency-free probe and stays
-the recommended target. Leave `Host` to curl — it sends `<alias>:3000`, which is the form
-`config.hosts` carries for the private origins.
+For retained content and Edit aliases, request `/health/liveness`; leave `Host` to curl so it sends
+`<alias>:3000`, the form admitted by development Host Authorization. Operator-tool mounts have no
+shared health endpoint: request `/` with their configured access mechanism and treat the HTTP
+response as transport evidence, not proof of authorization.
 
 The alias list is the `frontend` `aliases:` block of the `core` service in `compose.yaml`; that
 block is the single source, so read it there rather than copying the names into a second list that
@@ -247,7 +244,7 @@ can drift:
 
 ```bash
 aliases=$(podman inspect -f '{{range .NetworkSettings.Networks}}{{range .Aliases}}{{println .}}{{end}}{{end}}' \
-  "$(podman ps -q --filter label=com.docker.compose.service=core)" | grep '\.localhost$')
+  "$(podman ps -q --filter label=com.docker.compose.service=core)" | grep -E '^(docs|news|help|info)\.(app|com|org)\.localhost$|^edit\.org\.localhost$')
 
 for a in $aliases; do
   podman run --rm --network "$net" docker.io/curlimages/curl:8.16.0 \
@@ -266,7 +263,7 @@ cloudflared uses Go's own resolver and is not known to apply the same special ca
 here as inconclusive for the Access ingress path and diagnose that path through the connector
 instead.
 
-The Workers VPC alias is unaffected and is the one to probe for that path:
+The Workers VPC routing alias is unaffected and is the one to probe for that path:
 
 ```bash
 podman run --rm --network "$net" docker.io/curlimages/curl:8.16.0 \
@@ -311,16 +308,27 @@ development only; the first and fourth items remain unverified, and production r
 all four. A dated verification run is evidence, not a substitute for re-checking after any account
 change.
 
-That run also found that `palm-jp.umaxica.app` currently carries an interactive Access application.
-The observation predates Palm's move to a Browser RP: the former bearer API is retired. Before
-publishing the current browser flow, re-verify Access behavior, cookie forwarding, and
-private-origin reachability against the deployed route and callback contract. Local Rails routing
-does not establish that production or development edge routing has been published.
+The repository route contract now keeps Docs, News, Help, Info, Edit, and the six operator tools.
+Historical external scan results describe only their dated observation and do not establish current
+Cloudflare Access or Tunnel state. Verify published hostnames, Access protection, cookie forwarding,
+and private-origin reachability in the deployment account after any edge change. Local Rails routing
+does not establish that an external hostname is published.
 
-The Docs, Help, and News families are not published through the tunnel. `PUBLIC_DOCS_*_URL` names a
-private `*.localhost` origin and no `PUBLIC_HELP_*`/`PUBLIC_NEWS_*` value is set, so the former
-`docs-jp.`/`help-jp.`/`news-jp.umaxica.*` aliases named hostnames that nothing configured and that
-Host Authorization would reject; they are removed rather than left dangling. This also retires the
-pre-existing spelling mismatch between those aliases and the `docs.jp.umaxica.app` route
-constraints. Publishing any of the three means choosing the canonical hostname, setting the matching
-`PUBLIC_*_URL`, and adding the alias — in that order.
+## Server-to-Server Calls Through the Tunnel May Fail
+
+After the Cosmos split, server-to-server calls between repositories (an RP fetching Visa's Discovery
+and JWKS or calling its token, UserInfo and revocation endpoints; Access fetching an RP's
+`/.well-known/jwks.json`) travel through the public hostnames and each repository's Cloudflare
+Tunnel. Such calls can fail for reasons outside the application, so a failure on this path does not
+by itself indicate an application defect:
+
+- **Cloudflare Access.** The `app`, `com` and `org` hosts use the `surface-gate` policy. While it is
+  locked (Allow, owner emails), every server-to-server call is redirected to the Access login and
+  fails; RP sign-in stops until it is unlocked (`plans/2026-11-08-cloudflare-tunnel-split.md`).
+- **Connector state.** A tunnel with no healthy connector answers Error 1033. A connector still
+  running with another repository's token joins that tunnel as a replica, so requests reach a random
+  repository.
+- **Container lifecycle.** The receiving repository's Dev Container may be stopped or recreating.
+
+Check these first when a cross-repository call fails in development. This path is not available for
+offline or tunnel-less local work.

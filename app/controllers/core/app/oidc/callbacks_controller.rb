@@ -10,8 +10,6 @@ module Core
         AUTHENTICATION_MODE = :open
         declare_authentication_mode! :open
 
-        skip_before_action :set_region, raise: false
-
         private
 
         # Core has no Rails dashboard; the shared Home remains the entry for its TanStack Start

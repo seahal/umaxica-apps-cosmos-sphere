@@ -6,6 +6,8 @@ module Palm
     class DashboardsController < Palm::App::ApplicationController
       include ::SurfaceInertiaPage
 
+      inertia_share chrome: -> { surface_chrome }
+      inertia_share clear_history: -> { session[:inertia_clear_history] == true }
       AUTHENTICATION_MODE = :private
       declare_authentication_mode! :private
       before_action :authenticate_browser_rp!
@@ -13,7 +15,7 @@ module Palm
       public
 
       def show
-        authorize!(current_client, to: :show?)
+        authorize!(current_resource, to: :show?)
         render inertia: "palm/app/dashboards/show", props: dashboard_page_props
       end
 

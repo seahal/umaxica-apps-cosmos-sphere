@@ -21,7 +21,6 @@ class ActorAttributesTest < ActiveSupport::TestCase
     )
     Actor.configuration = Actor::Configuration.new(foo: "bar")
     Actor.tld = :app
-    Actor.install_context!(preferences: Actor::Preference.new(language: "en"))
 
     Actor.reset
 
@@ -30,7 +29,6 @@ class ActorAttributesTest < ActiveSupport::TestCase
     assert_equal Actor::Authentication::NULL, Actor.authn
     assert_equal Actor::Configuration::NULL, Actor.configuration
     assert_nil Actor.tld
-    assert_predicate Actor.preferences, :null?
   end
 
   test "user? and operator? reflect actor_type" do
@@ -62,12 +60,6 @@ class ActorAttributesTest < ActiveSupport::TestCase
 
     assert_equal staff, Actor.operator
     assert_nil Actor.client
-  end
-
-  test "preference defaults to NULL" do
-    assert_equal Actor::Preference::NULL, Actor.preferences
-    assert_predicate Actor.preferences, :null?
-    assert_equal "ja", Actor.preferences.language # Safe default
   end
 
   test "tld can be set" do

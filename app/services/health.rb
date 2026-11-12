@@ -41,7 +41,7 @@ module Health
     end
 
     # `namespace` names the routed surface that answered, as "<realm>/<surface>"
-    # (for example "core/app"). One Rails process answers on fifteen hostnames and the
+    # (for example "docs/app"). One Rails process answers on several hostnames and the
     # probe bodies were otherwise identical, so a caller that sent the wrong `Host` still
     # saw a 200 and could not tell which surface produced it. The value is derived from the
     # controller that ran, not from a constant listed beside the route, so it cannot drift
@@ -174,9 +174,7 @@ module Health
       def check_roles
         operation =
           lambda do
-            # Logical records such as AppPrincipalRecord share the connection
-            # established by their physical zenith base; role switching is only
-            # permitted on the class that called connects_to.
+            # Role switching belongs to the class that establishes the connection.
             connection_owner = record_class.connection_class_for_self
             ROLES.each do |role|
               connection_owner.connected_to(role: role) do
@@ -216,58 +214,33 @@ module Health
     end
 
     App = Base.new(
-      cache_key: "acme-app",
+      cache_key: "content-app",
       surface_label: "app",
       record_classes: [
-        AppRpRecord,
-        AppSettingRecord,
-        AppSignalRecord,
-        AvatarRecord,
-        OccurrenceRecord,
+        RpCoreAppRecord,
+        RpWarpAppRecord,
+        RpPalmAppRecord,
+        ChronicleRecord,
       ],
     )
 
     Com = Base.new(
-      cache_key: "acme-com",
+      cache_key: "content-com",
       surface_label: "com",
       record_classes: [
-        ComSettingRecord,
+        ChronicleRecord,
       ],
     )
 
     Org = Base.new(
-      cache_key: "acme-org",
+      cache_key: "content-org",
       surface_label: "org",
       record_classes: [
-        OrgRpRecord,
-        OrgSettingRecord,
-        OrgSignalRecord,
+        RpCoreOrgRecord,
+        RpWarpOrgRecord,
+        ChronicleRecord,
       ],
     )
-
-    SignApp = Base.new(
-      cache_key: "sign-app",
-      surface_label: "sign app",
-      record_classes: [
-        AppPrincipalRecord,
-        OpBaseAppRecord,
-        AppSettingRecord,
-      ],
-    )
-
-    SignOrg = Base.new(
-      cache_key: "sign-org",
-      surface_label: "sign org",
-      record_classes: [
-        OrgPrincipalRecord,
-        OpBaseOrgRecord,
-        OrgSettingRecord,
-      ],
-    )
-
-    # The bootstrap resolver has no authoritative store yet. Readiness therefore checks only the
-    # process boundary; a storage check belongs here when a persistence decision is accepted.
-    Guid = Base.new(cache_key: "guid-net", surface_label: "guid", record_classes: [])
   end
 
   # Liveness probe: only confirms the Rails process can respond.

@@ -55,7 +55,7 @@ Historical records under `adr/`, `evidence/`, `research/`, and `research/` still
 ## Consequences
 
 - The descriptions are no longer fetchable without a credential from any development host. The only
-  HTTP path to them is `https://swagger.umaxica.dev/openapi/openapi.<surface>.yml`, behind
+  HTTP path to them is `https://swagger-sphere-jp.umaxica.dev/openapi/openapi.<surface>.yml`, behind
   `SWAGGER_USERNAME` / `SWAGGER_PASSWORD`.
 - Anything outside this repository that fetched `/openapi.app.yml` from a development host breaks,
   and should be pointed at the swagger host or read the file off disk.

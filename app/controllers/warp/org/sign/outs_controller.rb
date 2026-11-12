@@ -5,10 +5,12 @@ module Warp
   module Org
     module Sign
       class OutsController < Warp::Org::ApplicationController
-        include ::AuthenticationLogoutable
         include ::SignOutNotice
         include ::OidcRpLogoutLauncher
         include ::SurfaceInertiaPage
+
+        inertia_share chrome: -> { surface_chrome }
+        inertia_share clear_history: -> { session[:inertia_clear_history] == true }
         include ::SignOutInertiaPages
 
         AUTHENTICATION_MODE = :open
@@ -22,6 +24,8 @@ module Warp
         helper_method :sign_out_confirmation_form_path
 
         after_action :sign_out_notice_cache_headers!, only: %i(show edit)
+
+        public
 
         def show
           complete_oidc_rp_logout!

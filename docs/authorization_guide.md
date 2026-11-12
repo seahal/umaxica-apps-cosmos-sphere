@@ -1,5 +1,10 @@
 # Authorization Implementation Guide
 
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 ## Overview
 
 This application implements authorization with **Action Policy** through the `action_policy` gem. It
@@ -38,8 +43,8 @@ class ApplicationPolicy < ActionPolicy::Base
 end
 ```
 
-Each surface ApplicationController supplies the actor, for example in
-`app/controllers/core/app/application_controller.rb`:
+The retained Edit ApplicationController supplies the actor in
+`app/controllers/edit/org/application_controller.rb`:
 
 ```ruby
 authorize :actor, through: :current_actor

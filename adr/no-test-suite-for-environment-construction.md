@@ -96,3 +96,11 @@ Accepted, and stated plainly rather than minimised:
 - `.agents/harnesses/rules/generic/no-test-only-code.mdc` — the converse prohibition: test concerns
   must not leak into application code
 - `adr/diagnostic-surfaces-performance-coverband-swagger.md` — the work that prompted this
+
+## Sphere amendment (2026-11-10)
+
+Sphere removed `rails_performance`, its self-mount suppression, route-list copy, and gem-specific
+sanitizer tests. The remaining mounted-engine invariant still forbids `/rails/performance`, so the
+retired engine path cannot reappear in the test route set. Environment construction remains verified
+by running the relevant environment and recording the observation, not by adding a Minitest boot
+test.

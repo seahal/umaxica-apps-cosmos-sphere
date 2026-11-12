@@ -14,10 +14,10 @@ module OidcClientRegistry
 
   ClientConfiguration =
     Data.define(
-      :client_id, :client_secret, :redirect_uris, :redirect_uris_by_realm, :post_logout_redirect_uris,
+      :client_id, :redirect_uris, :redirect_uris_by_realm, :post_logout_redirect_uris,
       :aud, :resource_type,
       :name, :domains, :allowed_scopes, :registered_token_endpoint_auth_method,
-      :metadata_token_endpoint_auth_method, :jwt_namespace, :required_operator_capability,
+      :jwt_namespace,
     ) do
       def public_client?
         registered_token_endpoint_auth_method == "none"
@@ -31,12 +31,6 @@ module OidcClientRegistry
         registered_token_endpoint_auth_method == "private_key_jwt"
       end
     end
-  AssertionAuthenticationResult =
-    Data.define(:authenticated, :client, :step_up_claims_state, :step_up_expectation) do
-      def authenticated? = authenticated
-
-      def step_up_claims_present? = step_up_claims_state != :none
-    end
   CLIENTS_MUTEX = Mutex.new
   CLIENTS_CACHE = Concurrent::AtomicReference.new(nil)
 
@@ -49,27 +43,23 @@ module OidcClientRegistry
     return nil unless config
 
     registered_auth_method = config[:token_endpoint_auth_method]
-    # A realm may be configured from several ENV keys that resolve to the same host (the public and
-    # private auth origins are identical outside production), so collapse repeats here rather than
-    # letting every consumer see the same URI twice.
+    # Public and process-local RP origins can resolve to the same host outside production, so
+    # collapse repeats here rather than letting consumers see the same URI twice.
     redirect_uris_by_realm = redirect_uris_by_realm_for(config).transform_values(&:uniq)
     all_redirect_uris = redirect_uris_by_realm.values.flatten
     all_redirect_uris.uniq!
 
     ClientConfiguration.new(
       client_id: client_id.to_s,
-      client_secret: resolve_secret_credential(client_id.to_s),
       redirect_uris: all_redirect_uris,
       redirect_uris_by_realm: redirect_uris_by_realm,
       post_logout_redirect_uris: (config[:post_logout_redirect_uris] || []).uniq,
-      required_operator_capability: config[:required_operator_capability],
       aud: config[:aud],
       resource_type: config[:resource_type],
       name: config[:name],
       domains: domains_from_redirect_uris(all_redirect_uris),
       allowed_scopes: normalize_allowed_scopes(config.fetch(:allowed_scopes, DEFAULT_ALLOWED_SCOPES)),
       registered_token_endpoint_auth_method: registered_auth_method,
-      metadata_token_endpoint_auth_method: registered_auth_method || metadata_auth_method(client_id.to_s),
       jwt_namespace: config[:jwt_namespace],
     )
   end
@@ -97,38 +87,6 @@ module OidcClientRegistry
     return false unless OidcRedirectUriPolicy.valid_post_logout_redirect_uri?(client, uri)
 
     normalize_resource_type(client.resource_type) == normalize_resource_type(resource_type)
-  end
-
-  # @param client_id [String]
-  # @param secret_credential [String]
-  # @return [Boolean]
-  def authenticate(client_id, secret_credential)
-    client = find(client_id)
-    return false unless client
-    return false if client.client_secret.blank? || secret_credential.blank?
-
-    ActiveSupport::SecurityUtils.secure_compare(client.client_secret, secret_credential)
-  end
-
-  def authenticate_assertion(client_id, assertion, token_url:)
-    verify_client_assertion(client_id, assertion, token_url:).authenticated?
-  end
-
-  def verify_client_assertion(client_id, assertion, token_url:)
-    client = find(client_id)
-    unless client&.private_key_jwt_client?
-      return AssertionAuthenticationResult.new(
-        authenticated: false, client: nil, step_up_claims_state: :none, step_up_expectation: nil,
-      )
-    end
-
-    verification = OidcClientAssertionJwt.verify(client_id:, assertion:, token_url:)
-    AssertionAuthenticationResult.new(
-      authenticated: verification.authenticated?,
-      client: verification.authenticated? ? client : nil,
-      step_up_claims_state: verification.step_up_claims_state,
-      step_up_expectation: verification.step_up_expectation,
-    )
   end
 
   def jwt_namespace_for(client_id)
@@ -163,37 +121,6 @@ module OidcClientRegistry
           "private_key_jwt OIDC clients are missing signing keys: #{missing.join(", ")}"
   end
 
-  def audiences_for_resource_type(resource_type)
-    normalized_resource_type = normalize_resource_type(resource_type)
-
-    result =
-      clients.values.filter_map do |config|
-        next unless normalize_resource_type(config[:resource_type]) == normalized_resource_type
-
-        config[:aud]
-      end
-    result.uniq!
-    result
-  end
-
-  # RFC 8414 describes the methods supported by the revocation endpoint separately from the token
-  # endpoint.  This application intentionally derives the set from the same registered client
-  # contract used by the revoker; advertising a method that no registered client can use would make
-  # discovery lie, while accepting an unregistered method would turn revocation into a guessing
-  # oracle.
-  def revocation_endpoint_auth_methods_for(resource_type)
-    normalized_resource_type = normalize_resource_type(resource_type)
-
-    result =
-      clients.values.filter_map do |config|
-        next unless normalize_resource_type(config[:resource_type]) == normalized_resource_type
-
-        config[:token_endpoint_auth_method].presence
-      end
-    result.uniq!
-    result
-  end
-
   def normalize_allowed_scopes(allowed_scopes)
     Array(allowed_scopes).map(&:to_s).freeze
   end
@@ -219,39 +146,12 @@ module OidcClientRegistry
 
   def client_config_signature
     hosts = Rails.configuration.x.boot_config.fetch(:hosts)
-    boot_signature =
-      %i(
-        sign_service sign_staff
-        base_service base_staff
-        warp_service warp_staff
-        core_service core_staff
-      ).map { |name| [name, hosts.public_send(name).to_s] }
-    env_signature =
-      %w(
-        PUBLIC_AUTH_SERVICE_URL PUBLIC_AUTH_STAFF_URL
-        PRIVATE_AUTH_SERVICE_URL PRIVATE_AUTH_STAFF_URL
-        BASE_SERVICE_URL BASE_STAFF_URL
-        PUBLIC_WARP_SERVICE_URL PUBLIC_WARP_STAFF_URL
-        PUBLIC_EDIT_STAFF_URL
-        PUBLIC_CORE_SERVICE_URL PUBLIC_CORE_STAFF_URL
-        CORE_SERVICE_URL CORE_STAFF_URL
-      ).map { |name| [name, ENV.fetch(name, nil)] }
-
-    (boot_signature + env_signature).freeze
+    [hosts.core_service, hosts.core_staff, hosts.warp_service, hosts.warp_staff, hosts.palm_service]
+      .map(&:to_s).freeze
   end
 
   def build_clients
     OidcClientStoresStaticClientStore.clients
-  end
-
-  def resolve_secret_credential(client_id)
-    OidcClientSecretResolver.resolve(client_id)
-  end
-
-  # This method is metadata/diagnostic-only. It must not be used for token endpoint authentication
-  # or authorization decisions.
-  def metadata_auth_method(_client_id)
-    "client_secret_post"
   end
 
   def domains_from_redirect_uris(redirect_uris)
@@ -276,16 +176,8 @@ module OidcClientRegistry
     end
   end
 
-  def normalize_host(host)
-    parsed_host = URI.parse(host.to_s).host if host.to_s.include?("://")
-    parsed_host.presence || URI.parse("//#{host}").host.to_s.presence || host.to_s
-  rescue URI::InvalidURIError
-    host.to_s
-  end
-
   private_class_method :clients, :build_clients, :client_config_signature,
-                       :resolve_secret_credential, :domains_from_redirect_uris,
+                       :domains_from_redirect_uris,
                        :redirect_uris_by_realm_for,
-                       :normalize_resource_type, :metadata_auth_method, :normalize_allowed_scopes,
-                       :normalize_host
+                       :normalize_resource_type, :normalize_allowed_scopes
 end

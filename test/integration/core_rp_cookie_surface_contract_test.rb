@@ -4,113 +4,61 @@
 require "test_helper"
 
 class CoreRpCookieSurfaceContractTest < ActionDispatch::IntegrationTest
-  SURFACES = [
-    {
-      host: -> { ENV.fetch("PUBLIC_CORE_SERVICE_URL", "core.app.localhost") },
-      client_id: "core-app-jp",
-      resource_type: "client",
-      resource_fixture: [:clients, :one],
-    },
-    {
-      host: -> { ENV.fetch("PUBLIC_CORE_STAFF_URL", "core.org.localhost") },
-      client_id: "core-org-jp",
-      resource_type: "operator",
-      resource_fixture: [:operators, :one],
-    },
-  ].freeze
-
-  setup do
-    @previous_flag = ENV["CORE_BROWSER_JWT_COOKIE_ENABLED"]
+  test "each Core surface binds the signed client and subject to its own local session" do
+    previous_flag = ENV["CORE_BROWSER_JWT_COOKIE_ENABLED"]
     ENV["CORE_BROWSER_JWT_COOKIE_ENABLED"] = "1"
-  end
-
-  teardown do
-    ENV["CORE_BROWSER_JWT_COOKIE_ENABLED"] = @previous_flag
-    Actor.clear if defined?(Actor)
-  end
-
-  test "app and org accept only their exact RP access credential" do
-    SURFACES.each do |surface|
-      fixture_method, fixture_name = surface.fetch(:resource_fixture)
-      resource = public_send(fixture_method, fixture_name)
+    [
+      %w(rp_core_app PUBLIC_CORE_SERVICE_URL client),
+      %w(rp_core_org PUBLIC_CORE_STAFF_URL operator),
+    ].each do |connection, host_setting, resource_type|
       browser = open_session
-      browser.host!(surface.fetch(:host).call)
+      browser.host!(ENV.fetch(host_setting))
       browser.https!
-      browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] = access_token_for(
-        resource,
-        resource_type: surface.fetch(:resource_type),
-        client_id: surface.fetch(:client_id),
+      cell = RpCellBinding.fetch(connection)
+      issuer = OidcIssuer.for_resource_type(resource_type)
+      enrollment = RpCallbackCommitter.call(
+        cell:, issuer:, subject: "exact-subject", sid: "exact-#{connection}",
+        absolute_expires_at: 10.minutes.from_now,
       )
 
-      browser.get("/api/v0/session", headers: json_headers)
+      assert_predicate enrollment, :success?
+      key = OpenSSL::PKey::EC.generate("secp384r1")
+      payload = {
+        "iss" => issuer,
+        "aud" => [cell.client_id],
+        "client_id" => cell.client_id,
+        "sub" => "exact-subject",
+        "sid" => "exact-#{connection}",
+        "iat" => Time.current.to_i,
+        "nbf" => Time.current.to_i,
+        "exp" => 5.minutes.from_now.to_i,
+        "jti" => "exact-access-#{connection}",
+        "scope" => "openid profile",
+        "authn_ctx" => "normal",
+      }
+      jwks = OidcOpJwksClient.for_resource_type(resource_type)
+      lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)
+      [
+        payload.merge("sub" => "another-subject"),
+        payload.merge("sid" => "another-session"),
+        payload.merge("aud" => ["palm-app-jp"]),
+        payload.merge("client_id" => "palm-app-jp"),
+      ].each do |mismatched|
+        browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
+          JWT.encode(mismatched, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+        browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
+        jwks.stub(:lookup, lookup) do
+          browser.get("/api/v0/session", headers: { "Accept" => "application/json" })
+        end
 
-      assert_equal 200, browser.response.status, surface.fetch(:client_id)
-      body = browser.response.parsed_body
-
-      assert body.fetch("authenticated")
-      assert_equal resource.public_id, body.dig("actor", "id"), surface.fetch(:client_id)
-      assert_not_equal resource.id.to_s, body.dig("actor", "id"), surface.fetch(:client_id)
+        assert_equal 401, browser.response.status, connection
+        assert_equal "urn:umaxica:problem:authentication-required", browser.response.parsed_body.fetch("type")
+        assert_not browser.response.parsed_body.key?("actor")
+        assert_nil enrollment.session.reload.revoked_at
+      end
     end
-  end
-
-  private
-
-  def root_and_grant_for(resource, resource_type)
-    case resource_type
-    when "client"
-      [ClientToken.find_by(user_id: resource.id) || ClientToken.create!(
-        authentication_epoch: 0,
-        user: resource, user_token_kind_id: ClientTokenKind::BROWSER_WEB,
-        user_token_status_id: ClientTokenStatus::ACTIVE,
-      ), OpAppGrant, :client_token,]
-    when "operator"
-      [OperatorToken.find_by(staff_id: resource.id) || OperatorToken.create!(
-        authentication_epoch: 0,
-        staff: resource, staff_token_kind_id: OperatorTokenKind::BROWSER_WEB,
-        staff_token_status_id: OperatorTokenStatus::ACTIVE,
-      ), OpOrgGrant, :operator_token,]
-    else
-      raise ArgumentError, "unsupported resource type"
-    end
-  end
-
-  def access_token_for(resource, resource_type:, client_id:)
-    client = OidcClientRegistry.find!(client_id)
-    root_token, grant_class, grant_foreign_key = root_and_grant_for(resource, resource_type)
-    rp_grant = grant_class.create!(
-      :authentication_epoch => 0,
-      grant_foreign_key => root_token,
-      :oidc_client_id => client.client_id,
-      :oidc_scope => "openid profile",
-      :oidc_jti => SecureRandom.uuid,
-      :oidc_nonce => SecureRandom.hex(16),
-      :oidc_auth_time => 1.minute.ago,
-      :refresh_token_expires_at => 10.minutes.from_now,
-    )
-    AuthenticationTokenService.encode(
-      resource,
-      host: OidcIssuer.host_for_resource_type(resource_type),
-      resource_type: resource_type,
-      session_public_id: rp_grant.public_id,
-      base_session_public_id: root_token.public_id,
-      oidc_sid: rp_grant.public_id,
-      oidc_jti: rp_grant.oidc_jti,
-      expires_at: 10.minutes.from_now,
-      scopes: %w(openid profile),
-      issuer: OidcIssuer.for_resource_type(resource_type),
-      audiences: [client.aud],
-      jwt_issuer_id: OidcIssuer.jwt_issuer_id_for_client(client),
-      subject: OidcSubject.for(resource, resource_type: resource_type),
-      client_id: client.client_id,
-      authentication_context: root_token.strict_authentication_context_value.to_s,
-    )
-  end
-
-  def json_headers
-    {
-      "Accept" => "application/json",
-      "Content-Type" => "application/json",
-      "Client-Agent" => "Mozilla/5.0 (Core RP contract test)",
-    }
+  ensure
+    previous_flag.nil? ? ENV.delete("CORE_BROWSER_JWT_COOKIE_ENABLED") : ENV["CORE_BROWSER_JWT_COOKIE_ENABLED"] =
+                                                                           previous_flag
   end
 end

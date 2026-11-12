@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # PgHero owns the PostgreSQL monitoring dashboard (PgHero::Engine), on its own dedicated host.
-# Public canonical host: pghero.umaxica.dev. Development host: pghero.core.dev.localhost.
+# Public canonical host: pghero-sphere-jp.umaxica.dev. Development host: pghero.core.dev.localhost.
 constraints host: [ENV["PUBLIC_PGHERO_URL"], ENV["PRIVATE_PGHERO_URL"],
                    "pghero.core.dev.localhost",].compact do
   # `pghero` is a `group :development` gem (Gemfile); it is not in the test group's load path,

@@ -1,74 +1,48 @@
 # Role Secret Isolation (R5-WU03A)
 
-Status: development and test use **one Rails-standard credentials set and one database login for
-every role** (user decision 2026-10-19, `adr/runtime-secret-isolation-deferred.md` amendment). This
-page describes what a runtime role still controls and what it does not.
+Status: every runtime role uses the same Rails credentials set and database configuration. The
+per-role secret boundary was withdrawn by the 2026-10-23 decision in
+`adr/runtime-secret-isolation-deferred.md`.
 
-**Withdrawn for every environment (2026-10-23):** production also uses one credentials set; per-role
-secret isolation is not planned. One Puma serves every FQDN and an RP compromise equals an OP
-compromise (accepted). OP signing keys are to move to AWS KMS. See the 2026-10-23 amendment of
-`adr/runtime-secret-isolation-deferred.md`; the per-role parts of
-`plans/backlog/2026-10-18-production-runtime-secret-isolation.md` are withdrawn.
+## Shared credentials and database access
 
-## What a runtime role does not control
+- Every process reads `config/credentials/<env>.yml.enc` with `<env>.key` and shares the configured
+  `SECRET_KEY_BASE`. There are no per-role credential bundles.
+- Development and test connect with the fixed local PostgreSQL configuration in
+  `config/database.yml`. Runtime roles do not create separate PostgreSQL logins.
+- All roles run in the same development container. The role name is an application routing and
+  execution boundary, not an operating-system or database isolation boundary.
 
-- **Credentials.** Every process reads `config/credentials/<env>.yml.enc` with `<env>.key`. There
-  are no per-role bundles, and every process shares one `SECRET_KEY_BASE`: cookies and
-  `secret_key_base`-derived digests must verify across hosts and processes.
-- **Database login.** Development and test connect with the fixed Dev Container login written in
-  `config/database.yml`; there is no per-role PostgreSQL login and no PostgreSQL-grant boundary
-  between roles.
-- **Operating-system boundary.** All roles run in the single development container (user decision
-  2026-10-17).
+Consequently, a process can read credentials that its role does not use. Removing an entry from a
+role's active key set does not prevent that process from decrypting the shared credentials file.
 
-Consequently an RP role process in development can read every secret in the environment's
-credentials. `AT-R5-03A` cannot pass in development or test; that is intended.
+## Route ownership
 
-## What a runtime role controls
+`UMAXICA_RUNTIME_ROLE` is read once at boot from the fixed allowlist in `lib/runtime_role.rb`. It is
+never derived from request input. `RuntimeRole.route_owner` assigns every retained controller path;
+`lib/runtime_role_route_guard.rb` refuses an unowned path before controller callbacks run.
 
-`UMAXICA_RUNTIME_ROLE` names one role from the fixed allowlist in `lib/runtime_role.rb`, read once
-at boot and never from request input. It selects the controllers the process serves (below), the
-private signing keys it requires and keeps in its environment, and the OP/RP code paths.
+| Controller path                                                                     | Route owner         | Behavior                                                                |
+| ----------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------- |
+| `docs/**`, `news/**`, `help/**`, `info/**`                                          | `domain-publishing` | Content surfaces and their health and revision endpoints                |
+| `edit/**`                                                                           | `rp-edit-org-ww`    | Staff Publishing management RP                                          |
+| `mission_control/jobs/**`, `blazer/**`, `pg_hero/**`, `rswag/api/**`, `rswag/ui/**` | `shared`            | Mounted operator tools; each mount has its own host and access boundary |
+| `unknown_hosts`                                                                     | any role            | Host-independent 404 response                                           |
+| Any other controller path                                                           | none                | Refused by every role, including `shared`                               |
 
-## Route ownership and cell authentication (R5-WU17)
+The `shared` role can serve every path with an explicit owner. Other allowlisted roles do not gain a
+controller route merely because their role name remains configured for protocol or background
+execution. Rack mounts that do not use Action Controller retain their mount middleware and host
+constraints.
 
-A role process serves only the controllers `RuntimeRole.route_owner` assigns to it. The table lives
-in `lib/runtime_role.rb`; `lib/runtime_role_route_guard.rb` (prepended to `ActionController::Base`
-and `ActionController::API`) answers `404` with no body and no cookie before any controller callback
-runs. An unclassified controller raises `RuntimeRole::UnownedRoute` and is refused, so a new route
-needs an explicit owner. The `shared` role serves every controller.
+## Signing keys
 
-- Visa identity, credential, Step-Up verification, withdrawal, recovery, selector, welcome and OP
-  protocol paths belong to the realm OP role (`op-base-<realm>`) on the Visa public host. They read
-  the canonical actor, which only the OP may read (user decision 2026-10-17).
-- Base Self-RP entry, callback, RP credential refresh, logout receivers and relay pages belong to
-  `rp-base-<realm>-ww`; owner APIs belong to their domain or OP role.
-- An `rp-*` process authenticates only from its own cell: the Access JWT verified against the OP
-  JWKS plus the opaque `rp-session` cookie naming a live local session bound to the token's
-  `sid`/`sub`/epoch (`RpCellLocalSession`, `RpRequestAuthenticator`). Callback and Refresh write the
-  cell store (`RpCallbackCommitter`, `RpRefreshCommitter`). Base cells read the selected
-  account/organization from the OP (`GET /api/v0/identity/selection`). Core session API
-  (`GET /api/v0/session`) in a cell process: the actor is the local principal, so `actor.id` is the
-  cell principal's public ID and `display_name` falls back to it. This external contract change was
-  approved by the user on 2026-10-17.
+RP private-key selection is implemented in `RuntimeRole.rp_private_env_names`. It limits which
+private key names an RP process actively loads; it does not create a credentials-file boundary.
+Changes to this selection must preserve the Edit RP's own client assertion and redirect-validation
+contracts. OP, Auth, and other retired controller trees are not route owners in the current
+application.
 
-## Private keys held by an RP cell process (R5-WU18A finding)
-
-The development keyset installer exports every local signing key into the process environment. In an
-`rp-*` process it now removes every private key except `RuntimeRole.rp_private_env_names`: the
-cell's own private_key_jwt client key, its surface's Jump RT key and the preference keyset. The JWT
-registry requires private keys only for those records in that process; all public keysets still
-load. Probe on 2026-10-17 (`rp-palm-app-jp`): 39 `*_PRIVATE_KEY*` variables before, 3 after.
-
-Not a secret boundary: every role reads the same credentials file, so the key removal limits what a
-cell process _uses_, not what it could decrypt.
-
-## Activation (R5-WU19)
-
-- OP side: `op_client_activations` per realm OP store, written only by `OpClientActivationWriter`
-  (exact client, current contract epoch, actor, audit reference, source-manifest digest). An
-  `op-base-*` process refuses `/oauth/authorize` and `/oauth/token` with `unauthorized_client` for a
-  client without an enabled row at the current epoch. The `shared` role does not consult it.
-- RP side: every `rp-*` process requires `UMAXICA_RP_BROWSER_ADMISSION` (`open` or `closed`, no
-  default). While `closed` the cell serves only its back-channel logout receiver and health, so
-  durable revocation still lands.
+See the [surface matrix](../architecture/content-surface-matrix.md) and the
+[runtime secret decision](../../adr/runtime-secret-isolation-deferred.md) for the current ownership
+and secret boundary.

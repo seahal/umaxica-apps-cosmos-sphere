@@ -4,11 +4,37 @@
 require_relative "boot"
 
 require "ipaddr"
-require "rails/all"
+require "rails"
+
+# Load the Rails frameworks this application uses. Action Mailbox is intentionally
+# excluded because the application has no inbound-mail surface or mailbox classes.
+%w(
+  active_record/railtie
+  active_storage/engine
+  action_controller/railtie
+  action_view/railtie
+  action_mailer/railtie
+  active_job/railtie
+  action_cable/engine
+  action_text/engine
+  rails/test_unit/railtie
+).each do |railtie|
+  begin
+    require railtie
+  rescue LoadError => e
+    raise unless e.path == railtie
+  end
+end
+
+if Rails.env.production?
+  # rubocop:disable I18n/RailsI18n/DecorateString -- This is an operator startup diagnostic, not user-facing copy.
+  raise RuntimeError, "Production database configuration is not set; configure a provider before starting production."
+  # rubocop:enable I18n/RailsI18n/DecorateString
+end
 
 Bundler.require(*Rails.groups)
 
-# `pghero`, `blazer`, the two `rswag` halves, `rails_performance`, and `coverband` are
+# `pghero`, `blazer`, the two `rswag` halves, and `coverband` are
 # `group :development` gems with `require: false` (Gemfile), so Bundler.require never auto-requires
 # them and the gems are not on the load path outside development. They must be required here rather
 # than from config/initializers: an engine only
@@ -20,24 +46,6 @@ if Rails.env.development?
   require "blazer"
   require "rswag/api"
   require "rswag/ui"
-
-  require "rails_performance"
-  # The gem ships one config/routes.rb that draws the engine's own route set and then calls
-  # `Rails.application.routes.draw { mount RailsPerformance::Engine => RailsPerformance.mount_at }`
-  # with no host constraint and no flag to disable it. Left in place, the dashboard answers on
-  # every host this application serves -- every app, com, org, content, and service FQDN -- which
-  # is the leak a dedicated host exists to prevent, and a mount
-  # test/security/invariants/mounted_engine_invariant_test.rb has no way to constrain.
-  #
-  # Dropping the routing path is the only available off switch, and it has to happen here: an
-  # engine contributes its routes through the `add_routing_paths` initializer, which has already
-  # run by the time config/initializers/* load. config/routes/performance.rb draws the engine's own
-  # routes and mounts it behind the host constraint instead.
-  #
-  # On upgrading this gem, re-read its config/routes.rb: the copied route list in
-  # config/routes/performance.rb has to be brought across by hand, and a renamed route shows up
-  # only as a dashboard tab that 404s.
-  RailsPerformance::Engine.paths["config/routes.rb"] = []
 
   # Coverband measures which Ruby lines execute, which is only a meaningful question for the
   # process serving requests. Requiring the gem is what starts it: its railtie hooks
@@ -55,12 +63,8 @@ end
 
 require_relative "../lib/runtime_role"
 require_relative "../lib/jit_security_active_record_encryption_key_provider"
-require_relative "../lib/realm_identifier_encryption_key_provider"
 require_relative "../lib/app_config_loader"
 require_relative "../lib/request_body_size_limit"
-require_relative "../lib/credential_deletion_finalizer"
-require_relative "../lib/auth_phase_refusal_response_boundary"
-require_relative "../lib/visa_csp_report_response_boundary"
 require_relative "../lib/trusted_forwarded_headers"
 require_relative "../lib/umaxica/test_environment/database_safety"
 
@@ -97,8 +101,15 @@ module Jit
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults(8.2)
 
+    # The application defines no Action Cable channels or broadcasts.
+    config.action_cable.mount_path = nil
+
     # Accept JSON messages only; authenticated legacy Marshal payloads are rejected too.
     config.active_support.message_serializer = JSON
+
+    # Operator tools do not use application-owned Active Storage or Turbo routes.
+    config.active_storage.draw_routes = false
+    config.turbo.draw_routes = false
 
     # Raw email content is not application logging data. Keep the Rails delivery
     # mechanism and its notifications intact while disabling ActionMailer's
@@ -108,15 +119,11 @@ module Jit
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # CommonHelper ones are `templates`, `generators`, or `middleware`, for example.
-    # `omniauth` holds lib/omniauth/strategies/umaxica_entra.rb, which reopens
-    # the omniauth_openid_connect gem's own OmniAuth::Strategies module
-    # (capitalized "OmniAuth"); Zeitwerk's inflection for the directory name
-    # ("Omniauth") would otherwise collide with it.
     # `rubocop` holds lib/rubocop/cop/umaxica/*.rb, the repository's custom
     # architecture cops. They subclass RuboCop::Cop::Base, which only exists
     # under `bin/rubocop`; autoloading them into the application would raise at
     # boot and, under eager loading, take the whole app down.
-    config.autoload_lib(ignore: %w(assets tasks omniauth rubocop))
+    config.autoload_lib(ignore: %w(assets tasks rubocop))
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -151,10 +158,6 @@ module Jit
     # Reject oversized JSON before Rails parameter parsing can read an unbounded request body.
     # Multipart and other upload content types retain their existing, separate limits.
     config.middleware.insert_after(ActionDispatch::RequestId, RequestBodySizeLimit)
-    # Outside ShowExceptions so a confirmed credential deletion survives an exception response.
-    config.middleware.insert_before(ActionDispatch::ShowExceptions, CredentialDeletionFinalizer)
-    config.middleware.insert_before(CredentialDeletionFinalizer, AuthPhaseRefusalResponseBoundary)
-    config.middleware.insert_before(0, VisaCspReportResponseBoundary)
     config.x.boot_config = AppConfigLoader.load!
     # No processor delivery adapter is enabled until its authenticated request/receipt
     # contract is implemented. The empty registry is intentionally fail-closed: a notification

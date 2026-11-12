@@ -17,9 +17,6 @@ class AppTestBypassGuardTest < Minitest::Test
     /allow_test_mode_state_bypass/,
     /test_user_from_header/,
     /Thread\.current\[:.*test/,
-    /CloudflareTurnstile\.test_/,
-    /Turnstile\.test_response/,
-    /JitSecurityTurnstileVerifier\.test_/,
     /data-testid/,
     /testid:/,
   ].freeze

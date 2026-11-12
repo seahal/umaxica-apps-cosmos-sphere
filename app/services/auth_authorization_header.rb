@@ -50,7 +50,7 @@ module AuthAuthorizationHeader
 
     return nil unless request.respond_to?(:headers)
 
-    request.headers[AuthIoKeys::Headers::AUTHORIZATION]
+    request.headers["Authorization"]
   end
 
   def normalize_scheme(header)

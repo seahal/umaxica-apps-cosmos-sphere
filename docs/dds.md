@@ -1,5 +1,13 @@
 # Detailed Design Specification (DDS)
 
+> **Current surface amendment (2026-11-10):** This DDS describes an earlier multi-surface design.
+> The Rails application now serves Docs, News, Help, Info, Edit (`org`), and the six operator tools
+> listed in `README.md`. The Auth, Base, Core, GUID, Palm, Tech, Visa, and Warp controller trees and
+> their browser routes have been retired. Persistence and models remain for the next removal step.
+> Use `README.md` and the current `docs/architecture/` references for live route ownership. The
+> detailed sections below are retained as historical design context unless explicitly marked
+> current.
+
 > Current implementation (2026-10-04): parts of this document describe an earlier shape of the
 > application. The `Sign` and `Top` namespaces,
 > `app/controllers/sign/app/registration/emails_controller.rb`, `UserIdentityEmail`,
@@ -8,7 +16,9 @@
 > content surfaces `Docs`, `Help`, `Info`, and `News`, one route file each in `config/routes/`. Use
 > `README.md` ("Routing") and `docs/architecture/` for the current topology.
 
-## Current OIDC host boundary (2026-10-24)
+## Historical OIDC host boundary (2026-10-24)
+
+The route ownership described below was superseded by the 2026-11-10 surface reset.
 
 The current OIDC authority is the Visa surface, with one host per realm: `visa.umaxica.app` and
 `visa.umaxica.org`. Visa owns discovery, JWKS, authorization, token, UserInfo, revocation,

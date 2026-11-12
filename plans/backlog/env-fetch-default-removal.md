@@ -47,10 +47,10 @@ Notable groups:
 - `lib/`: Rake task arguments `REPORT` and `DRY_RUN`, and `UMAXICA_ENV_FILE` in
   `lib/local_environment.rb`.
 - `config/`: `SMS_PROVIDER`, `AWS_REGION`, `AWS_SES_REGION`, `RAILS_LOG_LEVEL`, `LOG_LEVEL`,
-  `RAILS_PERFORMANCE_ENABLED`, `OPEN_TELEMETRY`, `PORT`, `RAILS_MAX_THREADS`; `ENV[...] ||=` for the
-  JWT issuer, audience, and client-id names in `config/initializers/jwt.rb`, for
-  `RACK_TIMEOUT_SERVICE_TIMEOUT`, and for `BUNDLE_GEMFILE` and `BOOTSNAP_CACHE_DIR` in
-  `config/boot.rb`; `POSTGRESQL_PORT` and `POSTGRESQL_USER` in `config/database.yml`.
+  `OPEN_TELEMETRY`, `PORT`, `RAILS_MAX_THREADS`; `ENV[...] ||=` for the JWT issuer, audience, and
+  client-id names in `config/initializers/jwt.rb`, for `RACK_TIMEOUT_SERVICE_TIMEOUT`, and for
+  `BUNDLE_GEMFILE` and `BOOTSNAP_CACHE_DIR` in `config/boot.rb`; `POSTGRESQL_PORT` and
+  `POSTGRESQL_USER` in `config/database.yml`.
 
 ## Phase 0 — harness and decision (done 2026-10-06)
 
@@ -93,9 +93,9 @@ Largest group, lowest production risk.
 1. List every variable that `test/` reads, and confirm each is set by the environment files that
    `LocalEnvironment.load!` loads for the test run and by the CI job. Add missing ones there.
 2. Replace `ENV.fetch("NAME", "default")` with `ENV.fetch("NAME")` directory by directory, removing
-   each directory from the exclusion list as it is cleaned. The replacement is mechanical; the review
-   effort goes to tests whose default differed from the configured value, because their target host
-   changes.
+   each directory from the exclusion list as it is cleaned. The replacement is mechanical; the
+   review effort goes to tests whose default differed from the configured value, because their
+   target host changes.
 3. Do not introduce a shared host helper. `testing.mdc` forbids test helpers; the one-argument read
    stays in the test body.
 
@@ -111,8 +111,8 @@ Exit: no `test/` entry remains in the exclusion list and `bin/rails test` passes
 3. Rake task arguments (`REPORT`, `DRY_RUN`): require them explicitly or convert them to task
    arguments. A destructive task must not default `DRY_RUN` in either direction.
 4. `UMAXICA_ENV_FILE` in `lib/local_environment.rb` selects the file that defines the environment,
-   so it cannot come from that file. Treat it as optional (`ENV["UMAXICA_ENV_FILE"]` with an explicit
-   branch to the standard path) and note the reason at the call site.
+   so it cannot come from that file. Treat it as optional (`ENV["UMAXICA_ENV_FILE"]` with an
+   explicit branch to the standard path) and note the reason at the call site.
 
 Exit: no `app/` or `lib/` entry remains in the exclusion list.
 
@@ -120,8 +120,8 @@ Exit: no `app/` or `lib/` entry remains in the exclusion list.
 
 Highest deployment risk; do last and one variable at a time.
 
-1. For each variable, confirm the value is set in production, staging, CI, and the local
-   environment files **before** removing its default. Record the confirmation in `evidence/`.
+1. For each variable, confirm the value is set in production, staging, CI, and the local environment
+   files **before** removing its default. Record the confirmation in `evidence/`.
 2. Remove the default and deploy. A missing value then fails at boot, which is the intended signal.
 3. `config/initializers/jwt.rb` writes defaults into `ENV`. Move those names into the environment
    files and deployment configuration, then delete the assignments.

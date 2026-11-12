@@ -26,7 +26,7 @@ module ParallelTestDatabaseCloner
         db_config._database = "#{db_config.database}_#{worker}"
       end
       Umaxica::TestEnvironment::DatabaseSafety.verify!(configurations: configurations)
-      # Rails' nil configuration selects the first YAML entry (publishing),
+      # Rails' nil configuration selects the first YAML entry,
       # whereas ApplicationRecord explicitly owns the primary connection.
       ActiveRecord::Base.establish_connection(:primary)
     end

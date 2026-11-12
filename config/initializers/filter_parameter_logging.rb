@@ -28,8 +28,6 @@ Rails.application.config.filter_parameters += %i(
   oauth_code
   authorization_code
   code_verifier
-  cf-turnstile-response
-  turnstile_response
   nonce
   assertion
   entry_ref

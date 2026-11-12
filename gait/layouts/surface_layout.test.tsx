@@ -16,50 +16,13 @@ vi.mock("@inertiajs/react", () => ({
   router: { clearHistory: vi.fn() },
 }));
 
-vi.mock("@/components/chrome/CookieBanner", () => ({
-  default: ({ controls }: { controls: { title: string } }) => (
-    <div data-testid="cookie-banner">{controls.title}</div>
-  ),
-}));
-
-vi.mock("@/components/chrome/ThemeControls", () => ({
-  default: ({ controls }: { controls: { title: string } }) => (
-    <div data-testid="theme-controls">{controls.title}</div>
-  ),
-}));
-
 const { default: SurfaceLayout } = await import("@/layouts/SurfaceLayout");
-
-const cookieControls = {
-  hidden: false,
-  scope: "cookie",
-  endpoint_url: "/api/v0/preferences/cookie",
-  settings_url: "/preference/cookie/edit",
-  title: "cookie-controls-title",
-  description_html: "cookie description",
-  close_button: "閉じる",
-  reject_all: "すべて拒否",
-  open_settings: "設定を開く",
-  accept_all: "すべて許可",
-};
-
-const themeControls = {
-  hidden: false,
-  endpoint_url: "/api/v0/preferences/theme",
-  title: "theme-controls-title",
-  description: "テーマを選びます。",
-  options: { system: "システム", light: "ライト", dark: "ダーク" },
-};
 
 const minimalChrome: SurfaceChrome = {
   family_label: null,
   surface: "app",
   brand: { name: "Umaxica", href: "https://umaxica.app/" },
-  banner: null,
   restricted_mode: null,
-  footer_navigation: null,
-  cookie_controls: cookieControls,
-  theme_controls: themeControls,
   account_navigation: null,
   copyright: "(c) Umaxica",
 };
@@ -96,21 +59,6 @@ afterEach(() => {
 });
 
 describe("SurfaceLayout", () => {
-  test("com Inertia navigation updates document language from the current server page", () => {
-    document.documentElement.lang = "ja";
-    const first = { ...minimalChrome, surface: "com", locale: "ja" };
-    const { rerender } = render(first);
-
-    expect(document.documentElement.lang).toBe("ja");
-    page.props.chrome = { ...first, locale: "en" };
-    rerender(
-      <SurfaceLayout>
-        <p>page body</p>
-      </SurfaceLayout>,
-    );
-    expect(document.documentElement.lang).toBe("en");
-  });
-
   test("app page metadata does not change the document language", () => {
     document.documentElement.lang = "ja";
     render({ ...minimalChrome, locale: "en" });
@@ -167,17 +115,6 @@ describe("SurfaceLayout", () => {
     ).toBeNull();
   });
 
-  test("omits theme and cookie chrome when the server sent none", () => {
-    render({
-      ...minimalChrome,
-      theme_controls: null,
-      cookie_controls: null,
-    });
-
-    expect(screen.queryByTestId("theme-controls")).toBeNull();
-    expect(screen.queryByTestId("cookie-banner")).toBeNull();
-  });
-
   test("renders the page inside the main landmark", () => {
     render(minimalChrome);
 
@@ -209,14 +146,6 @@ describe("SurfaceLayout", () => {
     expect(render({ ...minimalChrome, family_label: "Base" }).container.textContent).toContain(
       "Base",
     );
-  });
-
-  test("renders the chrome components with the controls the server assembled", () => {
-    render(minimalChrome);
-
-    expect(screen.getByTestId("cookie-banner").textContent).toBe("cookie-controls-title");
-    expect(screen.getByTestId("theme-controls").textContent).toBe("theme-controls-title");
-    expect(screen.getByRole("complementary", { name: "theme-controls-title" })).toBeTruthy();
   });
 
   test("omits the banner and footer navigation when absent", () => {
@@ -256,92 +185,4 @@ describe("SurfaceLayout", () => {
     expect(signOut.getAttribute("href")).toBe("/sign/out/new");
     expect(indicator.textContent).not.toContain("解除");
   });
-
-  test("renders the banner with its title", () => {
-    render({
-      ...minimalChrome,
-      banner: { title: "メンテナンス", body: "停止予定があります。" },
-    });
-
-    const banner = screen.getByRole("region", { name: "メンテナンス" });
-    expect(within(banner).getByRole("heading", { name: "メンテナンス" })).toBeTruthy();
-    expect(within(banner).getByText("停止予定があります。")).toBeTruthy();
-  });
-
-  test("renders a banner that carries no title without an empty heading", () => {
-    render({ ...minimalChrome, banner: { title: null, body: "本文のみ" } });
-
-    const banner = screen.getByRole("region", { name: "Information" });
-    expect(within(banner).getByText("本文のみ")).toBeTruthy();
-    expect(within(banner).queryByRole("heading")).toBeNull();
-  });
-
-  // Footer navigation targets cross hosts, so the links stay document visits rather than Inertia
-  // visits.
-  test("renders footer navigation links as plain anchors", () => {
-    render({
-      ...minimalChrome,
-      footer_navigation: [{ label: "会社概要", href: "https://umaxica.com/about" }],
-    });
-
-    const footer = screen.getByRole("navigation", { name: "Footer navigation" });
-    const about = within(footer).getByRole("link", { name: "会社概要" });
-    expect(about.getAttribute("href")).toBe("https://umaxica.com/about");
-    // A document visit, so no Inertia interception marker.
-    expect(Object.hasOwn(about.dataset, "inertia")).toBe(false);
-  });
-
-  test("keeps the footer navigation links inside lists so they can be counted", () => {
-    render({
-      ...minimalChrome,
-      footer_navigation: [
-        { label: "ホーム", href: "https://umaxica.app/" },
-        { label: "設定", href: "https://umaxica.app/settings" },
-      ],
-    });
-
-    const footer = screen.getByRole("navigation", { name: "Footer navigation" });
-    expect(within(footer).getAllByRole("listitem")).toHaveLength(2);
-  });
-});
-
-test("uses the Rails-translated footer name without changing its document destination", () => {
-  document.documentElement.lang = "ja";
-  document.querySelector('meta[name="ui-footer"]')?.remove();
-  const meta = document.createElement("meta");
-  meta.name = "ui-footer";
-  meta.content = "フッターナビゲーション";
-  document.head.append(meta);
-  page.props.chrome = {
-    ...minimalChrome,
-    footer_navigation: [{ label: "会社概要", href: "https://umaxica.com/about" }],
-  };
-  renderTree(
-    <SurfaceLayout>
-      <p>Body</p>
-    </SurfaceLayout>,
-  );
-  const navigation = screen.getByRole("navigation", { name: "フッターナビゲーション" });
-  expect(within(navigation).getByRole("link").getAttribute("href")).toBe(
-    "https://umaxica.com/about",
-  );
-});
-
-test("renders the page when optional landmark translation metadata is absent", () => {
-  document
-    .querySelectorAll('meta[name="ui-footer"], meta[name="ui-information"]')
-    .forEach((meta) => meta.remove());
-  page.props.chrome = {
-    ...minimalChrome,
-    banner: { title: null, body: "Information body" },
-    footer_navigation: [{ label: "Home", href: "/" }],
-  };
-  renderTree(
-    <SurfaceLayout>
-      <p>Page content</p>
-    </SurfaceLayout>,
-  );
-  expect(screen.getByRole("main").textContent).toContain("Page content");
-  expect(screen.getByRole("navigation").getAttribute("aria-label")).toBeNull();
-  expect(screen.getByText("Information body")).toBeTruthy();
 });

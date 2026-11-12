@@ -4,17 +4,17 @@
 
 This runbook manages ES384 signing keys for Jump redirect tokens.
 
-Jump RT keys are issuer-surface scoped. Do not reuse one private key or `kid` across issuer
-namespaces or across the `auth`, `base`, `visa`, `core`, `warp` and `palm` issuer groups.
+Jump RT keys are issuer-surface scoped. Do not reuse one private key or `kid` across the retained
+external `base` and `visa` issuer groups.
 
-Jump issuers are exactly these eleven namespaces:
+Jump issuers are exactly these four namespaces:
 
-- `AUTH_APP`, `AUTH_ORG`
 - `BASE_APP`, `BASE_ORG`
 - `VISA_APP`, `VISA_ORG`
-- `CORE_APP`, `CORE_ORG`
-- `WARP_APP`, `WARP_ORG`
-- `PALM_APP`
+
+The local Auth, Core, Palm, and Warp Jump issuer origins were removed with their Rails surfaces.
+Edit remains an OIDC relying party and has no Jump issuer namespace. The application accepts
+Base-to-Visa authorization-start edges and Visa-to-Base authorization-response edges only.
 
 The list is `JumpRtSurface::ISSUER_NAMESPACES` (`app/values/jump_rt_surface.rb`). The corporate
 authentication realm has no Jump issuer. `ACME_APP` and `ACME_ORG` remain in the general
@@ -215,19 +215,18 @@ the installer-owned keys in `tmp/local_jwt_keysets.json` (kid `development-<name
 `JWT_<NAMESPACE>_*` environment value that does not match that store fails boot, so no other key
 material can be injected locally.
 
-Issuer identity comes from the existing surface setting for the namespace (`PUBLIC_AUTH_*_URL`,
-`PUBLIC_BASE_*_URL`, `PUBLIC_CORE_*_URL`, `PUBLIC_WARP_*_URL`, `PUBLIC_PALM_SERVICE_URL`). For live
-Jump each such setting must be a public HTTPS root origin; localhost, private ingress and IP
-literals fail registry configuration at boot and raise `JumpRtConfigurationError` at issuance and on
-return verification. `Rails.env` does not change the identity, so development may use a canonical
-origin such as `https://www.umaxica.app`. In that case the JWKS at that origin must publish the
-development kid, and the development private key then signs as the canonical issuer with full
-authority; the `development` marker in the kid does not limit it. Otherwise expose a distinct
-origin's Rails JWKS route and browser return through public HTTPS ingress, and register the exact
-issuer, JWKS and kid in Hono separately. Verify DNS, TLS, JWKS accessibility from Jump and the
-published kid before use. An Access login page in front of JWKS does not constitute a fetchable
-keyset. No deployment, trust registration, secret provisioning or key rotation is performed by this
-Rails change.
+Issuer identity comes from the existing surface setting for the namespace (`PUBLIC_BASE_*_URL` or
+`PUBLIC_VISA_*_URL`). For live Jump each such setting must be a public HTTPS root origin; localhost,
+private ingress and IP literals fail registry configuration at boot and raise
+`JumpRtConfigurationError` at issuance and on return verification. `Rails.env` does not change the
+identity, so development may use a canonical origin such as `https://www.umaxica.app`. In that case
+the JWKS at that origin must publish the development kid, and the development private key then signs
+as the canonical issuer with full authority; the `development` marker in the kid does not limit it.
+Otherwise expose a distinct origin's Rails JWKS route and browser return through public HTTPS
+ingress, and register the exact issuer, JWKS and kid in Hono separately. Verify DNS, TLS, JWKS
+accessibility from Jump and the published kid before use. An Access login page in front of JWKS does
+not constitute a fetchable keyset. No deployment, trust registration, secret provisioning or key
+rotation is performed by this Rails change.
 
 Edit remains an OIDC assertion client, not a Jump issuer; its OIDC keys and registration are
 independent from this surface key runbook.

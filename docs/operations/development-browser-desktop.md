@@ -1,11 +1,10 @@
 # Development Browser Desktop
 
-The Dev Container's `core` service carries a virtual desktop so a headed Chromium, whether driven by
-hand or by Playwright, can be watched and operated from the developer's own browser. Nothing here
-exists in the production image stages.
+The Dev Container's `core` service carries a virtual desktop so a headed Chromium can be watched and
+operated from the developer's own browser. Nothing here exists in the production image stages.
 
 ```text
-Chromium / Playwright -> Xvfb :99 -> x11vnc (127.0.0.1:5900, container only)
+Chromium -> Xvfb :99 -> x11vnc (127.0.0.1:5900, container only)
                       -> websockify + noVNC (:6080) -> host 127.0.0.1:6080
 ```
 
@@ -56,30 +55,9 @@ tunnel (`ssh -L 6080:127.0.0.1:6080 <host>`), never by widening the `ports:` ent
 `chromium-sandbox` is not installed. Chromium uses its user-namespace sandbox instead. Do not pass
 `--no-sandbox`.
 
-Playwright passes `--no-sandbox` by default. `playwright.config.ts` sets `chromiumSandbox: true`
-whenever `PLAYWRIGHT_CHROMIUM_EXECUTABLE` selects a system browser.
+## Manual Chromium
 
-## Playwright
-
-Two Chromium builds are available, and they are different versions:
-
-- Playwright's own build, downloaded by `node_modules/.bin/playwright install chromium` into the
-  `~/.cache` volume. This is the default and the only build a Playwright release is tested against.
-  `playwright show-trace` and `playwright codegen` always use it.
-- The Debian package, selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium`. It follows
-  Debian security updates and may be ahead of or behind what Playwright expects; a protocol mismatch
-  shows up as launch or command errors, and the remedy is to drop the variable.
-
-```sh
-node_modules/.bin/playwright test                       # headless
-node_modules/.bin/playwright test --headed              # drawn on :99, visible in noVNC
-PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium node_modules/.bin/playwright test --headed
-node_modules/.bin/playwright show-trace <trace.zip>     # viewer window on :99
-node_modules/.bin/playwright codegen <url>              # recorder windows on :99
-```
-
-Playwright launches every test browser with a temporary profile. Start a hand-driven browser with
-its own profile directory so the two never share state:
+Start a hand-driven browser with a dedicated profile:
 
 ```sh
 chromium --user-data-dir="$HOME/.local/state/desktop/chromium-profile"
@@ -89,5 +67,3 @@ chromium --user-data-dir="$HOME/.local/state/desktop/chromium-profile"
 
 Chromium and the desktop packages come from Debian `trixie` through the `development` stage of
 `Containerfile` and are unpinned; rebuilding the image picks up the current package versions.
-Playwright's own build follows the `playwright` version in `package.json`; run
-`playwright install chromium` after that version changes.

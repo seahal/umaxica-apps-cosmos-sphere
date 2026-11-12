@@ -1,5 +1,10 @@
 # Identity Authority Regression Checklist
 
+> **Historical (2026-11-11):** This checklist describes former Sign, Acme, Auth and Base routes and
+> controllers, which are no longer served by this repository. Its test commands refer to retired
+> files. The retained Edit browser RP acceptance contract is in
+> [`docs/checklists/browser-rp.md`](../checklists/browser-rp.md).
+
 ## Purpose
 
 Use this checklist when implementing or reviewing Identity Authority inversion work.
@@ -37,8 +42,8 @@ Remaining bounded legacy:
   session-management UI.
 - Auth settings does not own identity, profile, session-management, activity, or lifecycle routes
   except for the approved credential ceremony-backed settings matrix: app
-  passkeys/TOTP/Google/Apple, and org passkeys/Entra. The `com` surface owns no credential
-  ceremony, so it has no Auth settings matrix.
+  passkeys/TOTP/Google/Apple, and org passkeys/Entra. The `com` surface owns no credential ceremony,
+  so it has no Auth settings matrix.
 - Retired Auth settings routes for emails, telephones, birthdate, secrets, secret credentials,
   sessions, revocations, activities, and withdrawal are unroutable. They must not redirect to Base,
   return compatibility `410 Gone`, or remain available through alias helpers.

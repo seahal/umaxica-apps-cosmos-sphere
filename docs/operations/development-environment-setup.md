@@ -25,8 +25,8 @@ Obtain and place the items listed in
 
 ## 3. Cloudflare tunnel
 
-Providers that require an HTTPS callback on a real domain (Apple in particular) cannot use
-`localhost`, so local sign-in testing goes through the development tunnel. Configure it following
+The retained Edit relying-party callback may need a public HTTPS development host when testing a
+complete OIDC flow. Configure the development tunnel following
 [cloudflare-private-origin.md](cloudflare-private-origin.md).
 
 To be written: which development hostnames map to which surface, and how to confirm the tunnel is
@@ -47,52 +47,18 @@ Database creation, migration, and seeding are covered by [db-workflow.md](db-wor
 
 To be written: when [local-aws-fakecloud.md](local-aws-fakecloud.md) is required for local work.
 
-## 7. External sign-in providers
+## 7. External identity provider
 
-All provider credentials are read from Rails encrypted credentials in
-`config/initializers/omniauth.rb`. Store them with
-`bin/rails credentials:edit --environment development` only after the correct `development.key` is
-in place. Never put a provider secret in a tracked file, `.env.container.devcontainer`, a plan, or a
-note.
-
-### 7.1 Microsoft Entra ID (Org surface)
-
-Credential keys: `OMNI_AUTH_ENTRA_ORG_TENANT_ID`, `OMNI_AUTH_ENTRA_ORG_CLIENT_ID`,
-`OMNI_AUTH_ENTRA_ORG_CLIENT_SECRET`.
-
-Callback: `https://<org-auth-host>/social/entra/callback`.
-
-The production-oriented procedure is [entra-org-login.md](../runbooks/entra-org-login.md).
-
-To be written: the development-specific procedure (application registration, development callback
-host, operator provisioning, and how to confirm a successful sign-in locally).
-
-### 7.2 Google
-
-Credential keys: `OMNI_AUTH_GOOGLE_APP_CLIENT_ID`, `OMNI_AUTH_GOOGLE_APP_CLIENT_SECRET`.
-
-Callback: `https://<app-auth-host>/social/google/callback`.
-
-To be written: Google Cloud Console project, OAuth consent screen, OAuth client creation, and
-redirect URI registration.
-
-### 7.3 Apple
-
-Credential keys: `OMNI_AUTH_APPLE_CLIENT_ID`, `OMNI_AUTH_APPLE_TEAM_ID`, `OMNI_AUTH_APPLE_KEY_ID`,
-`OMNI_AUTH_APPLE_PRIVATE_KEY`.
-
-Callback: `https://<app-auth-host>/social/apple/callback`. It must be HTTPS on a real domain; a
-`localhost` or IP address callback is not accepted, so use the tunnel from step 3.
-
-Portal key management is in [apple-second-key.md](../runbooks/apple-second-key.md).
-
-To be written: Services ID, Return URL, and `.p8` key setup for development.
+The retained Edit surface is an OIDC relying party. It does not serve local social sign-in or
+provider callback routes. A complete local OIDC flow may need the external provider and its
+registered callback configured to use the development tunnel. Keep provider credentials in the
+provider's own approved secret boundary; this repository does not configure Google, Apple, or Entra
+sign-in ceremonies.
 
 ## 8. Other external services
 
-To be written: Cloudflare Turnstile ([../security/turnstile.md](../security/turnstile.md)), passkeys
-([passkey.md](../runbooks/passkey.md)), and any other service that needs per-environment
-configuration.
+To be written: Cloudflare Turnstile ([../security/turnstile.md](../security/turnstile.md)) and any
+other active service that needs per-environment configuration.
 
 ## 9. Verify the environment
 

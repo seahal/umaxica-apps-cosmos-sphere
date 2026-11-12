@@ -2,153 +2,15 @@
 # frozen_string_literal: true
 
 require "test_helper"
-# require "helpers/global_test_support"
 
 class IdentityAuthorityInversionGuardTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  test "sign routes do not expose oidc provider endpoints" do
-    source = file_content("config/routes/auth.rb")
+  test "retained Edit RP ID token verification uses its dedicated OIDC verifier" do
+    callback = Rails.root.join("app/controllers/concerns/oidc_callback.rb").read
+    verifier = Rails.root.join("app/adapters/oidc_op_id_token_verifier.rb")
 
-    assert_source_excludes source, "resource :openid_configuration"
-    assert_source_excludes source, "namespace :oauth"
-    assert_source_excludes source, "namespace :oidc"
-    assert_source_excludes source, "resource :refresh"
-    assert_source_excludes source, "resource :up, only: :show"
-    assert_source_excludes source, "resource :in, only: :show"
-    assert_source_excludes source, "resource :out, only: %i(new edit create destroy)"
-  end
-
-  test "route sources use noun lifecycle resources for edge and preference routes" do
-    auth_routes = file_content("config/routes/auth.rb")
-    base_routes = file_content("config/routes/base.rb")
-    core_routes = file_content("config/routes/core.rb")
-    visa_routes = Rails.root.join("config/routes/visa.rb").read.gsub(/\s+/, " ").strip
-
-    assert_source_includes auth_routes, 'resource :status, only: :show, path: "check", controller: :checks'
-    # Root-cookie transport belongs to Visa after the OP/Base host split.
-    assert_includes visa_routes, 'resource :status, only: :show, path: "check", controller: :checks'
-    assert_not_includes base_routes, 'path: "check", controller: :checks'
-    assert_source_includes core_routes, "resource :refresh, only: :create"
-    assert_includes visa_routes, "resource :refresh, only: :create"
-    assert_not_includes base_routes, "resource :refresh, only: :create"
-    assert_source_excludes base_routes, "resource :renewal"
-    assert_source_includes base_routes, "resource :customization, only: %i(edit destroy)"
-    assert_source_excludes base_routes, 'path: "reset", as: :reset, controller: :resets'
-    assert_source_excludes base_routes, 'controller: "revocations/alls"'
-    assert_source_includes base_routes,
-                           'resource :revocation, only: :destroy, path: "other_sessions", ' \
-                           'controller: "revocations/others", as: :other_sessions'
-    assert_source_includes auth_routes,
-                           'resource :registration, only: :show, path: "up", ' \
-                           "controller: :ups, as: :up"
-    assert_source_includes auth_routes,
-                           'resource :session, only: :show, path: "in", ' \
-                           "controller: :ins, as: :in"
-    assert_equal 2, auth_routes.scan("resource :registration, only: :create, controller: :registrations").length
-    assert_equal 2, auth_routes.scan("resource :session, only: :create, controller: :sessions").length
-    assert_source_includes auth_routes,
-                           "resource :termination, only: %i(show new edit create destroy), " \
-                           'path: "out", controller: :outs, as: :out'
-    assert_source_includes base_routes,
-                           'resource :termination, path: "out", controller: :sign_outs, ' \
-                           "as: :sign_out, only: %i(show new edit create)"
-  end
-
-  test "refresh rotation target path uses acme authority" do
-    auth_base = file_content("app/controllers/concerns/authentication_base.rb")
-
-    assert_source_includes auth_base, "AcmeRefreshTokenIssuer.call(refresh_token: refresh_plain)"
-
-    sign_service = file_content("app/operations/sign_refresh_token_issuer.rb")
-
-    # rubocop:disable I18n/RailsI18n/DecorateString
-    assert_source_includes sign_service, "Compatibility namespace. Target-path refresh authority is acme/www."
-    # rubocop:enable I18n/RailsI18n/DecorateString
-  end
-
-  test "refresh rotation implementation is physically owned by acme not sign" do
-    # Behavior, not file-string: the rotation body lives on Acme; Sign is only a
-    # compatibility subclass that inherits it and adds nothing of its own.
-    assert_operator SignRefreshTokenIssuer, :<, AcmeRefreshTokenIssuer,
-                    "SignRefreshTokenIssuer must be a compatibility subclass of the acme service"
-
-    # The sign wrapper must not redefine the rotation entry point; it inherits
-    # `call` straight from acme, so the owning method lives on the acme service.
-    assert_equal AcmeRefreshTokenIssuer.method(:call).owner, SignRefreshTokenIssuer.method(:call).owner,
-                 "Sign wrapper must inherit `call` from acme, not define its own refresh authority"
-    assert_equal AcmeRefreshTokenIssuer.singleton_class, AcmeRefreshTokenIssuer.method(:call).owner
-
-    # The shared Result contract is owned by acme and reused by the sign alias.
-    assert_same AcmeRefreshTokenIssuer::Result, SignRefreshTokenIssuer::Result
-  end
-
-  test "unknown social signup compatibility is explicit" do
-    concern = file_content("app/controllers/concerns/social_auth.rb")
-
-    assert_source_includes concern, "auth_social_admission_binding!"
-    assert_source_includes concern, "ExternalAuthenticationLoginUseCase.call"
-    assert_source_includes concern, "stage_social_link_completion!"
-    link = file_content("app/controllers/auth/app/social/link_completions_controller.rb")
-
-    assert_source_includes link, "ExternalAuthenticationLinkUseCase.call"
-    assert_source_includes link, "require_recent_step_up!"
-    assert_source_includes link, "token.with_lock"
-    assert_source_includes concern, "resolve_social_auth_callback_result"
-    assert_source_includes concern, "sign_up_entry: current_social_auth_entry == \"sign_up\""
-  end
-
-  test "sign email signup checkpoint uses the shared finalize boundary" do
-    controller = file_content("app/controllers/auth/app/sign/up/check/email/birthdates_controller.rb")
-
-    assert_source_includes controller, "sign_up_family = \"email\""
-    assert_no_match(/email_signup_completion/, controller)
-    assert_no_match(/completion_acme_app_sign_up_email_url/, controller)
-  end
-
-  test "social confirmation step includes turnstile before durable signup completion" do
-    # The confirmation step is an Inertia page now: the component draws the widget and the
-    # confirmation field, and the controller is what binds the visible challenge to this ceremony.
-    form = file_content("src/features/auth/signup/SocialSignUpConfirmation.tsx")
-
-    assert_source_includes form, "<TurnstileWidget {...turnstile} />"
-    assert_source_includes form, "confirm_new_social_identity"
-
-    %w(google apple).each do |provider|
-      controller = file_content(
-        "app/controllers/auth/app/sign/up/check/#{provider}/confirmations_controller.rb",
-      )
-
-      assert_source_includes controller, "turnstile: turnstile_visible_props("
-      assert_source_includes controller, "confirm_new_social_identity"
-    end
-  end
-
-  private
-
-  def assert_files_include(paths, expected)
-    paths.each do |path|
-      assert_source_includes file_content(path), expected, path
-    end
-  end
-
-  def file_content(path)
-    Rails.root.join(path).read
-  end
-
-  # These guards assert that a route is *declared*, not how the declaration happens to be
-  # wrapped. Matching raw source made them fail whenever a formatter moved an argument to
-  # the next line, which says nothing about the invariant being guarded. Collapse runs of
-  # whitespace on both sides so the comparison is about the declaration itself.
-  def normalize_source(text)
-    text.gsub(/\s+/, " ").strip
-  end
-
-  def assert_source_includes(source, snippet, message = nil)
-    assert_includes normalize_source(source), normalize_source(snippet), message
-  end
-
-  def assert_source_excludes(source, snippet, message = nil)
-    assert_not_includes normalize_source(source), normalize_source(snippet), message
+    assert_predicate verifier, :file?
+    assert_includes callback, "OidcOpIdTokenVerifier.new"
   end
 end

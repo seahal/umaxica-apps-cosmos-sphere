@@ -33,16 +33,13 @@ require "test_helper"
 
 class AccountAccessEventTest < ActiveSupport::TestCase
   test "accepts session revocation event types" do
-    operator = operators(:one)
-    client = clients(:one)
-
     event = AccountAccessEvent.new(
       account_type: "Client",
-      account_id: client.id,
+      account_id: 987_654_321,
       event_type: AccountAccessEvent::EVENT_TYPE_EMERGENCY_SESSION_REVOKE,
-      previous_access_state: client.access_state,
-      next_access_state: client.access_state,
-      operator_id: operator.id,
+      previous_access_state: "enabled",
+      next_access_state: "enabled",
+      operator_id: 123_456_789,
       reason_code: "security_incident",
       occurred_at: Time.current,
       metadata: {},
@@ -53,16 +50,13 @@ class AccountAccessEventTest < ActiveSupport::TestCase
   end
 
   test "rejects unknown event types" do
-    operator = operators(:one)
-    client = clients(:one)
-
     event = AccountAccessEvent.new(
       account_type: "Client",
-      account_id: client.id,
+      account_id: 987_654_321,
       event_type: "unknown_session_action",
-      previous_access_state: client.access_state,
-      next_access_state: client.access_state,
-      operator_id: operator.id,
+      previous_access_state: "enabled",
+      next_access_state: "enabled",
+      operator_id: 123_456_789,
       reason_code: "security_incident",
       occurred_at: Time.current,
       metadata: {},

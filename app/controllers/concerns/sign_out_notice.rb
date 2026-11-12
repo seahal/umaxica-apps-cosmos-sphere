@@ -21,12 +21,6 @@ module SignOutNotice
 
   private
 
-  def prepare_sign_out_completion_notice!(state: nil)
-    @sign_out_actor_ref = current_resource.try(:public_id) if respond_to?(:current_resource, true)
-    @sign_out_session_public_id = current_session_public_id if respond_to?(:current_session_public_id, true)
-    @sign_out_state = state
-  end
-
   def issue_sign_out_notice!
     payload = sign_out_notice_payload
     notice_id = Valkey::AuthState::SignOutNoticeStore.new.issue!(payload: payload)
@@ -54,10 +48,6 @@ module SignOutNotice
   def sign_out_active_context_present?
     return true if current_resource.present?
 
-    session_token = safe_current_session_for_logout if respond_to?(:safe_current_session_for_logout, true)
-    return true if session_token&.currently_usable?
-    return true if respond_to?(:oidc_logout_pending_request_present?, true) && oidc_logout_pending_request_present?
-
     false
   end
 
@@ -81,10 +71,6 @@ module SignOutNotice
     public_send("#{sign_out_route_helper_prefix}_root_path", **sign_out_route_params, **options.compact)
   end
 
-  def sign_out_confirmation_form_path
-    sign_out_post_path
-  end
-
   def sign_out_notice_cache_headers!
     response.headers["Cache-Control"] = SIGN_OUT_NOTICE_CACHE_CONTROL
     response.headers["Pragma"] = "no-cache"
@@ -102,12 +88,7 @@ module SignOutNotice
     response.headers["Referrer-Policy"] = SIGN_OUT_REFERRER_POLICY
     # The session may already be revoked. Clearing the history of a session that survived only
     # costs a server round trip on Back, so the unknown outcome takes the signed-out side.
-    session[:inertia_clear_history] = true
-    if respond_to?(:render_oidc_rp_logout_indeterminate, true)
-      render_oidc_rp_logout_indeterminate
-    else
-      render "auth/shared/sign_outs/indeterminate", status: :service_unavailable, layout: false
-    end
+    render_oidc_rp_logout_indeterminate
   end
 
   # REQ-008: completion wording states the global result only. It never states an end time, and an

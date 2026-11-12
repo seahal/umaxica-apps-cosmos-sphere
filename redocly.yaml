@@ -7,7 +7,7 @@
 # The bundle lives here rather than under `public/` because `public/` is statically served in
 # development (config/environments/development.rb sets public_file_server.enabled = true), which
 # put the full internal API description on every admitted development host with no credential.
-# The only intended reader over HTTP is Swagger UI on swagger.umaxica.dev, which reaches it
+# The only intended reader over HTTP is Swagger UI on swagger-sphere-jp.umaxica.dev, which reaches it
 # through rswag-api behind that host's Basic Auth (config/initializers/rswag_api.rb). Production
 # never served these files -- config/environments/production.rb sets public_file_server.enabled
 # = false -- so this closes a development exposure, not a production one.

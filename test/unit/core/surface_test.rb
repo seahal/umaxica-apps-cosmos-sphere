@@ -38,10 +38,10 @@ module Main
       assert_equal :dev, CoreSurface.detect(request)
     end
 
-    test "falls back to com when host has no surface subdomain" do
+    test "returns unknown when host has no surface subdomain" do
       request = RequestStub.new("localhost", {})
 
-      assert_equal :com, CoreSurface.detect(request)
+      assert_equal :unknown, CoreSurface.detect(request)
     end
 
     test "current returns detected surface from request host" do

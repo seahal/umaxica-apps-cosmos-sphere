@@ -10,8 +10,6 @@ module Warp
         AUTHENTICATION_MODE = :open
         declare_authentication_mode! :open
 
-        skip_before_action :set_region, raise: false
-
         private
 
         def oidc_client_id

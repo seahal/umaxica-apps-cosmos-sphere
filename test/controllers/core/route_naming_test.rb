@@ -11,18 +11,18 @@ class CoreRouteNamingTest < ActionDispatch::IntegrationTest
     org: ENV.fetch("PUBLIC_CORE_STAFF_URL", BOOT_HOSTS.core_staff.host),
   }.freeze
 
-  test "preference csp jwks and token refresh routes use the current core vocabulary" do
+  test "csp jwks and token refresh routes use the current core vocabulary" do
     SURFACES.each do |surface, host|
       assert_respond_to self, :"core_#{surface}_well_known_jwks_path"
       assert_equal "/.well-known/jwks.json", public_send(:"core_#{surface}_well_known_jwks_path")
 
-      assert_respond_to self, :"core_#{surface}_api_v0_preferences_cookie_path"
-      assert_equal "/api/v0/preferences/cookie",
-                   public_send(:"core_#{surface}_api_v0_preferences_cookie_path")
-
-      assert_respond_to self, :"core_#{surface}_api_v0_preferences_theme_path"
-      assert_equal "/api/v0/preferences/theme",
-                   public_send(:"core_#{surface}_api_v0_preferences_theme_path")
+      %w(cookie theme).each do |resource|
+        %i(get patch put).each do |method|
+          assert_raises(ActionController::RoutingError) do
+            Rails.application.routes.recognize_path("https://#{host}/api/v0/preferences/#{resource}", method:)
+          end
+        end
+      end
 
       assert_respond_to self, :"core_#{surface}_csp_violation_report_path"
       assert_equal "/csp-violation-report", public_send(:"core_#{surface}_csp_violation_report_path")

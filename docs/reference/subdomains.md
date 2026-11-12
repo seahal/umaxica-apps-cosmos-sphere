@@ -1,51 +1,35 @@
 # Subdomain Map
 
-Subdomain labels are entry points. They are not Rails Engine boundaries.
+## Routes Served by Cosmos Sphere
 
-## Current Public Surfaces
+| Surface family | Audience host groups      | Route file                   |
+| -------------- | ------------------------- | ---------------------------- |
+| Docs           | service, corporate, staff | `config/routes/docs.rb`      |
+| News           | service, corporate, staff | `config/routes/news.rb`      |
+| Help           | service, corporate, staff | `config/routes/help.rb`      |
+| Info           | service, corporate, staff | `config/routes/info.rb`      |
+| Edit           | staff                     | `config/routes/edit.rb`      |
+| Mission        | operator                  | `config/routes/mission.rb`   |
+| Flipper        | operator                  | `config/routes/flipper.rb`   |
+| Blazer         | operator                  | `config/routes/blazer.rb`    |
+| PgHero         | operator                  | `config/routes/pghero.rb`    |
+| Swagger        | operator                  | `config/routes/swagger.rb`   |
+| Coverband      | operator                  | `config/routes/coverband.rb` |
 
-Local hosts are labelled `<service>.<surface>.localhost`. The `base.*` label carries the product,
-staff, and corporate surfaces:
+The four content families have three audience host groups each. Edit has its own staff host group.
+Each route file is the source of truth for the configured and local aliases. Operator-tool routes
+also constrain requests to their own hosts; Coverband is drawn only when the request-serving process
+enables its collector.
 
-| Surface | Default local host   | Purpose                        |
-| ------- | -------------------- | ------------------------------ |
-| `app`   | `base.app.localhost` | End-user product surface       |
-| `org`   | `base.org.localhost` | Staff and organization surface |
-| `com`   | `base.com.localhost` | Public and corporate surface   |
+## Host Authorization
 
-The credential gateway uses the `auth.*` label for the app and org audience families. The
-corporate (`com`) hosts are anonymous: they serve the public preference entry and public read-only
-pages, so `auth.com.localhost` has no credential route.
+Development and production Host Authorization admit only configured hosts for the retained surfaces
+and tools. The root route for an unmatched host returns a machine-readable 404; it does not create
+another surface.
 
-| Audience | Default local host   |
-| -------- | -------------------- |
-| `app`    | `auth.app.localhost` |
-| `org`    | `auth.org.localhost` |
+Identity-provider and relying-party origins that remain in configuration for Edit's external
+protocol calls do not create inbound route constraints. The retired Auth, Base, Core, GUID, Palm,
+Tech, Visa, and Warp controller surfaces are not served by this repository.
 
-The gateway also answers on `sign.*.localhost`, which is the boot-config default that applies when
-`AUTH_*_URL` and `PUBLIC_AUTH_*_URL` are unset.
-
-Development and network-only hosts may exist for operational endpoints, but they are not separate
-Rails Engines.
-
-## Canonical ENV Naming
-
-URL environment variables should use the smallest boundary name that makes the ownership clear.
-
-- `PUBLIC_*` means a browser-visible or externally reachable URL.
-- `PRIVATE_*` means a Rails-internal, pod-internal, or service-internal URL.
-
-Current runtime code still contains surface/service names for compatibility, but new docs and new
-runtime config should prefer the public/private boundary language instead of inventing another
-surface-prefixed URL family.
-
-Examples of the older compatibility style that still exists in code:
-
-- `ACME_SERVICE_URL`
-- `ACME_STAFF_URL`
-- `ACME_CORPORATE_URL`
-- `ACME_DEVELOPER_URL`
-- `ACME_NETWORK_URL`
-
-Do not introduce engine-prefixed URL names such as `IDENTITY_SIGN_APP_URL`,
-`FOUNDATION_BASE_ORG_URL`, or `DISTRIBUTOR_POST_APP_URL` for new runtime code in this repository.
+See the [content surface matrix](../architecture/content-surface-matrix.md) and
+[Cloudflare request paths](../architecture/cloudflare-request-paths.md).

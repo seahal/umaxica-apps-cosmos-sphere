@@ -46,7 +46,7 @@ module Security
         )
       end
 
-      # Faraday.default_adapter is shared with the OmniAuth, OAuth2, and
+      # Faraday.default_adapter is shared with the OAuth2 and
       # openid_connect chain. Reassigning it would change their transport as a
       # side effect of an unrelated application change.
       test "the Faraday global adapter is left alone" do

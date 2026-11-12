@@ -1,10 +1,14 @@
 # Sign-Up Sequence
 
-> **Current scope:** APP sign-up and ORG operator lifecycle routes are active. COM authentication
-> and Visitor sign-up have been retired. The COM sections below are retained historical material;
-> their routes and lifecycle descriptions are not current contracts. ORG invitation provisioning
-> currently refuses new invitations. See
-> [Sign-Up Eligibility Policy](../policy/signup-eligibility.md) for the current birthdate rule.
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
+> **Retired scope (2026-11-10):** Auth, Base, Core, GUID, Palm, Tech, Visa, and Warp routes and
+> sign-up flows are no longer served by Cosmos Sphere. All route and controller descriptions below
+> are historical. Models, migrations, and data remain for the next database review. See
+> [the content surface matrix](../architecture/content-surface-matrix.md).
 
 ## Effective admission intent
 

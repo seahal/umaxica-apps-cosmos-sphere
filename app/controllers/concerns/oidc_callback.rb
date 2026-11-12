@@ -66,7 +66,6 @@ module OidcCallback
     if authentication_event_at_from_id_token(id_token_result.payload).blank?
       return render_callback_failure("id_token_invalid", detail: "authentication_event_at")
     end
-    return render_rp_callback_access_denied! unless rp_callback_access_allowed?(token_response)
 
     # Every RP commits the verified OIDC identity to its own cell. The callback never reads the OP
     # grant, canonical account, or UserInfo endpoint to create or select an RP principal.
@@ -139,22 +138,6 @@ module OidcCallback
     true
   end
 
-  # Same client and resource type as BrowserRpAuthentication's (both name the controller's own cell).
-  def rp_cell_client_id = oidc_client_id
-
-  def rp_cell_resource_type
-    client = OidcClientRegistry.find!(oidc_client_id)
-    OidcIssuer.resource_type_for_client(client)
-  end
-
-  def rp_callback_access_allowed?(_token_response)
-    true
-  end
-
-  def render_rp_callback_access_denied!
-    render_callback_failure("authorization_denied")
-  end
-
   def complete_rp_cell_callback!(id_token_payload, token_response)
     expiries = OidcRpBrowserCredentialContract.cookie_expiries_from_response(token_response)
     result = commit_rp_cell_callback!(
@@ -208,7 +191,7 @@ module OidcCallback
 
     value = raw.is_a?(Numeric) ? raw : Integer(raw, 10)
     authentication_time = Time.at(value).utc
-    return if authentication_time > Time.current.utc + AuthenticationJwtConfiguration.leeway_seconds
+    return if authentication_time > Time.current.utc + OidcOpIdTokenVerifier::CLOCK_SKEW_LEEWAY_SECONDS
 
     authentication_time
   rescue ArgumentError, RangeError, TypeError
@@ -219,13 +202,6 @@ module OidcCallback
   # landing path. A missing controller declaration is an error, not a shared fallback.
   def consume_oidc_pt
     @current_oidc_target_link_uri || oidc_rp_default_landing_path
-  end
-
-  def session_limit_gate_pt
-    @current_oidc_target_link_uri ||
-      (defined?(super) ? super : request&.fullpath.presence || request&.path.presence || "/")
-  rescue StandardError
-    "/"
   end
 
   # D-153: expected abnormal endings land on GET /sign/interruption after cleanup; the reason is a
@@ -246,10 +222,6 @@ module OidcCallback
   def oidc_rp_sign_interruption_path = "/sign/interruption"
 
   def render_token_exchange_failure(result)
-    if result.error == "access_denied" && oidc_client_id == "tech-org-ww"
-      return render_oidc_access_denied!
-    end
-
     render_callback_failure(
       token_exchange_failure_reason(result),
       status: token_exchange_failure_status(result),
@@ -286,7 +258,7 @@ module OidcCallback
   # Log label only: the realm segment of an active exact Client ID (`<family>-<realm>-<scope>`).
   # Unknown or inactive IDs are labelled "unknown" rather than guessed.
   def oidc_callback_log_realm
-    return "unknown" unless RpDeploymentBindingValue.active_client_ids.include?(oidc_client_id.to_s)
+    return "unknown" unless OidcClientRegistry.client_ids.include?(oidc_client_id.to_s)
 
     oidc_client_id.to_s.split("-").fetch(1)
   end

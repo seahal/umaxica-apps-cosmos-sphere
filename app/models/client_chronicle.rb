@@ -51,7 +51,8 @@ class ClientChronicle < ChronicleRecord
 
   encrypts :previous_value
 
-  belongs_to :actor, polymorphic: true
+  # Canonical actors are external historical references, not local Active Record associations.
+  validates :actor_id, :actor_type, presence: true
   belongs_to :user_chronicle_event, class_name: "ClientChronicleEvent", foreign_key: :event_id,
                                     inverse_of: :client_chronicles
   belongs_to :user_chronicle_level, class_name: "ClientChronicleLevel", foreign_key: :level_id,
@@ -59,6 +60,7 @@ class ClientChronicle < ChronicleRecord
   # subject_id/subject_type for cross-DB compatibility (no FK)
   validates :subject_id, presence: true
   validates :subject_type, presence: true
+  validates :event_uuid, uniqueness: true, allow_nil: true
 
   validates :event_id, numericality: { only_integer: true }, allow_nil: true
   validates :level_id, numericality: { only_integer: true }, allow_nil: true
@@ -69,22 +71,8 @@ class ClientChronicle < ChronicleRecord
 
   scope :recent_activity_first, -> { order(arel_table[:occurred_at].desc, arel_table[:created_at].desc) }
 
-  # Helper methods for compatibility with existing code
-  def user
-    Client.find(subject_id) if subject_type == "Client"
-  end
-
-  def user_id
-    subject_id if subject_type == "Client"
-  end
-
   def set_timestamp
     self.timestamp ||= Time.current
-  end
-
-  def user=(user)
-    self.subject_id = user.id.to_s
-    self.subject_type = "Client"
   end
 
   def event_id_must_exist

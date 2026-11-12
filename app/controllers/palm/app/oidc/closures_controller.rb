@@ -8,7 +8,7 @@ module Palm
       class ClosuresController < ActionController::API
         include RpBackchannelLogoutEndpoint
 
-        # D-118: no browser parent, so FQDN gating and rate limiting are explicit here.
+        # D-118: no browser parent, so rate limiting is explicit here.
         rate_limit to: 60, within: 1.minute, by: -> { request.remote_ip },
                    store: Rails.configuration.x.rate_limit.fetch(:store), name: "oidc_closures_ip",
                    with: -> { head(:too_many_requests) }

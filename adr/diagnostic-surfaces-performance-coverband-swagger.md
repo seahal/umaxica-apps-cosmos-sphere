@@ -2,6 +2,24 @@
 
 Accepted: 2026-09-17
 
+## Removal amendment (2026-11-10)
+
+Owner decision: Sphere removed `rails_performance`; request performance telemetry remains with
+OpenTelemetry. Do not provision or restore the Sphere Rails route, gem, Valkey responsibility, or
+development host. External Cloudflare routes and Access records were not changed and still require
+separate owner approval for cleanup. See `docs/backlog/2026-11-10-remove-rails-performance.md`.
+
+The original decision below is historical for `rails_performance`. Coverband and Swagger remain.
+
+## Repository host names (2026-11-09 amendment)
+
+Per [Cosmos Press route ownership](../specs/cosmos-press-route-ownership/spec.md), Sphere originally
+retained seven operator tools on `<tool>-sphere-jp.umaxica.dev`; after the 2026-11-10 removal, the
+six remaining tools are `mission`, `flipper`, `blazer`, `pghero`, `swagger`, and `coverband`.
+Existing `<tool>.core.dev.localhost` private aliases and all origin authentication controls remain.
+The unqualified public host names below describe the original 2026-09-17 decision and are superseded
+for Sphere.
+
 ## Context
 
 This application already runs four operator dashboards, each on its own dedicated `*.umaxica.dev`
@@ -15,7 +33,7 @@ questions had no surface:
 Cloudflare Tunnel, DNS, and Access configuration are managed outside this repository and were not
 touched. This ADR covers only what Rails does.
 
-## Decision
+## Original decision (historical for rails_performance)
 
 Three more dashboards, each following the existing pattern rather than introducing a new one.
 
@@ -58,9 +76,9 @@ mounted Rack app subclasses nothing of this application — `enforce_access_poli
 otherwise repeat. The existing Flipper, Blazer, and PgHero mounts keep their inline copies:
 rewriting working, tested authorization code is not part of adding new surfaces.
 
-### Development only, and what that costs
+### Original development-only scope, and what that costs
 
-All three gems are `group :development`, matching `pghero`, `blazer`, and `rails_db`.
+All three gems are `group :development`, matching `pghero` and `blazer`.
 
 For Swagger UI and the performance dashboard this is a straightforward scope decision. For Coverband
 it is a real departure from the tool's purpose: Coverband exists to tell you which code runs _in
@@ -346,3 +364,9 @@ as a dashboard tab that 404s, and a new one simply never appears.
 - `adr/valkey-nonprod-logical-db-topology.md` — the logical database layout extended here
 - `adr/public-private-url-boundaries.md` — the `PUBLIC_`/`PRIVATE_` naming
 - `docs/architecture/cloudflare-request-paths.md` — how a request reaches these hosts
+
+## Amendment (2026-11-10)
+
+rails_performance is removed (owner): its containment depended on copied gem internals, it fails the
+Herb migration, and request performance moves to OpenTelemetry. See
+`docs/backlog/2026-11-10-remove-rails-performance.md`. Coverband and Swagger are unchanged.

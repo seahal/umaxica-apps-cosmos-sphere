@@ -8,6 +8,11 @@
 > This supersedes the former Core Router Worker / Workers VPC Host-header decision below.
 > Implementation and deployment verification remain deferred.
 
+> Amended 2026-11-10: `adr/cosmos-sphere-surfaces-and-rp-independence.md`, "Public Hostnames for
+> Core, Warp and Palm", supersedes the hostname decision below. Core uses
+> `www-jp.umaxica.{app,com,org}`; Warp uses `warp-jp.umaxica.{app,com,org}`. The earlier hostname
+> descriptions below preserve the decision history.
+
 ## Status
 
 Accepted (2026-08-09). Supersedes the Open revision of the same date, which recorded the conflict

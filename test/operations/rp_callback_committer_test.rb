@@ -70,8 +70,8 @@ class RpCallbackCommitterTest < ActiveSupport::TestCase
 
   test "every RP cell refuses a different subject for an existing anchor without local writes" do
     %w(
-      base-app-ww core-app-jp warp-app-jp palm-app-jp
-      base-org-ww core-org-jp warp-org-jp edit-org-ww tech-org-ww
+      core-app-jp warp-app-jp palm-app-jp
+      core-org-jp warp-org-jp
     ).each do |client_id|
       cell = RpCellBinding.for_client(client_id)
       issuer = (cell.realm == "app") ? "https://www.umaxica.app" : "https://www.umaxica.org"

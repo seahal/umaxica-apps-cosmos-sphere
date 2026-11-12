@@ -4,12 +4,15 @@ Status: Accepted
 
 Date: 2026-05-25
 
+Scope amendment (owner-approved surface hard reset, 2026-11-11): local user-facing copy now belongs
+to Docs, News, Help, Info, and Edit. The retired `sign.app`, `sign.com`, and `sign.org` translation
+trees were removed; the remaining shared Edit sign-out and passkey-default keys stay explicit.
+
 ## Context
 
-Controllers, services, views, and policies need user-facing messages across the `app`, `org`, and
-`com` sign surfaces. Rails allows inline fallback text through `I18n.t(..., default: "...")`, but
-that pattern hides missing translation keys and makes surface-specific copy drift difficult to
-review.
+Controllers, services, views, and policies need user-facing messages across the application
+surfaces. Rails allows inline fallback text through `I18n.t(..., default: "...")`, but that pattern
+hides missing translation keys and makes surface-specific copy drift difficult to review.
 
 Dynamic translation key construction is also risky. Calls such as `t("abc.#{value}")` make the
 resolved key depend on runtime data, which defeats code review, weakens static analysis, and can
@@ -28,23 +31,22 @@ Application code must also not construct translation keys dynamically at runtime
 interpolation, concatenation, or other forms where the final key is not explicit in source.
 
 When code needs a user-facing message, add the translation key to the appropriate locale files under
-`config/locales/` for the affected surfaces and regions. The call site should reference the key
+`config/locales/` for the affected retained surface. The call site should reference the key
 directly.
 
 Acceptable:
 
 ```ruby
-redirect_to("/", notice: t("sign.app.registration.cancelled_retry_later"))
+page_title(t("sign.shared.sign_out.unavailable_title"))
 ```
 
 Not acceptable:
 
 ```ruby
-redirect_to(
-  "/",
-  notice: t(
-    "sign.app.registration.cancelled_retry_later",
-    default: "Registration cancelled. Please wait a while before registering again.",
+page_title(
+  t(
+    "sign.shared.sign_out.unavailable_title",
+    default: "Sign-out is temporarily unavailable.",
   ),
 )
 ```
@@ -61,8 +63,8 @@ Missing translations should fail loudly in development or tests instead of being
 fallback copy.
 
 Changes that add user-facing strings must update the relevant locale files at the same time as the
-code change. Surface-specific keys should remain under the matching `sign.app`, `sign.com`, or
-`sign.org` namespace unless an existing shared translation abstraction explicitly applies.
+code change. Surface-specific keys should remain under the matching retained surface namespace
+unless an existing shared translation abstraction explicitly applies.
 
 Translation key references must remain explicit in source so that reviews, grep-based audits, and
 locale coverage checks can reliably tell which copy is used.

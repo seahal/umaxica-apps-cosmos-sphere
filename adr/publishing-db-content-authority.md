@@ -25,6 +25,15 @@ decision drift.
 
 ## Decision
 
+> **Current HTTP ownership clarification (2026-11-10):** The owner-approved Sphere surface hard
+> reset keeps the `edit`, `info`, `news`, `help`, and `docs` routes and presentation in this
+> repository. The earlier Cosmos Press transfer scope is superseded for this repository. The
+> Publishing database, schema, data, and models remain unchanged, but Base-owned routes, including
+> `/api/v0/publishing/*`, are no longer served by this Rails process. Edit's external authority
+> client remains configured for the separately owned Base API. This clarification changes only local
+> HTTP ownership; it does not migrate or delete persistence. See
+> [`specs/sphere-operator-tools-hard-reset/spec.md`](../specs/sphere-operator-tools-hard-reset/spec.md).
+
 ### 1. The Publishing Database Is the Sole Content Authority
 
 Create a central `publishing` publisher/replica database and store canonical content only there.

@@ -8,7 +8,7 @@ class Core::App::RootsControllerTest < ActionDispatch::IntegrationTest
   BRAND = ENV.fetch("BRAND_NAME").upcase
 
   test "renders a thin landing page" do
-    host! ENV.fetch("PUBLIC_CORE_SERVICE_URL", ENV.fetch("PUBLIC_CORE_SERVICE_URL", "core.app.localhost"))
+    host! ENV.fetch("PUBLIC_CORE_SERVICE_URL")
     get core_app_root_url(ri: "jp")
 
     assert_response :success
@@ -19,15 +19,12 @@ class Core::App::RootsControllerTest < ActionDispatch::IntegrationTest
     assert_equal I18n.t("landing.thin_endpoint"), inertia_props.fetch("description")
   end
 
-  test "root does not create preference state" do
-    host! ENV.fetch("PUBLIC_CORE_SERVICE_URL", ENV.fetch("PUBLIC_CORE_SERVICE_URL", "core.app.localhost"))
-
-    assert_no_difference("AppPreference.count") do
-      get core_app_root_url(ri: "jp")
-    end
+  test "root does not issue retired preference credentials" do
+    host! ENV.fetch("PUBLIC_CORE_SERVICE_URL")
+    get core_app_root_url(ri: "jp")
 
     assert_response :success
-    assert_nil cookies[PreferenceCookieName.anonymous_jwt]
+    assert_nil cookies["preference_jwt"]
     assert_nil cookies["preference_refresh"]
   end
 end

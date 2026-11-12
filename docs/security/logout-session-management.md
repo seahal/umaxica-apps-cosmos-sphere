@@ -1,10 +1,14 @@
 # Logout And Session Management
 
+> **Historical after the 2026-11-11 hard reset:** Local OP and Browser RP routes have been removed,
+> except for the Edit RP flow. This document records earlier multi-surface session behavior; current
+> routes are listed in `README.md`.
+
 ## Ownership
 
 Visa owns OP authentication and authority-stop decisions independently for APP and ORG. Base, Core,
-Warp, Edit, Palm and Tech own their RP cookies, local sessions and return routes. A browser cookie on
-one host never authorizes mutation of another surface's session. COM has no authentication or OP
+Warp, Edit, Palm and Tech own their RP cookies, local sessions and return routes. A browser cookie
+on one host never authorizes mutation of another surface's session. COM has no authentication or OP
 session surface; Base COM remains anonymous.
 
 `OpAuthorityStopCommitter` is the realm-specific writer that stops OP roots and grants. The durable

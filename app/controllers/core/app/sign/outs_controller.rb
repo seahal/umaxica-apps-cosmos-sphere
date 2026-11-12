@@ -5,8 +5,8 @@ module Core
   module App
     module Sign
       class OutsController < Core::App::ApplicationController
-        include ::AuthenticationLogoutable
         include ::SignOutNotice
+        include ::SignOutInertiaPages
         include ::OidcRpLogoutLauncher
         include ::SignOutClearSiteData
 
@@ -28,7 +28,7 @@ module Core
         end
 
         def edit
-          render "auth/shared/sign_outs/edit"
+          render_sign_out_confirmation_page
         end
 
         def create

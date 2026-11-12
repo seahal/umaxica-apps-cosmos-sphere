@@ -42,33 +42,6 @@ parameters:
       no security scheme for a double-submit CSRF token in any version, so it is described here as
       an ordinary required header.
 
-  Page:
-    name: page
-    in: query
-    description: >-
-      1-based page number. Omitted, it defaults to 1. The page size is server-controlled (20
-      entries). Callers send a logical page number, not a SQL OFFSET. A value that is not a whole
-      number greater than or equal to 1, and a page past the last page, are refused with 400 rather
-      than silently answering with the first page.
-    schema:
-      type: integer
-      minimum: 1
-      default: 1
-
-  IfNoneMatch:
-    name: If-None-Match
-    in: header
-    description: Prior `ETag`. A match answers `304` with no body (RFC 9110 13.1.2).
-    schema:
-      type: string
-
-  IfModifiedSince:
-    name: If-Modified-Since
-    in: header
-    description: Prior `Last-Modified`. RFC 9110 13.1.3.
-    schema:
-      type: string
-
 responses:
   Problem:
     description: An RFC 9457 problem document.
@@ -102,8 +75,8 @@ responses:
 
   ForeignPreferenceToken:
     description: >-
-      The request presented a preference access token minted for another host or audience. A
-      request that presents no preference token is not refused.
+      The request presented a preference access token minted for another host or audience. A request
+      that presents no preference token is not refused.
     content:
       application/problem+json:
         schema:
@@ -251,111 +224,6 @@ schemas:
         description:
           Stored color-theme code (`li`/`dr`/`sy`) or the canonical option
           (`light`/`dark`/`system`).
-
-  Entry:
-    type: object
-    description: One published entry, rendered from its frozen published version.
-    required:
-      [
-        public_id,
-        namespace,
-        surface,
-        slug,
-        locale,
-        title,
-        summary,
-        body,
-        published_at,
-        updated_at,
-        snapshot_public_id,
-        taxonomy,
-      ]
-    properties:
-      public_id:
-        type: string
-        description: >-
-          Opaque entry identifier and the resource identity for `GET /api/v0/entries/{public_id}`.
-          Never a database primary key and not the slug. Treat as an opaque string; its generation
-          scheme is not part of the contract.
-      namespace:
-        type: string
-        description: Content service.
-        enum: [docs, help, news, info]
-      surface:
-        type: string
-        description: Audience.
-        enum: [app, com, org]
-      slug:
-        type: string
-        nullable: true
-        description: >-
-          The canonical slug. Always present as a member; the value is null when the entry has no
-          canonical slug row, which `PublishingEntrySerializer#canonical_slug` guards for.
-      locale:
-        type: string
-        example: ja
-      title:
-        type: string
-      summary:
-        type: string
-        nullable: true
-        description: >-
-          Always present as a member; the value may be null. `publishing_entry_versions.summary` is
-          the only nullable column behind this schema.
-      body:
-        type: object
-        description: >-
-          Always a structured object, never a bare string. Consumers may rely on the type.
-        additionalProperties: true
-      published_at:
-        type: string
-        format: date-time
-        description: >-
-          RFC 3339 instant with an explicit `Z` offset. Never null. `PublishingEntrySerializer#call`
-          returns nothing at all when there is no active publication, and
-          `publishing_publications.effective_from` is `NOT NULL`, so an entry that renders always
-          has one. It was previously described as nullable, which described a state that cannot
-          occur.
-      updated_at:
-        type: string
-        format: date-time
-        description: RFC 3339 instant of the published version row. Used for Last-Modified.
-      snapshot_public_id:
-        type: string
-        description: Stable public identifier of the published snapshot used for HTML validators.
-      taxonomy:
-        type: object
-        description: >-
-          Keyed by vocabulary key for this audience and service. A single-valued vocabulary renders
-          one object or null; a multi-valued vocabulary renders an ordered array.
-        additionalProperties: true
-
-  Page:
-    type: object
-    description: >-
-      Offset page coordinates for a collection (adr/api-collection-offset-pagination.md). `previous`
-      and `next` are null when there is no adjacent page. The page size is not part of the envelope:
-      it is a server-side constant.
-    required: [current, previous, next, last]
-    properties:
-      current:
-        type: integer
-        minimum: 1
-        description: The requested page number that this envelope describes.
-      previous:
-        type: integer
-        nullable: true
-        minimum: 1
-        description: The previous page number, or null on the first page.
-      next:
-        type: integer
-        nullable: true
-        minimum: 1
-        description: The next page number, or null on the last page.
-      last:
-        type: integer
-        minimum: 1
-        description: The last page number for the current filtered collection.
 
   CheckStatus:
     type: object

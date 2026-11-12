@@ -29,11 +29,6 @@ module JitSecurityJwtLocalKeysetInstaller
     )
     changed |= install_keyset_issuer!(
       store,
-      prefix: "PREFERENCE_COM",
-      kid: "#{Rails.env}-preference-com-es384-a",
-    )
-    changed |= install_keyset_issuer!(
-      store,
       prefix: "PREFERENCE_ORG",
       kid: "#{Rails.env}-preference-org-es384-a",
     )

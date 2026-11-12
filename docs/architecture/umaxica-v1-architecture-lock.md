@@ -248,9 +248,8 @@ for legacy constraints and read paths; it is not a basis for ownership or author
 `avatars.lifecycle_state_id` is the canonical current lifecycle state pointer. Historical avatar DB
 posts remain a legacy UGC violation and were not changed in Slice 4.
 
-`Avatar.create_with_owner` remains only as a deprecated compatibility wrapper around
-`AvatarProvisioning::Create`. It is a removal candidate and must not independently write Avatar,
-Handle, binding, assignment, or ownership rows.
+The owner-approved surface hard reset removed `Avatar.create_with_owner`; Avatar creation has no
+compatibility wrapper. The remaining service callers use `AvatarProvisioning::Create` directly.
 
 The next slice must start with a dry-run conflict audit for existing Avatar binding backfill. Do not
 begin by mutating historical rows.

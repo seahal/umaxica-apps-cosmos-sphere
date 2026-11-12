@@ -10,9 +10,8 @@
 # by the retired session-limit placeholder. A session's authentication context
 # is never inferred from that historical status.
 #
-# It is also distinct from Webauthn::AuthenticationContext, which is the result
-# of one WebAuthn assertion (UV flags, AAGUID, transports). This value describes
-# the session, not a ceremony response.
+# The active Edit RP reads this value from provider-issued OIDC claims; it does
+# not produce credential ceremony results locally.
 #
 # Authority: the durable value lives on the session token row
 # (`operator_tokens.authentication_context`) and is re-derived into the access

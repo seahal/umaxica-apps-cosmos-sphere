@@ -1,5 +1,11 @@
 # Software Requirements Specification (SRS)
 
+> **Current route-scope amendment (2026-11-10):** This legacy SRS describes a broader product
+> topology than this repository serves after the owner-approved hard reset. Current local surfaces
+> are Docs, News, Help, Info, Edit, and the six operator tools; Auth, Base, Core, GUID, Palm, Tech,
+> Visa, and Warp browser routes are retired. Persistence and models remain for the next removal
+> step.
+
 ## Project: Umaxica Apps Cosmos Sphere
 
 ### Aligned with ISO/IEC/IEEE 29148:2018 guidance
@@ -10,11 +16,10 @@
 
 ### 1.1 Purpose
 
-Umaxica Apps Cosmos Sphere replaces the legacy edge-only portal with a unified Ruby on Rails
-platform that serves every public surface owned by Umaxica—corporate, service, staff, help, docs,
-news, BFF, and API domains. The SRS defines the business goals, functional expectations, and quality
-attributes that the Rails monolith must satisfy while orchestrating user onboarding, customer
-support, and staff tooling across `umaxica.[app|com|org]` and auxiliary subdomains.
+Umaxica Apps Cosmos Sphere is a Ruby on Rails application serving the locally retained Docs, News,
+Help, Info, Edit, and operator-tool surfaces. This SRS preserves broader product requirements and
+historical topology for future work; the route-scope amendment above is authoritative for current
+local HTTP behavior.
 
 ### 1.2 Scope
 
@@ -40,15 +45,15 @@ support, and staff tooling across `umaxica.[app|com|org]` and auxiliary subdomai
 
 ## 2. Stakeholders and Roles
 
-| Role                  | Responsibilities                                                                                                                                    | Tooling / Notes                                 |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Product Owner         | Defines feature scope, localization priorities, and compliance targets                                                                              | Roadmap, Notion/Jira                            |
-| Tech Lead / Architect | Owns multi-surface Rails architecture, multi-DB strategy, and integration points (Valkey, SMS, email)                                               | Rails, Docker Compose                           |
-| Front-End Engineer    | Builds Turbo/React views in `src`, owns theme and preference UX                                                                                     | Bun, Vite, Tailwind, Turbo                      |
-| Back-End Engineer     | Implements controller logic (e.g., `config/routes/*.rb` namespaces), models, encryption, OTP/passkey workflows                                      | Rails 8, PostgreSQL, Valkey                     |
-| Platform/DevOps       | Manages Compose stack (PostgreSQL shards, Valkey, optional RustFS, Grafana/Loki/Tempo), CI (`ci.yml`), and deployments                              | Podman, Foreman, GitHub Actions                 |
-| QA Engineer           | Designs Minitest/spec + JS/TS tests (via Bun), OpenAPI contract verification (Committee) and Swagger UI (`rswag-api`, `rswag-ui`), smoke/load tests | `bin/rails test`, `bun run test`, Playwright/k6 |
-| Security/Compliance   | Oversees JWT keys, Cloudflare Turnstile secrets, GDPR/ePrivacy consent storage                                                                      | Secrets management, monitoring                  |
+| Role                  | Responsibilities                                                                                                       | Tooling / Notes                       |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Product Owner         | Defines feature scope, localization priorities, and compliance targets                                                 | Roadmap, Notion/Jira                  |
+| Tech Lead / Architect | Owns multi-surface Rails architecture, multi-DB strategy, and integration points (Valkey, SMS, email)                  | Rails, Docker Compose                 |
+| Front-End Engineer    | Builds Rails-rendered ERB and shared surface CSS                                                                       | Bun, Vite, Tailwind, Turbo            |
+| Back-End Engineer     | Implements controller logic (e.g., `config/routes/*.rb` namespaces), models, encryption, OTP/passkey workflows         | Rails 8, PostgreSQL, Valkey           |
+| Platform/DevOps       | Manages Compose stack (PostgreSQL shards, Valkey, optional RustFS, Grafana/Loki/Tempo), CI (`ci.yml`), and deployments | Podman, Foreman, GitHub Actions       |
+| QA Engineer           | Designs Minitest behavior and OpenAPI contract verification (Committee), smoke/load checks                             | `bin/rails test`, `bun run check`, k6 |
+| Security/Compliance   | Oversees JWT keys, Cloudflare Turnstile secrets, GDPR/ePrivacy consent storage                                         | Secrets management, monitoring        |
 
 ---
 
@@ -57,9 +62,8 @@ support, and staff tooling across `umaxica.[app|com|org]` and auxiliary subdomai
 - **Runtime & language**: Ruby 4.0.7 / Rails 8.x monolith with multi-database (`connects_to`)
   separation (identity, universal, guest, profile, token, etc.) backed by PostgreSQL 18 (primary +
   replica).
-- **Frontend toolchain**: Vite Rails with Bun-managed Vite tooling for Turbo/Stimulus/React
-  entrypoints under `src`; browser CSS is bundled through Vite entrypoints while Rails still serves
-  non-browser static assets.
+- **Frontend toolchain**: Rails-rendered ERB with Vite/Tailwind-owned surface CSS. Edit uses
+  Importmap for Turbo; Propshaft serves other static assets.
 - **Cache and rate-limit counters**: Valkey (Redis-compatible) backs two separate, non-authoritative
   stores -- `Rails.cache` (`CACHE_REDIS_URL`) and the rate-limit counters (`RATE_LIMIT_REDIS_URL`).
   Sessions are cookie-backed and Active Job is Solid Queue (PostgreSQL). Solid Cache is not used.
@@ -151,8 +155,7 @@ support, and staff tooling across `umaxica.[app|com|org]` and auxiliary subdomai
 - **FR-16**: Successful contact submissions must trigger surface-scoped email notifications and
   remain observable through application logs and traces.
 - **FR-17**: News and Docs namespaces must redirect to content-specific roots and expose health
-  status; they are placeholders for static/dynamic content served through Rails/Turbo (React slots
-  defined in `src/pages`).
+  status; they are server-rendered content surfaces in the current application.
 
 ### 4.5 API and BFF services
 
@@ -274,7 +277,7 @@ support, and staff tooling across `umaxica.[app|com|org]` and auxiliary subdomai
 - Repository guides: `README.md`, `AGENTS.md`, `docs/checklist.md`
 - Infrastructure: `compose.yaml`, `Procfile.dev`
 - Security: `SECURITY.md`, `CODE_OF_CONDUCT.md`
-- Testing assets: `test/`, `gait/`, `rswag` configuration
+- Testing assets: `test/`, `rswag` configuration
 - Change log: tracked via Git history and PR descriptions
 
 > **Note:** This SRS is internal-facing and must be updated whenever routes, data stores, or

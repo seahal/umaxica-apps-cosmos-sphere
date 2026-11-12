@@ -41,94 +41,17 @@
 #
 
 class ComPreferenceChronicle < ChronicleRecord
-  # Shared writer locks and an exclusive purge lock coordinate the cross-database audit check.
-  PREFERENCE_AUDIT_LOCK_KEY = 88_038_921_016_973
-
   include Retainable
 
-  # Other subject types are valid; the guarded callback checks ComPreference references.
-  belongs_to :com_preference,
-             class_name: "ComPreference",
-             foreign_key: :subject_id,
-             primary_key: :id,
-             inverse_of: :com_preference_chronicles,
-             optional: true
-  # Audit actors may be omitted or belong to another record type.
-  belongs_to :actor, polymorphic: true, optional: true
+  # Actor and subject identifiers are historical snapshots, never external database lookups.
   belongs_to :com_preference_chronicle_level, foreign_key: :level_id, inverse_of: :com_preference_chronicles
   belongs_to :com_preference_chronicle_event,
              class_name: "ComPreferenceChronicleEvent",
-             foreign_key: "event_id",
-             primary_key: "id",
+             foreign_key: :event_id,
              inverse_of: :com_preference_chronicles
-  validates :subject_type, presence: true
 
+  validates :subject_type, presence: true
   validates :event_id, length: { maximum: 255 }
   validates :level_id, length: { maximum: 255 }
   validates :subject_id, exclusion: { in: [nil] }
-  before_validation :default_actor_to_preference
-  before_create :coordinate_preference_reference!
-  before_update :coordinate_preference_reference!, if: :preference_reference_changing?
-
-  def self.lock_preference_audit_writers!
-    connection_pool.with_connection do |connection|
-      unless connection.transaction_open?
-        raise ActiveRecord::TransactionIsolationError, "Chronicle transaction is required"
-      end
-
-      connection.execute("SELECT pg_advisory_xact_lock_shared(#{PREFERENCE_AUDIT_LOCK_KEY})")
-    end
-  end
-
-  def self.lock_preference_audit_for_purge!
-    connection_pool.with_connection do |connection|
-      unless connection.transaction_open?
-        raise ActiveRecord::TransactionIsolationError, "Chronicle transaction is required"
-      end
-
-      connection.execute("SELECT pg_advisory_xact_lock(#{PREFERENCE_AUDIT_LOCK_KEY})")
-    end
-  end
-
-  public_class_method :lock_preference_audit_writers!, :lock_preference_audit_for_purge!
-
-  # Helper methods for compatibility
-  def com_preference
-    return if subject_id.blank?
-
-    ComPreference.find(subject_id) if subject_type == "ComPreference"
-  end
-
-  def com_preference=(pref)
-    self.subject_id = pref.id.to_s
-    self.subject_type = "ComPreference"
-  end
-
-  def default_actor_to_preference
-    return if actor_id.present? && actor_type.present?
-    return unless subject_id.present? && subject_type == "ComPreference"
-
-    self.actor = com_preference
-  end
-
-  private
-
-  def preference_reference_changing?
-    will_save_change_to_subject_id? || will_save_change_to_subject_type? ||
-      will_save_change_to_actor_id? || will_save_change_to_actor_type?
-  end
-
-  def coordinate_preference_reference!
-    return unless subject_type == "ComPreference" || actor_type == "ComPreference"
-
-    self.class.lock_preference_audit_writers!
-    ComSettingRecord.connected_to(role: :writing) do
-      if subject_type == "ComPreference" && !ComPreference.exists?(id: subject_id)
-        raise ActiveRecord::RecordNotFound, "com preference audit subject is missing"
-      end
-      if actor_type == "ComPreference" && !ComPreference.exists?(id: actor_id)
-        raise ActiveRecord::RecordNotFound, "com preference audit actor is missing"
-      end
-    end
-  end
 end

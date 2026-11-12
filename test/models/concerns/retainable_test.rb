@@ -50,10 +50,10 @@ class RetainableTest < ActiveSupport::TestCase
   end
 
   test "persistent retainable records use semantic retention column names" do
-    assert_includes Client.column_names, "discard_at"
-    assert_includes Client.column_names, "purge_eligible_at"
-    assert_not_includes Client.column_names, "discarded_at"
-    assert_not_includes Client.column_names, "purged_at"
+    assert_includes ClientChronicle.column_names, "discard_at"
+    assert_includes ClientChronicle.column_names, "purge_eligible_at"
+    assert_not_includes ClientChronicle.column_names, "discarded_at"
+    assert_not_includes ClientChronicle.column_names, "purged_at"
   end
 
   test "accessible? returns true if discard_at is in the future" do
@@ -97,6 +97,18 @@ class RetainableTest < ActiveSupport::TestCase
     assert_predicate @dummy, :purgeable?
   end
 
+  test "an unbounded historical creation time is before every finite retention deadline" do
+    @dummy.created_at = -Float::INFINITY
+    @dummy.discard_at = Time.utc(2040, 1, 1)
+    @dummy.purge_eligible_at = Time.utc(2041, 1, 1)
+    @dummy.validation_context = :update
+
+    assert_equal(-Float::INFINITY, @dummy.created_at)
+    assert_predicate @dummy, :valid?
+    assert_empty @dummy.errors[:discard_at]
+    assert_empty @dummy.errors[:purge_eligible_at]
+  end
+
   test "retention predicates use the supplied evaluation time" do
     evaluation_time = Time.utc(2040, 1, 1, 12)
     @dummy.discard_at = evaluation_time + 1.hour
@@ -132,6 +144,16 @@ class RetainableTest < ActiveSupport::TestCase
 
     assert_equal database_time, @dummy.discard_at
     assert_equal database_time + 1.day, @dummy.purge_eligible_at
+  end
+
+  test "discard_now uses its evaluation time when the record has no creation time" do
+    evaluation_time = Time.utc(2040, 1, 1, 12)
+    @dummy.created_at = nil
+
+    @dummy.discard_now!(purge_after: 1.day, now: evaluation_time)
+
+    assert_equal evaluation_time, @dummy.discard_at
+    assert_equal evaluation_time + 1.day, @dummy.purge_eligible_at
   end
 
   test "defaults use infinity sentinel" do
@@ -194,5 +216,72 @@ class RetainableTest < ActiveSupport::TestCase
 
     assert_equal future_lapses, @dummy.discard_at
     assert_equal future_purge, @dummy.purge_eligible_at
+  end
+
+  test "discard_now! rejects a non-duration, a nonfuture purge deadline, and a deadline before creation" do
+    evaluation_time = Time.utc(2040, 1, 1, 12)
+    @dummy.created_at = evaluation_time - 1.hour
+
+    assert_raises(ArgumentError) do
+      @dummy.discard_now!(purge_after: Object.new, now: evaluation_time)
+    end
+    assert_raises(ArgumentError) do
+      @dummy.discard_now!(purge_after: 0.seconds, now: evaluation_time)
+    end
+
+    @dummy.created_at = evaluation_time + 2.hours
+    assert_raises(ArgumentError) do
+      @dummy.discard_now!(purge_after: 1.hour, now: evaluation_time)
+    end
+  end
+
+  test "retention validation handles blank values and a missing creation time" do
+    @dummy.validation_context = :update
+    @dummy.created_at = nil
+    @dummy.discard_at = nil
+    @dummy.purge_eligible_at = nil
+
+    assert_not @dummy.valid?
+    assert_includes @dummy.errors.details[:discard_at].pluck(:error), :blank
+    assert_includes @dummy.errors.details[:purge_eligible_at].pluck(:error), :blank
+  end
+
+  test "update validation skips date ordering when either retention deadline is blank" do
+    @dummy.validation_context = :update
+    @dummy.created_at = Time.utc(2040, 1, 1, 12)
+    @dummy.discard_at = nil
+    @dummy.purge_eligible_at = nil
+
+    assert_not @dummy.valid?
+    assert_includes @dummy.errors.details[:discard_at].pluck(:error), :blank
+    assert_includes @dummy.errors.details[:purge_eligible_at].pluck(:error), :blank
+  end
+
+  test "infinite retention deadlines follow the public validity contract" do
+    @dummy.validation_context = :update
+    @dummy.created_at = Time.utc(2040, 1, 1, 12)
+
+    @dummy.discard_at = Float::INFINITY
+    @dummy.purge_eligible_at = Float::INFINITY
+
+    assert_predicate @dummy, :valid?
+
+    @dummy.discard_at = Float::INFINITY
+    @dummy.purge_eligible_at = @dummy.created_at + 1.day
+
+    assert_not @dummy.valid?
+    assert_includes @dummy.errors[:discard_at], "must be <= purge_eligible_at"
+
+    @dummy.discard_at = -Float::INFINITY
+    @dummy.purge_eligible_at = Float::INFINITY
+
+    assert_not @dummy.valid?
+    assert_includes @dummy.errors[:discard_at], "must be >= created_at"
+
+    @dummy.discard_at = @dummy.created_at + 1.hour
+    @dummy.purge_eligible_at = -Float::INFINITY
+
+    assert_not @dummy.valid?
+    assert_includes @dummy.errors[:discard_at], "must be <= purge_eligible_at"
   end
 end

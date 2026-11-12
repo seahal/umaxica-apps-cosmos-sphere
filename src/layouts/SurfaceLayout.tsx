@@ -2,8 +2,7 @@
 //
 // It replaces the header and footer that the surface ERB layouts used to build, and it is
 // persistent in the Inertia sense: a visit swaps the page below it without remounting the chrome,
-// so the cookie banner keeps its dismissed state and the theme control keeps its selection across
-// navigation. It renders nothing it decides for itself — `chrome` is a shared prop assembled by
+// across navigation. It renders nothing it decides for itself — `chrome` is a shared prop assembled by
 // SurfaceChrome on the server.
 //
 // The document structure here is plain semantic HTML on purpose. Landmarks, headings and lists are
@@ -17,8 +16,6 @@
 import { router, usePage } from "@inertiajs/react";
 import { useEffect, type ReactNode } from "react";
 
-import CookieBanner from "@/components/chrome/CookieBanner";
-import ThemeControls from "@/components/chrome/ThemeControls";
 import DocumentLocale from "@/components/ui/DocumentLocale";
 import type { SharedProps } from "@/types/inertia";
 
@@ -31,29 +28,10 @@ export default function SurfaceLayout({ children }: { children: ReactNode }) {
   const { chrome, clear_history: clearHistory } = usePage<SharedProps>().props;
 
   useEffect(() => {
-    if (chrome.surface !== "com") {
-      return;
-    }
-    if (chrome.locale !== "ja" && chrome.locale !== "en") {
-      throw new Error("com page locale is missing or unsupported");
-    }
-    document.documentElement.lang = chrome.locale;
-  }, [chrome.surface, chrome.locale]);
-
-  useEffect(() => {
     if (clearHistory) {
       router.clearHistory();
     }
   }, [clearHistory]);
-
-  const footerLabel =
-    typeof document === "undefined"
-      ? undefined
-      : document.querySelector<HTMLMetaElement>('meta[name="ui-footer"]')?.content;
-  const informationLabel =
-    typeof document === "undefined"
-      ? undefined
-      : document.querySelector<HTMLMetaElement>('meta[name="ui-information"]')?.content;
 
   return (
     <DocumentLocale>
@@ -83,20 +61,6 @@ export default function SurfaceLayout({ children }: { children: ReactNode }) {
                 >
                   {chrome.restricted_mode.sign_out.label}
                 </a>
-              </div>
-            </section>
-          ) : null}
-
-          {chrome.banner ? (
-            <section
-              aria-label={chrome.banner.title ?? informationLabel}
-              className="border-b border-line bg-surface-muted"
-            >
-              <div className={`${SHELL} flex flex-col gap-0.5 py-2.5 text-sm text-fg`}>
-                {chrome.banner.title ? (
-                  <h2 className="font-semibold">{chrome.banner.title}</h2>
-                ) : null}
-                <p className="text-fg-muted">{chrome.banner.body}</p>
               </div>
             </section>
           ) : null}
@@ -151,35 +115,11 @@ export default function SurfaceLayout({ children }: { children: ReactNode }) {
       */}
         <footer className="mt-8 border-t border-line bg-canvas">
           <div className={`${SHELL} flex flex-col gap-6 py-8`}>
-            {chrome.footer_navigation ? (
-              <nav aria-label={footerLabel}>
-                <ul className="flex flex-wrap gap-x-5 gap-y-2">
-                  {chrome.footer_navigation.map((link) => (
-                    <li key={link.href}>
-                      <a
-                        href={link.href}
-                        className={NAV_LINK}
-                      >
-                        {link.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            ) : null}
-
-            {chrome.theme_controls ? (
-              <aside aria-label={chrome.theme_controls.title}>
-                <ThemeControls controls={chrome.theme_controls} />
-              </aside>
-            ) : null}
-
             <p className="text-sm text-fg-muted">{chrome.copyright}</p>
           </div>
         </footer>
 
         {/* Consent remains a named region in document flow, so it cannot cover keyboard focus. */}
-        {chrome.cookie_controls ? <CookieBanner controls={chrome.cookie_controls} /> : null}
       </div>
     </DocumentLocale>
   );

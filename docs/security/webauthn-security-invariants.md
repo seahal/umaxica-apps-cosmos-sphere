@@ -1,9 +1,12 @@
 # WebAuthn Security Invariants
 
-This document is the authority for the invariants mechanically checked by
-`test/unit/security/webauthn_invariants_test.rb` and for duplicate-registration and User
-Verification guarantees enforced by the data and ceremony layers. The prohibited patterns have
-previously shipped as defects, so static tests reject their reintroduction.
+> Historical: the local WebAuthn ceremony implementation described below was retired with the Auth
+> and Base routes. These details preserve the security decisions behind that implementation; they
+> are not current route or authentication contracts. Current retained-data behavior is in
+> [Passkeys](passkeys.md).
+
+This document records the former ceremony invariants. Only relying-party configuration guards and
+model-level credential ID constraints remain in current code.
 
 ## User Verification (UV)
 
@@ -48,8 +51,8 @@ previously shipped as defects, so static tests reject their reintroduction.
   valid, including two physical keys of the same product or multiple passkeys from one provider.
 - WebAuthn cannot reliably determine whether one physical authenticator generated a new credential
   ID, especially with `attestation: "none"`. This is an accepted protocol limitation.
-- RP IDs differ across app/org, so one authenticator creates separate credentials for each
-  active surface. Cross-surface credential sharing and duplication do not occur within this architecture;
+- RP IDs differ across app/org, so one authenticator creates separate credentials for each active
+  surface. Cross-surface credential sharing and duplication do not occur within this architecture;
   see `docs/security/webauthn-rp-id-origin-boundary.md`.
 - The com authentication surface was retired on 2026-11-07. It is absent from the active WebAuthn
   registry; existing visitor credential records remain persisted data and are not an active surface.
@@ -64,16 +67,17 @@ previously shipped as defects, so static tests reject their reintroduction.
   the assertion with that row's saved public key. The browser's `userHandle`, any submitted
   identifier, and client-side metadata are not identity authorities beyond the initial selection.
 - Verification rechecks ACTIVE credential status, active actor state, verified-PII and existing
-  session-limit rules (full-access limit, waiting slot, refusal) before establishing a session. A disabled, revoked,
-  unknown, or cross-surface credential fails with the existing generic unauthorized contract.
+  session-limit rules (full-access limit, waiting slot, refusal) before establishing a session. A
+  disabled, revoked, unknown, or cross-surface credential fails with the existing generic
+  unauthorized contract.
 - Every Passkey surface requires discoverable credentials (`residentKey: "required"`) at
   registration. Existing non-discoverable app credentials need re-registration. Existing
   non-discoverable Org keys retain normal Entra-bound sign-in but require re-registration for
   Emergency Access.
 - Org Emergency options return no credential descriptors and retain fixed-length selected-Operator
   binding, including a non-authenticating sentinel for unknown/ineligible selections. Org normal
-  sign-in, MFA and Step-Up retain their actor-scoped descriptor behavior and security checks.
-  See [response nondisclosure](../../adr/credential-response-nondisclosure.md).
+  sign-in, MFA and Step-Up retain their actor-scoped descriptor behavior and security checks. See
+  [response nondisclosure](../../adr/credential-response-nondisclosure.md).
 
 ## User Handle
 
@@ -97,9 +101,9 @@ previously shipped as defects, so static tests reject their reintroduction.
 ## RP Configuration
 
 - RP ID and origin come only from an explicit surface declaration such as `webauthn_surface :app`
-  and the matching `WEBAUTHN_<APP|ORG>_*` configuration. Prohibit `request.host` fallback,
-  shared environment keys, class-name regex surface inference, and mutation of global
-  `WebAuthn.configure` state.
+  and the matching `WEBAUTHN_<APP|ORG>_*` configuration. Prohibit `request.host` fallback, shared
+  environment keys, class-name regex surface inference, and mutation of global `WebAuthn.configure`
+  state.
 - `from_get` and `from_create` always receive an explicit `relying_party:` argument.
 - Origin comparison requires an exact scheme, host, and effective port match.
 
@@ -108,6 +112,6 @@ previously shipped as defects, so static tests reject their reintroduction.
 These invariants now cover the shared assertion path as well as registration: decoded returned
 `userHandle` bytes must equal the stored opaque Identity handle, and actor-known assertions must
 belong to the current Identity. Passkey registration is a separate bootstrap or credential-
-registration transaction and never silently becomes step-up freshness. The implementation and
-tests are current for app, com and org; real authenticator/provider deployment verification is
-still an operational prerequisite.
+registration transaction and never silently becomes step-up freshness. The implementation and tests
+are current for app, com and org; real authenticator/provider deployment verification is still an
+operational prerequisite.

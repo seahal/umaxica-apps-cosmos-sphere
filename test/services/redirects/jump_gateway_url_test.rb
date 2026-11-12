@@ -53,14 +53,6 @@ class RedirectsJumpGatewayUrlTest < ActiveSupport::TestCase
     assert_equal "token_too_large", result.failure_reason
   end
 
-  test "accepts rails issued jwt" do
-    token = JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://www.umaxica.app/dashboard", dst: "internal")
-    result = RedirectsJumpGatewayUrl.call(token)
-
-    assert_predicate result, :ok?
-    assert_equal token, Rack::Utils.parse_query(URI.parse(result.value).query).fetch("rt")
-  end
-
   test "a plain http gateway origin is refused even in a local environment" do
     boot_config = { jump: Struct.new(:origin).new("http://jump.localhost") }
 
@@ -69,6 +61,30 @@ class RedirectsJumpGatewayUrlTest < ActiveSupport::TestCase
 
       assert_not result.ok?
       assert_equal "https_required", result.failure_reason
+    end
+  end
+
+  test "malformed gateway URI configuration is rejected" do
+    config = Rails.configuration.x.boot_config
+    boot_config = config.merge(jump: config.fetch(:jump).with(origin: "https://["))
+
+    Rails.configuration.x.stub(:boot_config, boot_config) do
+      result = RedirectsJumpGatewayUrl.call("#{"a" * 22}.#{"b" * 22}.#{"c" * 22}")
+
+      assert_not result.ok?
+      assert_equal "invalid_uri", result.failure_reason
+    end
+  end
+
+  test "gateway origin without a host is rejected" do
+    config = Rails.configuration.x.boot_config
+    boot_config = config.merge(jump: config.fetch(:jump).with(origin: "https://"))
+
+    Rails.configuration.x.stub(:boot_config, boot_config) do
+      result = RedirectsJumpGatewayUrl.call("#{"a" * 22}.#{"b" * 22}.#{"c" * 22}")
+
+      assert_not result.ok?
+      assert_equal "invalid_origin", result.failure_reason
     end
   end
 end

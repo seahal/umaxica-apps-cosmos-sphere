@@ -5,23 +5,12 @@
 
 ## Routing
 
-- `app`: end-user application; Palm is its browser relying party
-- `org`: staff and organization surface; Tech is its global operator relying party
-- `com`: anonymous public and corporate surface; it serves public preference entry and public
-  read-only pages, with no credential, session, admission, or OIDC relying-party boundary
-- `visa`: OpenID Provider and browser-bound authority for the app and org realms
-- `www`: Base browser relying party and identity/session-management surface for the app and org
-  realms
-- `net`: network-facing surface supporting other TLDs (`app`/`com`/`org`), including
-  cookie-authentication-less access
-- `dev`: support and status surface
+- `core`: app, org, net, and dev hosts (`www-jp.umaxica.*`; development `core.*.localhost`)
+- `warp`: app and org hosts (`warp-jp.umaxica.*`); Warp has no com surface
+- `palm`: app host (`palm-jp.umaxica.app`)
+- `.dev`: Mission, Flipper, Blazer, PgHero, Swagger, and Coverband operator tools
 
-Multi-domain Rails application serving these audience surfaces. Routing is host-constrained, so
-domain and subdomain matter in both development and production.
-
-The OIDC authority is hosted by Visa (`visa.umaxica.app`, `.org`). Base is the separate browser RP
-and identity/session surface (`www.umaxica.app`, `.org`); its host-only cookies are never shared
-with Visa. `www.umaxica.com` is the anonymous preference entry, not an identity or session surface.
+Cosmos Sphere serves these host-constrained surfaces. Unknown hosts receive a machine-readable 404.
 
 ## Stack
 
@@ -33,8 +22,7 @@ with Visa. `www.umaxica.com` is the anonymous preference entry, not an identity 
 
 ### Frontend
 
-- Two coexisting frontend approaches: Inertia Rails (React) and Rails' own default Vite Rails +
-  Stimulus + Turbo stack
+- Inertia Rails (React) with Vite, Stimulus, and Turbo
 - Tailwind CSS via Vite, Propshaft for static assets
 - Vite and Bun for JavaScript build, linting, formatting, and tests
 
@@ -171,15 +159,12 @@ services to loopback as well (`5432`, `5433`, and `6379` to `6381` by default) s
 can use them; containers continue to use Compose DNS names. See
 `docs/operations/development-host-port-exposure.md`.
 
-| Surface                    | URL                                                                                                              |
-| :------------------------- | :--------------------------------------------------------------------------------------------------------------- |
-| Base                       | `http://base.{app,com,org}.localhost:3000`                                                                       |
-| Visa (OIDC authority)      | `http://visa.{app,org}.localhost:3000`                                                                           |
-| Base (developer / network) | `http://base.{dev,net}.localhost:3000`                                                                           |
-| Auth                       | `http://auth.{app,org}.localhost:3000`                                                                           |
-| Core                       | `http://core.{app,org,net,dev}.localhost:3000`                                                                   |
-| Warp / Palm / Tech         | `http://warp.{app,com,org}.localhost:3000` / `http://palm.app.localhost:3000` / `http://tech.org.localhost:3000` |
-| Info / Help / Docs / News  | `http://{info,help,docs,news}.{app,com,org}.localhost:3000`                                                      |
+| Surface                 | Local development URL                                                              | Public host                                  |
+| :---------------------- | :--------------------------------------------------------------------------------- | :------------------------------------------- |
+| Core app, org, net, dev | `http://core.{app,org,net,dev}.localhost:3000`                                     | `www-jp.umaxica.app`, `www-jp.umaxica.org`   |
+| Warp app, org           | `http://warp.{app,org}.localhost:3000`                                             | `warp-jp.umaxica.app`, `warp-jp.umaxica.org` |
+| Palm app                | `http://palm.app.localhost:3000`                                                   | `palm-jp.umaxica.app`                        |
+| Operator tools          | `http://{mission,flipper,blazer,pghero,coverband,swagger}.core.dev.localhost:3000` | `*.sphere-jp.umaxica.dev`                    |
 
 The application contract supplies PUBLIC and PRIVATE URL values in both supported modes; Compose
 supplies only service topology. Each route host constraint lists the configured host alongside its
@@ -188,9 +173,6 @@ Access, not Host Authorization, keeps the development listener non-public. See
 `docs/architecture/cloudflare-request-paths.md` for the trust boundaries and
 `research/implementation/2026-08-10-development-tunnel-access-verification.md` for the measured
 end-to-end evidence.
-
-`sign.{app,org}.localhost` resolves only when `AUTH_*_URL` and `PUBLIC_AUTH_*_URL` are unset. Under
-Compose the canonical local names for the credential gateway are `auth.*`.
 
 ## Code Quality
 
@@ -270,11 +252,18 @@ Use `rubocop -a`, `erb_lint -a .`, and `bun run fix` to apply auto-fixes where a
 
 ```bash
 bundle exec rails test
-COVERAGE=true bundle exec rails test test/
+COVERAGE=true bundle exec rails test
 ```
 
 Rails generates a Valkey test-run namespace when one is not supplied. Coverage reports are written
 to `coverage/`. Set `PARALLEL_WORKERS=1` for a focused run when diagnosing a failure.
+
+### Rails System Tests
+
+Capybara uses Playwright and headless Chromium, following Cosmos Access's setup. See
+[the test environment guide](docs/operations/test-environment.md#rails-system-tests) for
+prerequisites and the explicit single-worker command. Browser scenarios are not included in this
+configuration-only change.
 
 ### JavaScript Tests
 
@@ -334,7 +323,7 @@ run in CI, not in the hooks.
 | :--------------------------------------- | :--------------------------------------------------------------------------- |
 | Tailwind changes are not reflected       | Run `bin/rails assets:clobber` and restart `bin/dev`                         |
 | Tests fail because databases are missing | Run `bin/rails db:prepare`                                                   |
-| `bin/dev` stops during boot              | Check `PUBLIC_AUTH_*_URL` and database availability                          |
+| `bin/dev` stops during boot              | Check required environment configuration and database availability           |
 | Credentials cannot be decrypted          | Obtain the key; see `docs/operations/development-credential-provisioning.md` |
 
 ## Repository Knowledge Base
@@ -349,10 +338,12 @@ ownership, authority and lifecycle.
 - [Plans](plans/README.md): unaccepted proposals and useful planning history.
 - `evidence/`: actual observations against a stated revision, not expectations.
 - [Manuals](manuals/README.md): user guidance; presence does not mean published.
-- `test/`, `gait/`, `e2e/`: Minitest, Vitest and Playwright respectively.
+- `test/` and `gait/`: Minitest and Vitest suites, respectively.
 
 ## Acknowledgement
 
 - Secrets must stay in Rails credentials; do not commit plaintext secrets.
-- WebAuthn origins are derived from `PUBLIC_AUTH_*_URL`; `TRUSTED_ORIGINS` is additive only.
+- WebAuthn relying-party IDs and origins are configured per surface with `WEBAUTHN_APP_*` and
+  `WEBAUTHN_ORG_*`. Production requires environment values; non-production reads encrypted
+  credentials and accepts the same environment variables as explicit overrides.
 - Public availability of this repository is not guaranteed permanently.

@@ -1,164 +1,24 @@
 # typed: false
 # frozen_string_literal: true
 
-# Base policy class for authorization using Action Policy
+# Local RP policies receive a cell-local principal explicitly.
 class ApplicationPolicy < ActionPolicy::Base
-  # Actor::Context is the primary authorization context. Legacy policies may
-  # still consume `user`, which is derived from the actor context when omitted.
-  authorize :actor, optional: true
   authorize :user, optional: true
 
   alias_rule :edit?, to: :update?
   alias_rule :new?, to: :create?
 
-  # Session capability layer. Authorization is DB role AND session capability
-  # AND the ordinary policy rule; an authentication context can only ever
-  # narrow what the actor's roles already allow, never widen it. Normal and
-  # Emergency contexts pass it; an unrecognised context fails every rule.
-  # Emergency sessions are kept from sensitive actions by Step-Up gates, not
-  # here (docs/security/org-emergency-access.md).
-  pre_check :deny_capability_restricted_context
+  def index? = false
 
-  def edit? = update?
+  def show? = false
 
-  def new? = create?
+  def create? = false
 
-  def user
-    @user || actor_resource
-  end
+  def update? = false
 
-  # Default permissions - deny all by default (allowlist approach)
-  def index?
-    false
-  end
-
-  def show?
-    false
-  end
-
-  def create?
-    false
-  end
-
-  def update?
-    false
-  end
-
-  def destroy?
-    false
-  end
+  def destroy? = false
 
   relation_scope do |relation|
     relation.none
-  end
-
-  # Named by the pre_check above; Action Policy resolves it on the policy
-  # instance, so it is not part of the policy's public rule vocabulary.
-  def deny_capability_restricted_context
-    rule = result&.rule
-    return if rule.blank?
-
-    deny! unless authentication_context.permits_rule?(rule)
-  end
-
-  # The trusted authentication context of the current session, read from the
-  # signed access token. An absent claim is a session minted before Emergency
-  # Access existed and is Normal; an unrecognised value carries no capabilities
-  # at all, so a tampered or unknown context denies rather than defaulting open.
-  def authentication_context
-    AuthorizationTokenClaims.authentication_context(current_token)
-  end
-
-  protected
-
-  def actor_context
-    return actor if defined?(Actor::Context) && actor.is_a?(Actor::Context)
-
-    nil
-  end
-
-  def actor_resource
-    resource = actor_context&.actor
-    return nil if resource.respond_to?(:unauthenticated?) && resource.unauthenticated?
-
-    resource
-  end
-
-  # Get the organization from the record if it has one
-  # @return [Object, nil]
-  def organization
-    @organization ||=
-      if record.respond_to?(:organization)
-        record.organization
-      elsif record.respond_to?(:organization_id)
-        record.organization_id
-      end
-  end
-
-  # Get JWT subject (user ID) from the current user token.
-  def jwt_subject
-    return nil if current_token.blank?
-
-    AuthorizationTokenClaims.subject(current_token)
-  end
-
-  # Check if user owns the record
-  # @return [Boolean]
-  def owner?
-    return false unless user
-    return jwt_subject.to_s == user.id.to_s if record.blank?
-    return true if same_user_record?
-
-    if user.is_a?(Client) && record.respond_to?(:user_id)
-      record.user_id == user.id
-    elsif user.is_a?(Operator) && record.respond_to?(:staff_id)
-      record.staff_id == user.id
-    else
-      false
-    end
-  end
-
-  def same_user_record?
-    return false unless record.respond_to?(:id)
-
-    same_user_record_type? && record.id == user.id
-  end
-
-  def same_user_record_type?
-    (user.is_a?(Client) && record.is_a?(Client)) ||
-      (user.is_a?(Operator) && record.is_a?(Operator))
-  end
-
-  # adr/operator-capability-authorization.md: the only grant check org administrative policies use.
-  # Callers pass a fixed OperatorCapabilityGrant constant; being an Operator is necessary, never
-  # sufficient.
-  def operator_capability?(capability)
-    user.is_a?(::Operator) && user.capability?(capability)
-  end
-
-  # Role-based checks
-  def operator?
-    user&.has_role?("operator", organization: organization)
-  end
-
-  # Combined role checks
-  def operator_or_manager?
-    user&.operator_or_manager?(organization: organization)
-  end
-
-  def can_edit?
-    user&.can_edit?(organization: organization)
-  end
-
-  def can_view?
-    user&.can_view?(organization: organization)
-  end
-
-  def can_contribute?
-    user&.can_contribute?(organization: organization)
-  end
-
-  def current_token
-    Actor.authz.token_claims
   end
 end

@@ -10,44 +10,37 @@ module OidcSsoInitiator
   # refused at the callback. This is the intended behavior, not a limit to raise.
   OIDC_PENDING_FLOW_LIMIT = 1
 
-  def authenticate!
-    if logged_in?
-      SignRiskEnforcer.call(current_resource)
-      return
-    end
-
-    return render(json: { error: "Unauthorized" }, status: :unauthorized) if request.format.json?
-
-    SignRiskEmitter.emit(
-      "auth_required",
-      ip: request&.remote_ip,
-      user_agent: request&.user_agent,
-      request_id: request&.request_id,
-      path: request&.fullpath,
-      method: request&.request_method,
-    )
-    redirect_to_oidc_authorization_url(sign_in_url_with_target(encoded_pt(request.fullpath)))
-  end
-
-  # A protected page, a failed callback, or an expired session is not a Sign entry of its own: the
-  # browser is pointed at this surface's passive GET /sign, and only the user's POST there starts an
-  # OIDC flow (specs/sign-fqdn-integrated-plan/plan.md section 5).
-  # Every first-party browser RP serves its neutral entry at GET /sign on its own host
-  # (test/integration/routes/neutral_rp_entry_contract_test.rb).
-  # D-151: the RP target travels as a path-only `target_link_uri` (no query).
-  def sign_in_url_with_target(pt)
-    target = RpTargetLinkUri.normalize(pt.present? ? URI.parse(decode_pt(pt)).path : nil)
-    query = { ri: RequestContextContract.normalize_region(params[:ri]), target_link_uri: target }
-    "/sign?#{query.compact.to_query}"
-  rescue URI::InvalidURIError
-    "/sign?#{{ ri: RequestContextContract.normalize_region(params[:ri]) }.compact.to_query}"
-  end
-
   private
 
+  def normalize_oidc_prompt(value)
+    tokens = value.to_s.split
+    return nil if tokens.empty?
+    return tokens.first if tokens.one? && %w(login none create).include?(tokens.first)
+
+    raise ArgumentError, "prompt is not supported"
+  end
+
+  def normalize_oidc_max_age(value)
+    return nil if value.blank?
+
+    normalized =
+      if value.is_a?(Integer)
+        value
+      elsif value.to_s.match?(/\A\d+\z/)
+        value.to_i
+      else
+        raise ArgumentError
+      end
+    raise ArgumentError, "max_age must be a non-negative integer" if normalized.negative?
+
+    normalized
+  rescue ArgumentError, TypeError
+    raise ArgumentError, "max_age must be a non-negative integer"
+  end
+
   def initiate_oidc_session!(target_link_uri: nil, prompt: nil, max_age: nil)
-    prompt = OidcAuthorizeRequestResolver.normalize_prompt(prompt)
-    max_age = OidcAuthorizeRequestResolver.normalize_max_age(max_age)
+    prompt = normalize_oidc_prompt(prompt)
+    max_age = normalize_oidc_max_age(max_age)
     verifier = SecureRandom.urlsafe_base64(48)
     challenge = Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)
     nonce = SecureRandom.urlsafe_base64(32)
@@ -89,8 +82,6 @@ module OidcSsoInitiator
   def oidc_redirect_decision(url)
     decision = oidc_acme_service_origin.decision_for_authorize_url(url, request: request)
     return decision unless decision.direct?
-    # Edit's RP ceremony is a separate review slice; preserve its existing admission decision.
-    return decision if %w(edit-org-ww tech-org-ww).include?(oidc_client_id)
 
     # A shared registrable domain does not merge RP and Base trust boundaries.
     decision.with(kind: :jump, reason_code: "jump_authorize_handoff")
@@ -158,22 +149,8 @@ module OidcSsoInitiator
     OutboundHttp::LocalBackChannel.url(public_endpoint)
   end
 
-  def encoded_pt(pt)
-    Base64.urlsafe_encode64(pt.to_s)
-  end
-
-  def decode_pt(pt)
-    Base64.urlsafe_decode64(pt.to_s)
-  rescue ArgumentError
-    "/"
-  end
-
   def oidc_client_id
     raise NotImplementedError, "controller must define oidc_client_id"
-  end
-
-  def oidc_sign_host
-    raise NotImplementedError, "controller must define oidc_sign_host"
   end
 
   def oidc_visa_authority_host
@@ -193,10 +170,6 @@ module OidcSsoInitiator
     return request.ssl? ? "https" : "http" if host.present? && host.end_with?(".localhost")
 
     "https"
-  end
-
-  def oidc_acme_host
-    oidc_visa_authority_host
   end
 
   def oidc_acme_service_origin
@@ -233,16 +206,6 @@ module OidcSsoInitiator
   end
 
   def oidc_redirect_surface
-    case self.class.name.to_s
-    when /\ASign::App::/ then "sign_app"
-    when /\ASign::Org::/ then "sign_org"
-    when /\ACore::App::/ then "core_app"
-    when /\ACore::Org::/ then "core_org"
-    when /\ABase::App::/ then "base_app"
-    when /\ABase::Org::/ then "base_org"
-    when /\APalm::App::/ then "palm_app"
-    else
-      self.class.name.to_s
-    end
+    "edit_org"
   end
 end

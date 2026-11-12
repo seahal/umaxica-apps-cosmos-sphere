@@ -9,7 +9,7 @@ module Security
   module Invariants
     # Third-party Rack apps mounted with `mount` bypass the entire application
     # authorization stack: they subclass ActionController::Base (or are bare Rack
-    # apps), so AuthenticationBase, enforce_access_policy!, surface isolation, and
+    # apps), so the application authorization pipeline, surface isolation, and
     # the per-surface CSRF origin configuration never run for them.
     #
     # This test pins which mounts are allowed to exist outside development, and
@@ -21,14 +21,7 @@ module Security
       # confined to `group :development` in the Gemfile so it is never loaded in
       # test or production.
       #
-      # rails_db: config/routes.rb in the gem calls
-      #   `Rails.application.routes.draw { mount_rails_db_routes }` whenever
-      #   RailsDb.automatic_routes_mount is true (the default), and
-      #   RailsDb.verify_access_proc defaults to `proc { |controller| true }`
-      #   with http_basic_authentication_enabled = false. Mounted, it exposes
-      #   POST /rails/db/execute (arbitrary SQL) and GET /rails/db/tables/:id/truncate.
       UNAUTHENTICATED_ENGINE_CONSTANTS = %w(
-        RailsDb
         Blazer
         PgHero
       ).freeze
@@ -36,6 +29,7 @@ module Security
       # Path prefixes that must not appear in the route set outside development.
       FORBIDDEN_MOUNT_PATHS = %w(
         /rails/db
+        /rails/performance
         /blazer
         /pghero
       ).freeze
@@ -72,7 +66,7 @@ module Security
         "/cable" => "ActionCable::Server::Base",
         # Feature-flag UI on its dedicated hosts (config/routes/flipper.rb). Guarded by
         # Rack::Auth::Basic, which fails closed when credentials are unset.
-        "flipper.umaxica.dev /" => "Rack::Auth::Basic",
+        "flipper-sphere-jp.umaxica.dev /" => "Rack::Auth::Basic",
         "flipper.core.dev.localhost /" => "Rack::Auth::Basic",
         # Solid Queue job-monitoring UI, dedicated host (config/routes/mission.rb). Guarded by
         # MissionControl::Jobs' own HTTP Basic Auth (config/initializers/mission_control_jobs.rb),

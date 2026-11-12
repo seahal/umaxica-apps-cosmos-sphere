@@ -1,5 +1,10 @@
 # Cloudflare Turnstile
 
+> **Retired (2026-11-10):** The surface hard reset removed the Rails Turnstile verifier and the
+> sign-up routes that used it. This document is historical security context, not current widget or
+> deployment guidance. The `TurnstileReplay` model and its database history remain for the next
+> database review.
+
 This document records the product use of CAPTCHA-style anti-automation verification. The current
 implementation uses Cloudflare Turnstile, not Google reCAPTCHA.
 
@@ -89,10 +94,10 @@ Controllers must run Turnstile validation before committing the protected mutati
 validation must not create records, update records, delete records, consume one-time codes, rotate
 credentials, or clear pending registration state.
 
-`TurnstileDegradation` permits only verifier results explicitly marked as an upstream outage,
-and only while the operator-controlled `turnstile_degraded_mode` flag is enabled. A missing,
-empty or whitespace-only token, a rejected challenge or a missing secret remains a failure.
-The flag is an incident control, not an ordinary way to disable verification.
+`TurnstileDegradation` permits only verifier results explicitly marked as an upstream outage, and
+only while the operator-controlled `turnstile_degraded_mode` flag is enabled. A missing, empty or
+whitespace-only token, a rejected challenge or a missing secret remains a failure. The flag is an
+incident control, not an ordinary way to disable verification.
 
 ## Development And Test Mode
 
@@ -124,17 +129,17 @@ exists.
 
 ### Email sign-in resend exception
 
-APP and COM's `/web/v0/in/email/otp` POST continuation does not require a fresh Turnstile token.
-It requires confirmed sign-in admission, the admitted browser's ceremony and an encrypted,
-authenticated resend state bound to that browser and surface. A real destination also retains
-its original Contact, owner and finalized-binding facts; a released destination cannot be
-retargeted to a later owner. The state has an absolute deadline, and dispatch retains the
-destination cooldown and failure-budget controls. This endpoint creates neither a login session
-nor authentication evidence without OTP verification.
+APP and COM's `/web/v0/in/email/otp` POST continuation does not require a fresh Turnstile token. It
+requires confirmed sign-in admission, the admitted browser's ceremony and an encrypted,
+authenticated resend state bound to that browser and surface. A real destination also retains its
+original Contact, owner and finalized-binding facts; a released destination cannot be retargeted to
+a later owner. The state has an absolute deadline, and dispatch retains the destination cooldown and
+failure-budget controls. This endpoint creates neither a login session nor authentication evidence
+without OTP verification.
 
 Direct HTTP submission is expected when these authorities are valid. A missing, unreadable,
-cross-browser or expired state grants no resend authority. Additional CAPTCHA is not the
-current control for this continuation; preserve these bindings and limits when changing it.
+cross-browser or expired state grants no resend authority. Additional CAPTCHA is not the current
+control for this continuation; preserve these bindings and limits when changing it.
 
 ### Visible Placement
 
@@ -144,24 +149,24 @@ validate the submitted `cf-turnstile-response` in the controller before changing
 
 Current visible placement policy:
 
-| Surface | Browser entry                               | Protected mutation             | Placement        |
-| ------- | ------------------------------------------- | ------------------------------ | ---------------- |
-| app     | `/sign/up/email/new`                        | `POST /sign/up/email`          | visible required |
-| app     | `/sign/up/telephone/new`                    | `POST /sign/up/telephone`      | visible required |
-| app     | `/sign/up/check/email/otp`                  | `PATCH /sign/up/check/email/otp` | visible required |
-| app     | `/sign/up/check/telephone/otp`              | `PATCH /sign/up/check/telephone/otp` | visible required |
-| app     | `/sign/in/email/new`, `/sign/in/email/edit` | `POST/PATCH /sign/in/email`    | visible required |
-| app     | `/preference/email/:id/edit`                | `DELETE /preference/email/:id` | visible required |
+| Surface | Browser entry                               | Protected mutation                                                                            | Placement        |
+| ------- | ------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------- |
+| app     | `/sign/up/email/new`                        | `POST /sign/up/email`                                                                         | visible required |
+| app     | `/sign/up/telephone/new`                    | `POST /sign/up/telephone`                                                                     | visible required |
+| app     | `/sign/up/check/email/otp`                  | `PATCH /sign/up/check/email/otp`                                                              | visible required |
+| app     | `/sign/up/check/telephone/otp`              | `PATCH /sign/up/check/telephone/otp`                                                          | visible required |
+| app     | `/sign/in/email/new`, `/sign/in/email/edit` | `POST/PATCH /sign/in/email`                                                                   | visible required |
+| app     | `/preference/email/:id/edit`                | `DELETE /preference/email/:id`                                                                | visible required |
 | app     | `/identity/recovery/session/new` (Base)     | `POST /identity/recovery/session` (send branch only; the `pass_code` verify branch is exempt) | visible required |
-| com     | `/sign/up/email/new`                        | `POST /sign/up/email`          | visible required |
-| com     | `/sign/up/telephone/new`                    | `POST /sign/up/telephone`      | visible required |
-| com     | `/sign/up/check/email/otp`                  | `PATCH /sign/up/check/email/otp` | visible required |
-| com     | `/sign/up/check/telephone/otp`              | `PATCH /sign/up/check/telephone/otp` | visible required |
-| com     | `/sign/in/email/new`, `/sign/in/email/edit` | `POST/PATCH /sign/in/email`    | visible required |
-| com     | `/preference/email/:id/edit`                | `DELETE /preference/email/:id` | visible required |
+| com     | `/sign/up/email/new`                        | `POST /sign/up/email`                                                                         | visible required |
+| com     | `/sign/up/telephone/new`                    | `POST /sign/up/telephone`                                                                     | visible required |
+| com     | `/sign/up/check/email/otp`                  | `PATCH /sign/up/check/email/otp`                                                              | visible required |
+| com     | `/sign/up/check/telephone/otp`              | `PATCH /sign/up/check/telephone/otp`                                                          | visible required |
+| com     | `/sign/in/email/new`, `/sign/in/email/edit` | `POST/PATCH /sign/in/email`                                                                   | visible required |
+| com     | `/preference/email/:id/edit`                | `DELETE /preference/email/:id`                                                                | visible required |
 | com     | `/identity/recovery/session/new` (Base)     | `POST /identity/recovery/session` (send branch only; the `pass_code` verify branch is exempt) | visible required |
-| org     | `/sign/up/invitations/new`                  | `POST /sign/up/invitations`    | visible required |
-| org     | `/preference/email/:id/edit`                | `DELETE /preference/email/:id` | visible required |
+| org     | `/sign/up/invitations/new`                  | `POST /sign/up/invitations`                                                                   | visible required |
+| org     | `/preference/email/:id/edit`                | `DELETE /preference/email/:id`                                                                | visible required |
 
 The table is the implementation checklist for visible Turnstile. If a new public browser-rendered
 entry form is added to sign-up, sign-in, invitation, or external email-preference flows, update this

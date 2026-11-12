@@ -1,5 +1,10 @@
 # Auth Settings To Base Identity
 
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 ## Summary
 
 Auth `/settings` must be limited to credential ceremony-backed settings. Base `/identity` owns

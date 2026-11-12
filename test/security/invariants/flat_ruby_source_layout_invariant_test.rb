@@ -35,7 +35,6 @@ module Security
         app/services/webauthn/assertion_verifier.rb
         app/services/webauthn/challenge_store.rb
         app/services/webauthn/registration_verifier.rb
-        app/services/valkey/auth_state/authorization_code_store.rb
         app/services/valkey/auth_state/opaque_admission_store.rb
         app/services/valkey/auth_state/sign_out_notice_store.rb
       ).freeze

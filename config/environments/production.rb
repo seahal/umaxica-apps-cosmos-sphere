@@ -4,6 +4,7 @@
 # Environment files are evaluated before autoloading is set up, so this is required explicitly rather
 # than resolved from lib/ by Zeitwerk.
 require_relative "../../lib/health_probe_paths"
+require_relative "../../lib/config_values_origin_value"
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -101,6 +102,9 @@ Rails.application.configure do
     url: valkey.cache.url,
     namespace: cache_namespace,
     error_handler: Umaxica::Valkey::StoreErrorHandler.lambda_for("cache"),
+    # Not Marshal: a value written into Valkey must never deserialize into code on read
+    # (docs/runbooks/valkey-protection.md).
+    serializer: :message_pack,
   }
   rate_limit_namespace = [
     "rate_limit",
@@ -113,6 +117,9 @@ Rails.application.configure do
       url: valkey.rate_limit.url,
       namespace: rate_limit_namespace,
       error_handler: Umaxica::Valkey::StoreErrorHandler.lambda_for("rate_limit"),
+      # Not Marshal: a value written into Valkey must never deserialize into code on read
+      # (docs/runbooks/valkey-protection.md).
+      serializer: :message_pack,
     )
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
@@ -122,11 +129,6 @@ Rails.application.configure do
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
-
-  # Set host to be used by links generated in mailer templates.
-  # url_for's :host option expects a bare hostname; OriginValue#to_s returns a full
-  # "https://..." origin, so use #host.
-  config.action_mailer.default_url_options = { host: Rails.configuration.x.boot_config.fetch(:hosts).base_service.host }
 
   ## Email Settings
   config.action_mailer.delivery_method = :smtp
@@ -148,70 +150,34 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [:id]
 
-  # Enable DNS rebinding protection and other `Host` header attacks.
-  # Collect all host ENV vars used in route constraints.
-  boot_hosts = Rails.configuration.x.boot_config.fetch(:hosts)
-  # Rails host authorization matches against the bare hostname from the Host header,
-  # so use OriginValue#host (e.g. "www.umaxica.app") - not #to_s which is a full origin.
-  config.hosts = [
-    boot_hosts.base_service.host,
-    boot_hosts.base_corporate.host,
-    boot_hosts.base_staff.host,
-    boot_hosts.visa_service.host,
-    boot_hosts.visa_corporate.host,
-    boot_hosts.visa_staff.host,
-    boot_hosts.sign_service.host,
-    boot_hosts.sign_corporate.host,
-    boot_hosts.sign_staff.host,
-    boot_hosts.core_service.host,
-    boot_hosts.core_corporate.host,
-    boot_hosts.core_staff.host,
-    boot_hosts.tech_staff.host,
-    "auth.umaxica.app",
-    "auth.umaxica.com",
-    "auth.umaxica.org",
-    "www-jp.umaxica.app",
-    "www-jp.umaxica.com",
-    "www-jp.umaxica.org",
-    "www.umaxica.app",
-    "www.umaxica.com",
-    "www.umaxica.org",
-    # Core public authority uses only the canonical jp.* host family.
-    "jp.umaxica.app",
-    "jp.umaxica.com",
-    "jp.umaxica.org",
-    boot_hosts.palm_service.host,
-    boot_hosts.docs_service.host,
-    boot_hosts.docs_corporate.host,
-    boot_hosts.docs_staff.host,
-    boot_hosts.news_service.host,
-    boot_hosts.news_corporate.host,
-    boot_hosts.news_staff.host,
-    boot_hosts.help_service.host,
-    boot_hosts.help_corporate.host,
-    boot_hosts.help_staff.host,
-    boot_hosts.info_service.host,
-    boot_hosts.info_corporate.host,
-    boot_hosts.info_staff.host,
-    boot_hosts.guid_service.host,
-    boot_hosts.edit_staff.host,
-  ]
-  # Skip DNS rebinding protection for the internal health probes, and only for them.
-  #
-  # This previously matched `"/health"` alone, while the probe set this application mounts is four
-  # paths. `/health/liveness`, `/health/readiness` and `/health/startup` were therefore answered by
-  # Host Authorization rather than by the probe whenever the caller addressed the origin by container
-  # name or pod IP -- the normal orchestrator case, since those names are deliberately not in
-  # `config.hosts`.
-  #
-  # `HealthProbePaths` matches the four paths exactly rather than by `/health/` prefix, so a probe
-  # added later cannot inherit the exemption without a deliberate decision. See that file for what
-  # the exemption costs and why it is acceptable for these four responses.
-  #
-  # Preferred over widening this list: give the probe a `Host` that is already in `config.hosts`.
-  # A probe that sets its own `Host` header needs no exemption at all.
-  config.host_authorization = { exclude: ->(request) { HealthProbePaths.probe?(request) } }
+  # Admit the configured retained surfaces and operator tools only.
+  retained_host_env_keys = %w(
+    PUBLIC_MISSION_URL PRIVATE_MISSION_URL
+    PUBLIC_FLIPPER_URL PRIVATE_FLIPPER_URL
+    PUBLIC_BLAZER_URL PRIVATE_BLAZER_URL
+    PUBLIC_PGHERO_URL PRIVATE_PGHERO_URL
+    PUBLIC_SWAGGER_URL PRIVATE_SWAGGER_URL
+    PUBLIC_COVERBAND_URL PRIVATE_COVERBAND_URL
+    PUBLIC_CORE_SERVICE_URL PRIVATE_CORE_SERVICE_URL
+    PUBLIC_CORE_STAFF_URL PRIVATE_CORE_STAFF_URL
+    PUBLIC_WARP_SERVICE_URL PRIVATE_WARP_SERVICE_URL
+    PUBLIC_WARP_STAFF_URL PRIVATE_WARP_STAFF_URL
+    PUBLIC_PALM_SERVICE_URL PRIVATE_PALM_SERVICE_URL
+  )
+  retained_public_hosts = %w(
+    www-jp.umaxica.app www-jp.umaxica.org
+    warp-jp.umaxica.app warp-jp.umaxica.org palm-jp.umaxica.app
+    mission-sphere-jp.umaxica.dev flipper-sphere-jp.umaxica.dev
+    blazer-sphere-jp.umaxica.dev pghero-sphere-jp.umaxica.dev
+    swagger-sphere-jp.umaxica.dev coverband-sphere-jp.umaxica.dev
+  )
+  config.hosts =
+    retained_public_hosts + retained_host_env_keys.filter_map do |key|
+      value = ENV[key]
+      next if value.nil?
 
+      ConfigValues.build(value).host
+    end
   ### Added by owner
   # We've configured this production environment to prevent the delivery of public static content.
   config.public_file_server.enabled = false

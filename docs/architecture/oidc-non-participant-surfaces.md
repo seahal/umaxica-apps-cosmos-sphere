@@ -1,112 +1,31 @@
-# OIDC/OAuth Non-Participant Surfaces
+# OIDC/OAuth Participation in Cosmos Sphere
 
-Canonical decision: `adr/oidc-oauth-participation-allowlist-and-non-participant-surfaces.md`.
+The accepted OIDC/OAuth participation allowlist remains in
+[`adr/oidc-oauth-participation-allowlist-and-non-participant-surfaces.md`](../../adr/oidc-oauth-participation-allowlist-and-non-participant-surfaces.md).
+This page describes the current routes in this repository after the surface hard reset.
 
-This page describes how the Non-Participant boundary is implemented today. Participation in
-UMAXICA OAuth/OIDC is allowlisted; every surface below is outside that allowlist. The participating
-surfaces are described in `docs/architecture/base-auth-seven-rp-boundary.md`.
+## Retained Routes
 
-## Repository-owned Non-Participants
+| Surface                                              | Route file                               | OIDC/OAuth role                                                                                                  |
+| ---------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Docs, News, Help, Info                               | `config/routes/{docs,news,help,info}.rb` | Non-participants; public content, health, revision, and read-only content API                                    |
+| Edit                                                 | `config/routes/edit.rb`                  | Staff Publishing RP; verifies its own browser session and delegates sign-in to its configured external authority |
+| Mission, Flipper, Blazer, PgHero, Swagger, Coverband | one file each under `config/routes/`     | Operator tools; each mount owns its host and access checks                                                       |
+| Unknown host root                                    | `config/routes.rb`                       | Machine-readable 404; no OIDC/OAuth behavior                                                                     |
 
-| Surface             | Route file              | Controller stack                                   |
-| ------------------- | ----------------------- | -------------------------------------------------- |
-| Info app/com/org    | `config/routes/info.rb` | Surface-local `BareController`                     |
-| Docs app/com/org    | `config/routes/docs.rb` | Surface-local `BareController`                     |
-| News app/com/org    | `config/routes/news.rb` | Surface-local `BareController`                     |
-| Help app/com/org    | `config/routes/help.rb` | Surface-local `BareController`                     |
-| Guid net            | `config/routes/guid.rb` | `Guid::Net::BareController`                        |
-| Base com            | `config/routes/base.rb` | Anonymous com application controller; no principal |
-| Warp com            | `config/routes/warp.rb` | Anonymous com application controller; no principal |
-| Base developer face | `config/routes/base.rb` | `Base::Dev::ApplicationController`, bare stack     |
-| Core developer face | `config/routes/core.rb` | `Core::Dev::BareController`                        |
-| Base network face   | `config/routes/base.rb` | `Base::Net::ApplicationController`, bare stack     |
-| Core network face   | `config/routes/core.rb` | `Core::Net::BareController`                        |
-| Diagnostic hosts    | one route file each     | Mounted engine or Rack app                         |
+The Edit RP keeps only its own browser relying-party boundary in this repository. Its external
+issuer and client host configuration does not create an inbound route for an Auth, Base, Core, GUID,
+Palm, Tech, Visa, or Warp controller tree.
 
-The diagnostic hosts are Mission, Flipper, Blazer, PgHero, Performance, Coverband, and Swagger.
+## Retired Controller Surfaces
 
-Auth app/org (`config/routes/auth.rb`) is also a Non-Participant, as a ceremony service with its own
-contract; see `docs/architecture/auth-ceremony-session-boundary.md`. The corporate Auth host has no
-route at all, and Base com and Warp com serve only the anonymous public preference entry and
-public read-only pages.
+The Auth, Base, Core, GUID, Palm, Tech, Visa, and Warp route files and controller trees have been
+removed from Cosmos Sphere. Their earlier participation and non-participation rows were historical
+implementation inventories. The current route ownership contract is in the
+[content surface matrix](content-surface-matrix.md).
 
-### Content surfaces and Guid
+## Operator Tools
 
-Info, Docs, News, Help, and Guid have thirteen surface-local base controllers between them. Each is
-a `BareController` that inherits `ActionController::Base` directly, declares
-`AUTHENTICATION_MODE = :bare`, and includes only `FqdnAvailabilityGate`, `RateLimit`, and
-`DefaultNoStore`. None of these trees has an `ApplicationController`. Their other includes are
-rendering and negotiation concerns for health, revision, CSP reports, and the read API.
-
-Their route sets expose a root, health and revision endpoints, the CSP report sink, and the
-read-only `api/v0` resources. They expose no `/sign` entry, no `/oidc/callback`, and no `/oauth/*`
-endpoint.
-
-### Developer and network faces
-
-The Base and Core developer faces and the private Base and Core network faces expose a root, health
-and revision endpoints, and the CSP report sink.
-
-`Core::Dev::BareController` and `Core::Net::BareController` are bare stacks like the content
-surfaces.
-
-`Base::Dev::ApplicationController` and `Base::Net::ApplicationController` each serve only a root
-page. They include the same three concerns as the bare stacks, add the default web rate limit and
-the modern-browser gate, and declare `AUTHENTICATION_MODE = :deny_all`. They carry no actor,
-session, or preference lifecycle.
-
-### Diagnostic mounts
-
-Each diagnostic host is constrained to its own hostname and carries its own HTTP Basic credential
-check, which fails closed when credentials are not configured. None uses UMAXICA OAuth/OIDC.
-
-- Flipper and Coverband are plain Rack apps wrapped in `Rack::Auth::Basic` at the mount point.
-- Mission Control Jobs, Blazer, PgHero, Performance, and Swagger are engines whose Basic
-  authentication is configured in their own initializer under `config/initializers/`.
-- Blazer, PgHero, Performance, Coverband, and Swagger are development-group gems and are mounted
-  only when their constants are defined.
-
-Mission Control's controllers inherit the root `::ApplicationController`. That class currently
-declares only the CSRF baseline and `AUTHENTICATION_MODE = :deny_all`. An authentication concern
-added to it would reach the Mission host by inheritance.
-
-### Retired Xper Rails surface
-
-Xper was a Rails Non-Participant during Phase 0. Its Rails routes and controllers are retired by
-[`adr/xper-rails-surface-retirement.md`](../../adr/xper-rails-surface-retirement.md); no current
-Rails Xper surface remains. The retirement does not change the OIDC/OAuth participation decision.
-
-### Auth
-
-Auth exposes a `/sign` ceremony namespace, a `sign/oidc/handoff` resource, and a JWKS document. Its
-route file states that it has no OIDC RP callback, authorization, or back-channel routes. Auth owns
-the `__Host-auth_sid` ceremony cookie, which is not login proof on any surface.
-
-## Externally owned Non-Participants
-
-`jump.umaxica.net`, `asset.umaxica.net`, and `status.umaxica.dev` have no route set in this
-repository. The decision governs them; the repository or deployment that owns each one verifies it.
-
-## Client registry
-
-`OidcClientStoresStaticClientStore` registers three groups: the first-party browser RP clients, the
-deprecated shared browser client `core-next-rp`, and the native clients `app-ios-rp` and
-`app-android-rp`. No Non-Participant surface is registered.
-
-## Known gaps
-
-- `AuthBoundaryAuthorityMap` lists browser RP client IDs only. The native clients are in the
-  registry but not in the map, so the map does not yet express the whole allowlist.
-- `core-next-rp` is listed as deprecated in the map and is still registered.
-- No contract test asserts the Non-Participant boundary yet. The existing tests cover the
-  participating side: the seven RP clients, Base authority endpoints, and Auth's Jump JWKS.
-
-The work to close these is recorded in `plans/backlog/oidc-non-participant-contract-tests.md`.
-
-## Related
-
-- `docs/architecture/base-auth-seven-rp-boundary.md`
-- `docs/architecture/content-surface-matrix.md`
-- `docs/architecture/docs-help-news-content-boundary.md`
-- `docs/architecture/guid-surface.md`
-- `docs/architecture/auth-ceremony-session-boundary.md`
+Operator tool routes are constrained to their own host families. A Rack mount retains its local
+middleware, while mounted engines retain their configured access controls. A tool host does not
+inherit Edit's browser session or an external identity provider's credentials.

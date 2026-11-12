@@ -5,6 +5,8 @@ class CspViolationSubscriber
   FAILURE_EVENT_NAME = "security.csp_violation.subscriber_failed"
   MAX_ERROR_MESSAGE_BYTES = 256
 
+  public
+
   def emit(event)
     Rails.logger.info(
       JitLogEvent.format(

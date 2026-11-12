@@ -10,28 +10,17 @@
 # config/credentials/<env>.yml.enc and the same database.yml (user decision 2026-10-19,
 # adr/runtime-secret-isolation-deferred.md).
 module RuntimeRole
-  # `shared` is the pre-R5 process that serves every surface. It is a bounded transitional role: it
-  # exists only because the development container is intentionally not split (user decision
-  # 2026-10-17) and every cell is still served by one listener. Exit condition: R5-WU19 cell activation, after which a
-  # cell process must boot with its own `rp-*` role and never as `shared`.
+  # `shared` serves retained operator mounts in development.
   SHARED = "shared"
 
-  # OP issuers: hold their realm's token signing key.
-  OP_ROLES = %w(op-base-app op-base-org).freeze
-  # Auth ceremony hosts: hold OmniAuth, OTP, HMAC and sending secrets; no OP signer.
-  AUTH_ROLES = %w(auth-app auth-org).freeze
-  # Nine JP-development RP cells: each requires only its own client assertion
-  # private key and serves only its own local store.
+  # Core, Warp and Palm keep their own relying-party process boundaries.
   RP_ROLES = %w(
-    rp-base-app-ww rp-base-org-ww rp-edit-org-ww rp-tech-org-ww
     rp-core-app-jp rp-core-org-jp
     rp-warp-app-jp rp-warp-org-jp
     rp-palm-app-jp
   ).freeze
-  # Canonical domain authorities: their own stores and protocol secrets only.
-  DOMAIN_ROLES = %w(domain-publishing domain-avatar domain-org).freeze
 
-  ALL = ([SHARED] + OP_ROLES + AUTH_ROLES + RP_ROLES + DOMAIN_ROLES).freeze
+  ALL = ([SHARED] + RP_ROLES).freeze
 
   class UnknownRole < ArgumentError; end
 
@@ -56,14 +45,12 @@ module RuntimeRole
     name.delete_prefix("rp-").split("-").first(2).unshift("rp").join("_")
   end
 
-  # Private signing material an RP cell process may hold (one.md section 1: "RP execution has no OP
-  # signing key"): its own private_key_jwt client key and its surface's Jump RT key. Preference
-  # JWTs are signed only through Base/Visa writers; RP readers receive public keysets only.
+  # An RP process holds its own client assertion and Jump RT keys; it never holds an OP signer.
   def rp_private_env_names(name = current)
     raise UnknownRole, "#{name} is not an RP cell role" unless RP_ROLES.include?(name)
 
     family, realm, region = name.delete_prefix("rp-").split("-")
-    client_namespace = (family == "base") ? "BASE_RP_#{realm}_#{region}" : "#{family}_#{realm}_#{region}"
+    client_namespace = "#{family}_#{realm}_#{region}"
     surface_namespace = "#{family}_#{realm}"
     [
       "OIDC_CLIENT_#{client_namespace.upcase}_PRIVATE_KEY",
@@ -72,12 +59,9 @@ module RuntimeRole
   end
 
   BROWSER_ADMISSION_STATES = %w(open closed).freeze
-  # Controllers an RP cell serves while its browser entry is closed (R5-WU19): protocol-only
-  # back-channel logout receivers, so durable revocation can still land, and process health.
+  # RP cells keep health and their back-channel logout receiver available while closed.
   CLOSED_CELL_PATHS = %r{/(oidc/closures|health|healths|revisions)\z}
 
-  # The cell's trusted local deployment admission; required in every rp-* process, never derived
-  # from a request. A new cell process starts closed until its exact manifest is enabled.
   def rp_browser_admission_open?
     state = ENV.fetch("UMAXICA_RP_BROWSER_ADMISSION")
     raise UnknownRole, "UMAXICA_RP_BROWSER_ADMISSION must be open or closed" unless
@@ -88,108 +72,38 @@ module RuntimeRole
 
   class UnownedRoute < ArgumentError; end
 
-  # Any role may serve these: process health, revision, crawler files, CSP reports, browser
-  # preferences and the retained anonymous com roots/content pages. They read no credential or actor.
+  # Unknown-host responses disclose no application state and can be served by any role.
   ANY_ROLE = "*"
-
-  # Base keeps only the protocol exceptions that still execute with the authority base: its own
-  # Jump/JWKS endpoint and the re-verification ceremony binding confirmation. OIDC authorization,
-  # token, logout, root-session and credential-management routes are owned by Visa or by the Base
-  # RP respectively; they must not become OP-owned merely because they remain under `Base::`.
-  BASE_OP_PREFIXES = %w(ceremony_binding_confirmations well_known).freeze
-
-  # Base paths the Base Self-RP cell serves: its own entry, callback, Refresh, logout receivers and
-  # the relay pages whose logic lives at an HTTPS owner.
-  BASE_RP_PREFIXES = %w(
-    sign/entries sign/interruptions oidc/callbacks oidc/closures sign/cookie_purges roots
-    switchers accounts organizations avatars avatar_ownership_transfers dashboard_avatar_images groups
-    group_avatar_memberships billing billings iam support audit settings system
-    identity identities verification verifications secrets secret_issuances secret_presentations
-    selectors welcomes social sign_outs actor_support api/v0/identity api/v0/membership
+  # Rails controllers in the retained operator tools run in the shared application process. Rack
+  # mounts that do not use Action Controller remain governed by their own mount middleware.
+  SHARED_CONTROLLER_PREFIXES = %w(
+    mission_control/jobs
+    blazer
+    pg_hero
+    rswag/api
+    rswag/ui
   ).freeze
-
-  BASE_ANY_PREFIXES = %w(
-    health healths revisions robots sitemaps csp_violation_reports preference preferences
-    api/v0/healths api/v0/revisions api/v0/preferences
-  ).freeze
-
-  VISA_OP_PREFIXES = %w(
-    ceremony_binding_confirmations edge/v0/token oauth oidc roots sign_byes sign/in well_known
-    api/v0/sensitive_admissions api/v0/sensitive_admission_sessions
-  ).freeze
-  VISA_ANY_PREFIXES = %w(
-    health healths revisions robots csp_violation_reports api/v0/healths api/v0/revisions
-  ).freeze
-
-  # Owner APIs of the canonical domain authorities (R5-WU12/13/14).
-  BASE_DOMAIN_PREFIXES = {
-    "api/v0/avatar" => "domain-avatar",
-    "api/v0/publishing" => "domain-publishing",
-    "api/v0/iam" => "domain-org",
-    "api/v0/support" => "domain-org",
-    "api/v0/tech_capability_checks" => "op-base-org",
-  }.freeze
-
-  CONTENT_FAMILIES = %w(docs help info news guid).freeze
-
-  # The single role allowed to serve a routed controller, or ANY_ROLE. An unclassified controller
-  # raises: a new route must be assigned an owner explicitly, never inherit one by accident.
+  # Every application-owned controller must have an owner. An unclassified controller is refused.
   def route_owner(controller_path)
-    family, realm, rest = controller_path.to_s.split("/", 3)
-    case family
-    when "auth"
-      return "auth-#{realm}" if %w(app org).include?(realm)
+    path = controller_path.to_s
+    return ANY_ROLE if path == "unknown_hosts"
+    return SHARED if SHARED_CONTROLLER_PREFIXES.any? { |prefix| path.start_with?("#{prefix}/") }
+    return SHARED if %w(core/dev core/net warp/dev warp/net).any? { |prefix| path.start_with?("#{prefix}/") }
+    return "rp-core-app-jp" if path.start_with?("core/app/")
+    return "rp-core-org-jp" if path.start_with?("core/org/")
+    return "rp-warp-app-jp" if path.start_with?("warp/app/")
+    return "rp-warp-org-jp" if path.start_with?("warp/org/")
+    return "rp-palm-app-jp" if path.start_with?("palm/app/")
 
-      raise UnownedRoute, "no runtime role owns #{controller_path.inspect}"
-    when "core"
-      return ANY_ROLE if %w(dev net).include?(realm)
-      return "rp-core-#{realm}-jp" if %w(app org).include?(realm)
-
-      raise UnownedRoute, "no runtime role owns #{controller_path.inspect}"
-    when "warp"
-      return ANY_ROLE if %w(dev net com).include?(realm)
-      return "rp-warp-#{realm}-jp" if %w(app org).include?(realm)
-
-      raise UnownedRoute, "no runtime role owns #{controller_path.inspect}"
-    when "palm" then "rp-palm-app-jp"
-    when "edit", "tech" then "rp-#{family}-org-ww"
-    when "base" then base_route_owner(realm, rest.to_s)
-    when "visa" then visa_route_owner(realm, rest.to_s)
-    when "unknown_hosts" then ANY_ROLE
-    when *CONTENT_FAMILIES then "domain-publishing"
-    else raise UnownedRoute, "no runtime role owns #{controller_path.inspect}"
-    end
+    raise UnownedRoute, "no runtime role owns #{path.inspect}"
   end
 
-  def base_route_owner(realm, rest)
-    return ANY_ROLE if %w(dev net).include?(realm)
-    return ANY_ROLE if realm == "com" && rest == "roots"
-
-    matches = ->(prefix) { rest == prefix || rest.start_with?("#{prefix}/") }
-    BASE_DOMAIN_PREFIXES.each { |prefix, role| return role if matches.call(prefix) }
-    return ANY_ROLE if BASE_ANY_PREFIXES.any?(&matches)
-    return "op-base-#{realm}" if BASE_OP_PREFIXES.any?(&matches)
-    return "rp-base-#{realm}-ww" if BASE_RP_PREFIXES.any?(&matches)
-
-    raise UnownedRoute, "no runtime role owns base/#{realm}/#{rest}"
-  end
-
-  def visa_route_owner(realm, rest)
-    raise UnownedRoute, "no runtime role owns visa/#{realm}/#{rest}" unless %w(app org).include?(realm)
-
-    return ANY_ROLE if VISA_ANY_PREFIXES.any? { |prefix| rest == prefix || rest.start_with?("#{prefix}/") }
-    return "op-base-#{realm}" if VISA_OP_PREFIXES.any? { |prefix| rest == prefix || rest.start_with?("#{prefix}/") }
-
-    raise UnownedRoute, "no runtime role owns visa/#{realm}/#{rest}"
-  end
-
-  # True when this process may serve the controller; the shared transitional role serves all. An
-  # RP cell whose browser admission is closed serves only CLOSED_CELL_PATHS.
+  # True when this process may serve the controller; the shared process serves every retained tool.
   def serves?(controller_path, name = current)
-    return true if shared?(name)
-
     owner = route_owner(controller_path)
-    return false unless owner == ANY_ROLE || owner == name
+    return true if owner == ANY_ROLE
+    return true if shared?(name)
+    return false unless owner == name
     return true unless RP_ROLES.include?(name)
 
     rp_browser_admission_open? || CLOSED_CELL_PATHS.match?(controller_path)

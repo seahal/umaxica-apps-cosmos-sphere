@@ -1,6 +1,6 @@
 /*
- * Shared typography baseline. Every surface stylesheet under `surfaces/` imports this file, so it
- * is the one place that reaches all fourteen FQDNs.
+ * Shared typography baseline. Every retained surface stylesheet under `surfaces/` imports this
+ * file, so it reaches every retained host.
  *
  * Sources:
  * - https://ics.media/entry/240411/  line wrapping
@@ -83,7 +83,7 @@
   }
 }
 
-/* The ERB document supplies translated navigation without adding Inertia props. */
+/* Edit's ERB layout supplies its skip link in the document. */
 .ui-skip-link {
   position: absolute;
   inset-inline-start: 1rem;

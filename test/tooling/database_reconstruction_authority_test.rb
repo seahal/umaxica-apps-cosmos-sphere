@@ -55,29 +55,6 @@ class DatabaseReconstructionAuthorityTest < ActiveSupport::TestCase
                  "obsolete schema-loader files must not remain as a second authority"
   end
 
-  test "publishing reconstructs from migrations rather than publishing_structure.sql" do
-    dump = Rails.root.join("db/publishing_structure.sql").read
-
-    assert_match(SCHEMA_TABLE_MARKER, dump)
-
-    migration_bodies =
-      (Rails.root.glob("db/publishing_migrate/*.rb") + Rails.root.glob("db/migration_support/publishing_schema.rb"))
-        .map(&:read).join("\n")
-
-    assert_match(/_entries/, migration_bodies)
-    assert_match(/FAMILIES/, migration_bodies)
-    assert_match(/publishing_media_files/, migration_bodies)
-    assert_match(/revision_media_usages/, migration_bodies)
-    assert_match(/version_media_usages/, migration_bodies)
-    assert_no_match(/create_table\(?\s*:publishing_media_usages\b/, migration_bodies)
-    assert_no_match(/publishing_editions/, migration_bodies)
-    assert PublishingRecord.connection.table_exists?("publishing_docs_app_entries")
-    assert PublishingRecord.connection.table_exists?("publishing_docs_app_revision_media_usages")
-    assert PublishingRecord.connection.table_exists?("publishing_docs_app_version_media_usages")
-    assert_not PublishingRecord.connection.table_exists?("publishing_editions")
-    assert_not PublishingRecord.connection.table_exists?("publishing_media_usages")
-  end
-
   test "schema_format remains sql but dump_schema_after_migration is disabled" do
     assert_equal :sql, Rails.application.config.active_record.schema_format
     assert_not Rails.application.config.active_record.dump_schema_after_migration

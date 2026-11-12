@@ -1,4 +1,12 @@
+> **Route status (2026-11-11):** This checklist describes former Auth/Base authentication routes.
+> Their controller trees and tests were removed with those surfaces. Remaining state models are
+> reserved for the database/model review; this document is historical, not current route guidance.
+
 # Authentication flow integrity acceptance
+
+> **Retired (2026-11-10):** These acceptance criteria cover the former Base/Auth browser-binding
+> admission routes, which are no longer served. The records remain historical; the retained Edit
+> Browser RP contract is in `browser-rp.md`.
 
 These criteria specialize browser-binding admission for the approved F contract. Preserve existing
 AUTH-2/3 IDs and the general AUTH-1/4 and SESSION-1–4 requirements when their worktree checklists
@@ -24,9 +32,9 @@ claimed. Follow [independent investigation](integrated-stack.md#independent-inve
   evidence.
 - No universal `/sign`-GET-created flow, alternate session issuer, RESTRICTED placeholder or weaker
   callback authority is introduced. Check current controllers/locators and public session issuance
-  tests, including
-  [root establishment](../../test/integration/root_login_establishment_flow_test.rb). Full
-  family/surface matrix is planned where tests are missing; one app test does not certify all.
+  tests, including root establishment (former reference:
+  ../../test/integration/root_login_establishment_flow_test.rb). Full family/surface matrix is
+  planned where tests are missing; one app test does not certify all.
 - APP ordinary authentication admission opens only Sign In; Sign Up requires the persisted
   `prompt=create` or the Binding's server-fixed Switch selection. Wrong-intent GET and POST requests
   leave the Binding and admission unconsumed, and a later request cannot reinterpret an admitted
@@ -62,13 +70,13 @@ claimed. Follow [independent investigation](integrated-stack.md#independent-inve
   customer copy, not repository prose.
 - Flow and session workflow state remain unchanged: no halt/advance/cancel, OTP/challenge/provider
   creation or session issuance. No HTML/current-step recovery redirect. Non-phase errors keep their
-  existing contract. Check
-  [app phase regression tests](../../test/integration/sign_up_phase_regression_app_test.rb) and
-  [step refusal tests](../../test/policies/sign_up_step_gate_refusals_test.rb), measuring
-  before/after records and response. The local sign-in slice also has public-boundary coverage in
-  [app MFA admission tests](../../test/controllers/auth/app/in/challenges_controller_test.rb) and
-  the app passkey and MFA controller tests; these references establish only the scenarios they
-  actually exercise. Other families/surfaces require explicit planned-to-actual test references.
+  existing contract. Check app phase regression tests (former reference:
+  ../../test/integration/sign_up_phase_regression_app_test.rb) and step refusal tests (former
+  reference: ../../test/policies/sign_up_step_gate_refusals_test.rb), measuring before/after records
+  and response. The local sign-in slice also has public-boundary coverage in app MFA admission tests
+  (former reference: ../../test/controllers/auth/app/in/challenges_controller_test.rb) and the app
+  passkey and MFA controller tests; these references establish only the scenarios they actually
+  exercise. Other families/surfaces require explicit planned-to-actual test references.
 - APP entry Cancel has seven explicit HTTP cases: Sign In method selection, Email, Passkey and
   Secret, plus Sign Up method selection, Email and Telephone. Each reads the page's supplied Cancel
   action, submits with CSRF enabled, verifies the Auth ceremony and parent are cancelled, checks the
@@ -99,8 +107,8 @@ claimed. Follow [independent investigation](integrated-stack.md#independent-inve
   `test/services/sign_up/completed_cancellation_boundary_test.rb`.
 - Auth APP browser coverage exercises both sign-up and Flow-less sign-in Email OTP: Back reaches the
   server-side phase refusal, Forward re-evaluates the current OTP phase, and sign-up cancellation
-  remains an explicit action. See
-  [phase history browser coverage](../../e2e/rails/auth-phase-history.spec.ts).
+  remains an explicit action. See phase history browser coverage (former reference:
+  ../../e2e/rails/auth-phase-history.spec.ts).
 
 The `com` surface no longer owns a credential ceremony, so it has no Email sign-up phase case and no
 MFA admission case after the corporate anonymous-surface change; its former tests were removed with
@@ -122,10 +130,10 @@ APP MFA coverage is not evidence for ORG.
 - Check public HTTP plus locked transitions and audit, existing
   [state-machine tests](../../test/services/sign_up/state_machine_test.rb) and phase tests. Race
   testing must demonstrate atomic lock/reload/check/transition; a released-lock precheck followed by
-  termination is not proof. The signed-instance codec contract is covered by
-  [sign-in binding codec tests](../../test/services/sign_in_flow_binding_codec_test.rb). Full
-  terminal consumer and independent-connection race coverage remains a planned acceptance item until
-  actual evidence is recorded.
+  termination is not proof. The signed-instance codec contract is covered by sign-in binding codec
+  tests (former reference: ../../test/services/sign_in_flow_binding_codec_test.rb). Full terminal
+  consumer and independent-connection race coverage remains a planned acceptance item until actual
+  evidence is recorded.
 
 ## FLOW-4 — Original A cannot mutate replacement B
 
@@ -167,8 +175,9 @@ APP MFA coverage is not evidence for ORG.
   an ambient Source or Ticket transaction before creating an OTP. On enqueue refusal, retain the
   committed generation and cooldown for the existing resend/Cancel path. Verify enqueue-time
   visibility from independent database connections; queue acceptance does not establish delivery.
-  Basis: [D-58/RV-69, two.md §12.2](../../two.md). Current APP producer reference:
-  [signup OTP enqueue boundary tests](../../test/operations/sign_up_otp_delivery_concurrency_test.rb).
+  Basis: D-58/RV-69, two.md §12.2 (former reference: ../../two.md). Current APP producer reference:
+  signup OTP enqueue boundary tests (former reference:
+  ../../test/operations/sign_up_otp_delivery_concurrency_test.rb).
 - Check actual independent-connection races and public integration counts, not only token_id unique
   index presence. Start at root establishment and phase regression tests; comprehensive
   race/consumer evidence is planned. Boundary tests cover lock waits and deadline before/at/after,
@@ -191,6 +200,11 @@ APP MFA coverage is not evidence for ORG.
   a stale diagram.
 - Check public halt/audit tests and source/diagram comparison; additional safe-audit coverage is
   planned if absent. TDD chronology/reporting is PROC-3/4, not a static-code acceptance inference.
+- In the retained Chronicle schema, a `SIGN_FLOW_HALTED` correlation is an object containing
+  nonblank string `transaction_public_id` and `halt_generation` values. PostgreSQL rejects missing,
+  JSON-null, empty, whitespace-only and non-string values through direct writes. The existing
+  partial expression UNIQUE permits one row per exact correlation pair; other events remain outside
+  that index. See the [Sphere database contract](../architecture/sphere-database-integrity.md).
 
 The ORG normal-passkey integration test in
 `test/controllers/auth/org/in/passkeys_controller_test.rb` now follows the Entra first stage with

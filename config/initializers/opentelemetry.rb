@@ -3,6 +3,22 @@
 
 return if Rails.env.test?
 
+# FIXME: Rewrite this initializer to use OpenTelemetry properly (owner, 2026-11-10).
+# The current setup gives little usable signal. Known problems include:
+# - `service_name` is hardcoded to the pre-split "umaxica-apps-jit" in all four Cosmos repositories,
+#   so their traces cannot be told apart; no environment, version or region resource attributes.
+# - No explicit sampler; every request is traced whenever OPEN_TELEMETRY is "true".
+# - The scrubbing processor is an anonymous class added after the SDK's default export processor;
+#   confirm it runs before export, or sensitive attributes may leave the process unscrubbed.
+# - Traces only; no metrics or logs.
+# Build a staging environment and measure there (latency, error rate, database and outbound calls)
+# before deciding the instrumentation set, sampling and exporter for production.
+#
+# TODO: Adopt an error tracker for Rails, such as Sentry (the external service and its Rails SDK,
+# not code of ours with a similar name), so application errors and bugs are captured and counted.
+# OpenTelemetry stays the basis for APM (traces, metrics, logs); the error tracker is used
+# alongside it for exceptions, not instead of it.
+
 # `.env.container.devcontainer` declares OPEN_TELEMETRY on `core` and sets it to
 # "true": the observability group is no longer profile-gated, so `alloy` is
 # always running and always able to receive.
@@ -34,6 +50,7 @@ return if open_telemetry.nil? || open_telemetry == "false"
 raise ArgumentError, "OPEN_TELEMETRY must be \"true\" or \"false\"" unless open_telemetry == "true"
 
 require "opentelemetry/sdk"
+# TODO: AUDIT external access: exports traces to the OTLP endpoint.
 require "opentelemetry/exporter/otlp"
 require "opentelemetry/instrumentation/action_mailer"
 require "opentelemetry/instrumentation/action_pack"

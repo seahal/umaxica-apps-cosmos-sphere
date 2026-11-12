@@ -23,7 +23,6 @@ module Security
       DIRECT_READ_ALLOWLIST = [
         REGISTRY_PATH,
         "config/initializers/flipper.rb",
-        "config/routes/base.rb",
         "db/seeds.rb",
       ].freeze
 
@@ -39,11 +38,7 @@ module Security
       end
 
       test "every declared feature name is registered" do
-        declared =
-          OutboundChannelSuspension::CHANNEL_FEATURE_NAMES.values +
-          SignEntrySentryResolver::ENTRY_FLAGS.values +
-          ExternalAuthentication::FlipperProviderAvailabilityAdapter::PROVIDER_FEATURE_NAMES.values +
-          [TurnstileDegradation::FEATURE_NAME, RetentionPurgeJob::FEATURE_NAME]
+        declared = FqdnAvailabilityRegistry.flag_names + [RetentionPurgeJob::FEATURE_NAME]
 
         assert_empty declared.uniq - FeatureFlags.names
       end
@@ -62,7 +57,7 @@ module Security
       end
 
       test "passes an actor to the registered feature gate" do
-        flag = :sign_in_available_app
+        flag = :retention_purge_suspended
         actor = Object.new
         flipper = Minitest::Mock.new
         flipper.expect(:enabled?, true, [flag, actor])

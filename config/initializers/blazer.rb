@@ -10,7 +10,7 @@ if Rails.env.development?
   # omits that table and creates only the storage the dashboard itself reads.
   Blazer.audit = false
 
-  # Cloudflare Access fronts blazer.umaxica.dev, but the mounted engine must not depend on the
+  # Cloudflare Access fronts blazer-sphere-jp.umaxica.dev, but the mounted engine must not depend on the
   # edge alone: Blazer::Engine subclasses nothing of this application, so enforce_access_policy!
   # and surface isolation never run for it, and any request that reached the origin directly
   # would get unauthenticated arbitrary read access to every data source Blazer is configured

@@ -1,58 +1,23 @@
-# Authoritative frontend ownership. A Rails application layout is Importmap/Propshaft;
-# an Inertia layout or a documented Vite-only content page is Vite Rails.
+# Current browser asset ownership. Retained pages render through Action View. Vite supplies surface
+# CSS; Edit uses Importmap for Turbo. No retained page mounts Inertia or uses Vite JS.
 version: 1
 stacks:
   importmap:
-    - auth/app/application
-    - auth/org/application
-    - base/app/application
-    - base/com/application
-    - base/org/application
-    - visa/app/application
-    - visa/org/application
-    - core/app/application
-    - core/org/application
-    - jump/app/application
-    - jump/com/application
-    - jump/org/application
-    - palm/app/application
-    - warp/app/application
-    - warp/com/application
-    - warp/org/application
+    - app/views/layouts/edit/org/application.html.erb
   vite:
-    - auth/app/inertia
-    - auth/org/inertia
-    - base/app/inertia
-    - base/com/inertia
-    - base/org/inertia
-    - visa/app/inertia
-    - visa/org/inertia
-    - core/app/inertia
-    - core/org/inertia
-    - palm/app/inertia
-    - warp/app/inertia
-    - warp/com/inertia
-    - warp/org/inertia
-    # Not Inertia: plain ERB + Turbo/Stimulus (via importmap), styled with a Vite/Tailwind
-    # stylesheet. See adr/publish-repository-importmap-boundary.md.
-    - edit/org/application
-    - edit/org/root
-    - base/dev/root
-    - core/dev/root
-    - docs/app/root
-    - docs/com/root
-    - docs/org/root
-    - help/app/root
-    - help/com/root
-    - help/org/root
-    - info/app/root
-    - info/com/root
-    - info/org/root
-    - news/app/root
-    - news/com/root
-    - news/org/root
-  excluded:
-    - email/application
+    - app/views/docs/app/roots/index.html.erb
+    - app/views/docs/com/roots/index.html.erb
+    - app/views/docs/org/roots/index.html.erb
+    - app/views/news/app/roots/index.html.erb
+    - app/views/news/com/roots/index.html.erb
+    - app/views/news/org/roots/index.html.erb
+    - app/views/help/app/roots/index.html.erb
+    - app/views/help/com/roots/index.html.erb
+    - app/views/help/org/roots/index.html.erb
+    - app/views/info/app/roots/index.html.erb
+    - app/views/info/com/roots/index.html.erb
+    - app/views/info/org/roots/index.html.erb
+    - app/views/layouts/edit/org/application.html.erb
 rules:
   importmap: [erb, turbo, stimulus, propshaft]
-  vite: [vite, typescript, react, inertia]
+  vite: [vite, tailwindcss]

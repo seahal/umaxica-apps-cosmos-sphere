@@ -5,11 +5,33 @@ require "test_helper"
 # require "helpers/global_test_support"
 
 class JumpRtReturnPolicyTest < ActiveSupport::TestCase
-  APP_ORG_CANDIDATE_GRAPH = JSON.parse(
-    Rails.root.join("test/fixtures/files/jump_app_org_candidate_graph.json").read,
-  ).freeze
-
   self.fixture_table_names = []
+
+  test "retired regional authorities cannot participate in Jump returns" do
+    %w(app com org).each do |realm|
+      retired_origin = "https://jp.umaxica.#{realm}"
+
+      assert_nil JumpRtReturnPolicy.namespace_for_origin(retired_origin)
+      assert_not JumpRtReturnPolicy.allowed_source?(
+        destination_origin: "https://www.umaxica.#{realm}", source: retired_origin,
+      )
+      assert_not JumpRtReturnPolicy.allowed_source?(
+        destination_origin: retired_origin, source: "https://www.umaxica.#{realm}",
+      )
+    end
+  end
+
+  test "duplicate configured issuer origins fail instead of selecting an ambiguous namespace" do
+    JumpRtSurface.stub(:issuer_origin, ->(_namespace) { "https://duplicate.example" }) do
+      error =
+        assert_raises(JumpRtConfigurationError) do
+          JumpRtReturnPolicy.namespace_for_origin("https://duplicate.example")
+        end
+
+      assert_includes error.message, "BASE_APP"
+      assert_includes error.message, "VISA_APP"
+    end
+  end
 
   test "normalize_origin returns nil for invalid URI" do
     assert_nil JumpRtReturnPolicy.normalize_origin("not a url")
@@ -24,8 +46,8 @@ class JumpRtReturnPolicyTest < ActiveSupport::TestCase
   end
 
   test "origins with a path query or fragment are rejected" do
-    ["https://auth.umaxica.app/", "https://auth.umaxica.app/path",
-     "https://auth.umaxica.app?x=1", "https://auth.umaxica.app#fragment",].each do |origin|
+    ["https://www.umaxica.app/", "https://www.umaxica.app/path",
+     "https://www.umaxica.app?x=1", "https://www.umaxica.app#fragment",].each do |origin|
       assert_nil JumpRtReturnPolicy.normalize_origin(origin), origin
       assert_not JumpRtReturnPolicy.allowed_source?(destination_origin: "https://www.umaxica.app", source: origin)
     end
@@ -73,8 +95,8 @@ class JumpRtReturnPolicyTest < ActiveSupport::TestCase
 
   test "allowed_source returns true for valid source matching destination" do
     assert JumpRtReturnPolicy.allowed_source?(
-      destination_origin: "https://www.umaxica.app",
-      source: "https://auth.umaxica.app",
+      destination_origin: "https://visa.umaxica.app",
+      source: "https://www.umaxica.app",
     )
   end
 
@@ -88,7 +110,7 @@ class JumpRtReturnPolicyTest < ActiveSupport::TestCase
   test "allowed_source returns false when destination origin is unknown" do
     assert_not JumpRtReturnPolicy.allowed_source?(
       destination_origin: "https://unknown.example.com",
-      source: "https://auth.umaxica.app",
+      source: "https://www.umaxica.app",
     )
   end
 
@@ -100,103 +122,37 @@ class JumpRtReturnPolicyTest < ActiveSupport::TestCase
     assert_equal 80, JumpRtReturnPolicy.default_port_for("http")
   end
 
-  test "only the approved app/org directed graph is allowed across all 81 canonical pairs" do
+  test "only Base and Visa authorization handoffs are allowed across all 16 ordered pairs" do
     namespaces = {
-      "auth-app-ww" => "AUTH_APP",
-      "auth-org-ww" => "AUTH_ORG",
-      "base-app-ww" => "BASE_APP",
-      "base-org-ww" => "BASE_ORG",
-      "core-app-jp" => "CORE_APP",
-      "core-org-jp" => "CORE_ORG",
-      "palm-app-jp" => "PALM_APP",
-      "warp-app-jp" => "WARP_APP",
-      "warp-org-jp" => "WARP_ORG",
+      "base-app" => "BASE_APP",
+      "base-org" => "BASE_ORG",
+      "visa-app" => "VISA_APP",
+      "visa-org" => "VISA_ORG",
     }
     origins = {
-      "auth-app-ww" => "https://auth.umaxica.app",
-      "auth-org-ww" => "https://auth.umaxica.org",
-      "base-app-ww" => "https://www.umaxica.app",
-      "base-org-ww" => "https://www.umaxica.org",
-      "core-app-jp" => "https://jp.umaxica.app",
-      "core-org-jp" => "https://jp.umaxica.org",
-      "palm-app-jp" => "https://palm-jp.umaxica.app",
-      "warp-app-jp" => "https://www-jp.umaxica.app",
-      "warp-org-jp" => "https://www-jp.umaxica.org",
+      "base-app" => "https://www.umaxica.app",
+      "base-org" => "https://www.umaxica.org",
+      "visa-app" => "https://visa.umaxica.app",
+      "visa-org" => "https://visa.umaxica.org",
     }
     edges = [
-      ["auth-app-ww", "base-app-ww"],
-      ["auth-org-ww", "base-org-ww"],
-      ["base-app-ww", "auth-app-ww"],
-      ["base-app-ww", "core-app-jp"],
-      ["base-app-ww", "palm-app-jp"],
-      ["base-app-ww", "warp-app-jp"],
-      ["base-org-ww", "auth-org-ww"],
-      ["base-org-ww", "core-org-jp"],
-      ["base-org-ww", "warp-org-jp"],
-      ["core-app-jp", "base-app-ww"],
-      ["core-org-jp", "base-org-ww"],
-      ["palm-app-jp", "base-app-ww"],
-      ["warp-app-jp", "base-app-ww"],
-      ["warp-org-jp", "base-org-ww"],
+      ["base-app", "visa-app"],
+      ["base-org", "visa-org"],
+      ["visa-app", "base-app"],
+      ["visa-org", "base-org"],
     ]
+    expected_edges = edges.map { |source, destination| [namespaces.fetch(source), namespaces.fetch(destination)] }
 
-    assert_equal 14, edges.size
-    legacy_edges =
-      JumpRtReturnPolicy::ALLOWED_EDGES.reject { |source, destination|
-        source.start_with?("VISA_") ||
-          destination.start_with?("VISA_")
-      }
-
-    assert_equal edges.map { |source, destination| [namespaces.fetch(source), namespaces.fetch(destination)] }.sort,
-                 legacy_edges.sort
+    assert_equal 4, expected_edges.size
+    assert_equal expected_edges.sort, JumpRtReturnPolicy::ALLOWED_EDGES.sort
     pairs = origins.keys.product(origins.keys)
 
-    assert_equal 81, pairs.size
+    assert_equal 16, pairs.size
     pairs.each do |source, destination|
       assert_equal edges.include?([source, destination]),
                    JumpRtReturnPolicy.allowed_source?(
                      destination_origin: origins.fetch(destination),
                      source: origins.fetch(source),
-                   ),
-                   "#{source} -> #{destination}"
-    end
-  end
-
-  test "app/org candidate graph fixture matches the Rails graph across all 81 ordered pairs" do
-    namespace_by_node = {
-      "auth-app-ww" => "AUTH_APP",
-      "auth-org-ww" => "AUTH_ORG",
-      "base-app-ww" => "BASE_APP",
-      "base-org-ww" => "BASE_ORG",
-      "core-app-jp" => "CORE_APP",
-      "core-org-jp" => "CORE_ORG",
-      "warp-app-jp" => "WARP_APP",
-      "warp-org-jp" => "WARP_ORG",
-      "palm-app-jp" => "PALM_APP",
-    }
-    origins = APP_ORG_CANDIDATE_GRAPH.fetch("nodes")
-    edges = APP_ORG_CANDIDATE_GRAPH.fetch("edges")
-    namespaces = origins.keys.index_with { |node| namespace_by_node.fetch(node) }
-    expected_edges = edges.map { |source, destination| [namespaces.fetch(source), namespaces.fetch(destination)] }
-
-    assert_equal 9, origins.size
-    assert_equal 14, edges.size
-    legacy_edges =
-      JumpRtReturnPolicy::ALLOWED_EDGES.reject { |source, destination|
-        source.start_with?("VISA_") ||
-          destination.start_with?("VISA_")
-      }
-
-    assert_equal expected_edges.sort, legacy_edges.sort
-
-    pairs = origins.to_a.product(origins.to_a)
-
-    assert_equal 81, pairs.size
-    pairs.each do |(source, source_origin), (destination, destination_origin)|
-      assert_equal edges.include?([source, destination]),
-                   JumpRtReturnPolicy.allowed_source?(
-                     destination_origin: destination_origin,
-                     source: source_origin,
                    ),
                    "#{source} -> #{destination}"
     end
@@ -242,7 +198,7 @@ class JumpRtReturnPolicyTest < ActiveSupport::TestCase
         edge.fetch(:issuer_namespace).start_with?("VISA_") || edge.fetch(:destination_namespace).start_with?("VISA_")
       end
 
-    assert_equal 18, visa_edge_count
+    assert_equal 4, visa_edge_count
 
     JumpRtReturnPolicy::EDGE_CATALOG.select do |edge|
       edge.fetch(:issuer_namespace).start_with?("VISA_") || edge.fetch(:destination_namespace).start_with?("VISA_")

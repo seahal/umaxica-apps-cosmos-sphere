@@ -4,9 +4,9 @@
 # The credential check that stands in for the application authorization stack on every mounted
 # diagnostic dashboard.
 #
-# A Rack app reached through `mount` subclasses nothing of this application, so AuthenticationBase,
-# `enforce_access_policy!`, `FqdnAvailabilityGate`, surface isolation, and the per-surface CSRF
-# origin configuration never run for it. A dedicated `*.umaxica.dev` host is not a substitute:
+# A Rack app reached through `mount` subclasses nothing of this application, so controller
+# authorization, surface isolation, and the per-surface CSRF origin configuration never run for it.
+# A dedicated operator-tool host is not a substitute:
 # Cloudflare Access fronts those names, but a request that reaches the origin directly carries
 # whatever `Host` header it likes, and the origin must reject it on its own.
 #

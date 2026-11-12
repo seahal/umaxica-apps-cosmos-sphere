@@ -2,45 +2,6 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
-  # Base owns the browser-RP, identity and session-management surfaces.
-  draw :base
-
-  # Auth owns the credential gateway for sign-in/sign-up ceremonies.
-  draw :auth
-
-  # Visa owns the OpenID Provider and its browser-bound authority flows.
-  draw :visa
-
-  # Info owns public informational content.
-  draw :info
-
-  # GUID owns domain-level globally-unique-identifier resolution.
-  draw :guid
-
-  # Core owns the regional BFF surface.
-  draw :core
-
-  # Warp owns the Rails foundation/control-plane surface.
-  draw :warp
-
-  # Palm owns the app-surface browser RP.
-  draw :palm
-
-  # Tech owns the global operator tools Browser RP.
-  draw :tech
-
-  # Help owns the public help content surface.
-  draw :help
-
-  # Docs owns the public documentation content surface.
-  draw :docs
-
-  # News owns the public news content surface.
-  draw :news
-
-  # Edit owns the staff Publishing management surface.
-  draw :edit
-
   # Mission owns the Solid Queue job-monitoring surface (Mission Control Jobs), staff-only.
   draw :mission
 
@@ -57,16 +18,15 @@ Rails.application.routes.draw do
   # endpoint that serves them (Rswag::Ui and Rswag::Api engines), staff-only, development-only.
   draw :swagger
 
-  # Performance owns the request performance dashboard (RailsPerformance::Engine), staff-only,
-  # development-only. Also the only place the engine is mounted: its self-mount is suppressed in
-  # config/application.rb because it carries no host constraint.
-  draw :performance
-
   # Coverband owns the runtime code-execution report (Coverband::Reporters::Web), staff-only,
   # development-only, and only in the process that serves requests.
   draw :coverband
 
-  # Any host that reached the app without matching a surface above is unknown;
-  # answer it here rather than leaking a routing error.
-  get "/", to: "unknown_hosts#show" # FIXIME: I want to remove this, or use root!
+  # Sphere owns the independent Core, Warp and Palm surfaces.
+  draw :core
+  draw :warp
+  draw :palm
+
+  # Any host that reaches the app without matching a retained surface is unknown.
+  get "/", to: "unknown_hosts#show"
 end

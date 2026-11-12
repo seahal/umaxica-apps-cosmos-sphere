@@ -49,8 +49,6 @@ module OpenapiContract
   end
 
   # Per-test override, for a class that exercises the same endpoint on more than one surface.
-  # `/api/v0/entries` is served by four services on all three surfaces, and one class covering all
-  # twelve is clearer than twelve classes.
   def openapi_surface=(surface)
     @openapi_surface = surface.to_s
     # `schema`, `router`, and `schema_validator` are memoised per test instance and all derive from

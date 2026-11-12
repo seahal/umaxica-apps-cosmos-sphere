@@ -2,11 +2,11 @@
 # frozen_string_literal: true
 
 module OutboundHttp
-  # Server-to-server calls from one first-party surface to another (OIDC token and UserInfo, the
-  # Avatar, Membership, Org admin and Publishing authorities) reach this same Rails process. In local
-  # development the public names resolve to this container (compose network aliases) but HTTPS is
+  # Server-to-server calls from Edit to the Base and Visa authorities reach their configured hosts.
+  # In local development the public names resolve to this container (compose network aliases) but HTTPS is
   # terminated by Cloudflare Tunnel, not here, so the call goes to the local HTTP port. Production
   # keeps the public HTTPS URL unchanged.
+  # TODO: AUDIT external access: rewrites first-party outbound URLs to local HTTP in development.
   module LocalBackChannel
     module_function
 
@@ -36,7 +36,6 @@ module OutboundHttp
     def first_party_host?(host)
       hosts = Rails.configuration.x.boot_config.fetch(:hosts)
       [
-        hosts.acme_service, hosts.acme_corporate, hosts.acme_staff,
         hosts.base_service, hosts.base_corporate, hosts.base_staff,
         hosts.visa_service, hosts.visa_staff,
       ].map { |configured| configured.host.to_s.downcase }.include?(host.to_s.downcase)

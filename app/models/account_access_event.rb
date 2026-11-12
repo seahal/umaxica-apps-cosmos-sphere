@@ -45,15 +45,22 @@ class AccountAccessEvent < ChronicleRecord
 
   ACCOUNT_TYPES = %w(Client Operator).freeze
 
+  # These values describe retained audit history, independently of the external account models.
+  ACCESS_STATES = %w(enabled admin_locked).freeze
+  REASON_CODES = %w(
+    abuse security_incident chargeback terms_violation support_request legal_hold
+    operator_error_recovery other
+  ).freeze
+
   encrypts :reason_note
 
   validates :account_type, presence: true, inclusion: { in: ACCOUNT_TYPES }
   validates :account_id, presence: true, numericality: { only_integer: true }
   validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }
-  validates :previous_access_state, presence: true, inclusion: { in: AdministrativeAccessLockable::ACCESS_STATES }
-  validates :next_access_state, presence: true, inclusion: { in: AdministrativeAccessLockable::ACCESS_STATES }
+  validates :previous_access_state, presence: true, inclusion: { in: ACCESS_STATES }
+  validates :next_access_state, presence: true, inclusion: { in: ACCESS_STATES }
   validates :operator_id, presence: true, numericality: { only_integer: true }
-  validates :reason_code, presence: true, inclusion: { in: AdministrativeAccessLockable::ADMIN_LOCK_REASON_CODES }
+  validates :reason_code, presence: true, inclusion: { in: REASON_CODES }
   validates :occurred_at, presence: true
   validates :metadata, exclusion: { in: [nil] }
 end

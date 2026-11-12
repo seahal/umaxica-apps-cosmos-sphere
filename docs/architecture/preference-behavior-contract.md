@@ -1,5 +1,10 @@
 # Preference Behavior Contract
 
+> **Surface reset (2026-11-11):** This document records the former Base/Visa Preference write
+> contract. Those controllers and PreferenceWriteBoundary were removed with their routes. The
+> remaining Preference models and migrations are retained for the next database review; this is
+> historical writer guidance, not current route behavior.
+
 This document describes the current app, org, and com Preference contract. The WU-9 destructive
 shape migrations were approved and applied to the eight local development/test databases. Final
 behavior acceptance remains pending.

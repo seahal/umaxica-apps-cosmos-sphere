@@ -7,9 +7,8 @@ ruby "4.0.9"
 # Type signatures for Ruby libraries.
 gem "rbs", "~> 4.0", require: false
 # runtime for sorbet
+gem "rails", github: "rails/rails", ref: "9ba8b1edeeacccb1ff5d2497432242eeddf48aed"
 gem "sorbet-runtime"
-# Rails application framework from the main branch.
-gem "rails", github: "rails/rails", branch: "main"
 # Propshaft asset pipeline.
 gem "propshaft", github: "rails/propshaft"
 # Rails task runner.
@@ -54,6 +53,8 @@ gem "ostruct"
 gem "tzinfo-data", platforms: %i(windows jruby)
 # Bootsnap boot cache.
 gem "bootsnap", require: false
+# MessagePack serializer for the Valkey cache stores (never Marshal; docs/runbooks/valkey-protection.md).
+gem "msgpack"
 # Password hashing with Argon2. The version is constrained because
 # ActiveModel::SecurePassword::Argon2Password calls Argon2::Password.create
 # without a profile, so the gem default is the effective cost parameter set.
@@ -90,16 +91,6 @@ gem "webauthn"
 gem "rotp"
 # QR code generation.
 gem "rqrcode", require: false
-# OmniAuth core middleware.
-gem "omniauth"
-# OmniAuth Apple strategy.
-gem "omniauth-apple"
-# OmniAuth Google OAuth2 strategy.
-gem "omniauth-google-oauth2"
-# OmniAuth OpenID Connect strategy. Used by the org surface Microsoft Entra ID ceremony.
-gem "omniauth_openid_connect"
-# OmniAuth CSRF protection for Rails.
-gem "omniauth-rails_csrf_protection"
 # client oauth/oidc connectoer
 gem "openid_connect"
 # JSON Web Token support.
@@ -114,9 +105,10 @@ gem "solid_queue"
 gem "turbo-rails"
 # Stimulus Rails integration.
 gem "stimulus-rails"
+# Stimulus Rails integration.
 # Rails-first surfaces use Importmap without changing the Vite Rails stack.
+# Inertia Rails adapter for the Core, Warp, and Palm browser surfaces.
 gem "importmap-rails"
-# Inertia Rails adapter.
 gem "inertia_rails"
 # Vite Rails integration.
 gem "vite_rails"
@@ -252,19 +244,6 @@ group :development do
   gem "pghero", require: false
   # SQL exploration dashboard.
   gem "blazer", require: false
-  # Browser-based database console. Development only: the engine self-mounts at
-  # /rails/db with no authentication (RailsDb.verify_access_proc defaults to
-  # `proc { true }`), so loading it outside development exposes an unauthenticated
-  # arbitrary-SQL endpoint. test/security/invariants/mounted_engine_invariant_test.rb
-  # guards this.
-  gem "rails_db"
-  # Server-side request performance dashboard, on performance.umaxica.dev. Development only: the
-  # gem's own config/routes.rb ends with an unguarded
-  # `Rails.application.routes.draw { mount RailsPerformance::Engine => RailsPerformance.mount_at }`
-  # with no flag to disable it, which would put the dashboard on every host. config/application.rb
-  # drops the engine's routing path to suppress that; config/routes/performance.rb draws the routes
-  # and mounts the engine behind the host constraint instead.
-  gem "rails_performance", require: false
   # Runtime code-execution coverage (which Ruby actually ran), on coverband.umaxica.dev. Kept to
   # `group :development` alongside the other mounted dashboards, so it observes development
   # execution rather than production -- see adr/diagnostic-surfaces-performance-coverband-swagger.md

@@ -6,14 +6,11 @@ class ApplicationRecord < ActiveRecord::Base
   self.strict_loading_by_default = true
 
   # Every domain gets its own dedicated abstract class with its own `connects_to`
-  # (PublishingRecord, OpBaseAppRecord, ...); nothing does business logic through
+  # (ChronicleRecord, RpCoreAppRecord, ...); nothing does business logic through
   # ApplicationRecord directly. Without a connection of its own, though,
   # `ActiveRecord::Base.connection` (what any gem or Rails-provided model that skips those
-  # dedicated classes ends up calling -- rails_db's dashboard, ActiveStorage, ActionMailbox)
-  # raised ActiveRecord::ConnectionNotEstablished, and DatabaseSelector
-  # (config/initializers/multi_db.rb) wraps every GET in `connected_to(role: :reading)`, which
-  # needs a reading pool to exist at all or raises ActiveRecord::ConnectionNotDefined. `primary`
-  # is this repository's conventional default database for exactly this kind of
+  # dedicated classes ends up calling -- ActiveStorage, ActionMailbox) raises
+  # ActiveRecord::ConnectionNotEstablished. Both roles resolve to the primary database for
   # application-wide, non-domain-specific state (Flipper's own model connects to it the same
   # way; see config/initializers/flipper.rb and adr/global-regional-database-ownership.md).
   connects_to database: { writing: :primary, reading: :primary }

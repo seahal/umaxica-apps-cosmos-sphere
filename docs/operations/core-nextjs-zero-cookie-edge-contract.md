@@ -1,5 +1,10 @@
 # Core Next.js Zero-Cookie Edge Contract
 
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 ## Purpose
 
 This repository does not currently contain deployable Cloudflare ruleset, Worker, or Terraform
@@ -11,18 +16,19 @@ this contract and verification evidence is recorded.
 
 Canonical public Core host for this boundary, chosen by `adr/core-canonical-public-host.md`:
 
-- `jp.umaxica.app` (and `jp.umaxica.com`, `jp.umaxica.org` for the corporate and staff realms)
+- `www-jp.umaxica.app` (and `www-jp.umaxica.com`, `www-jp.umaxica.org` for the corporate and staff
+  realms)
 
-Current Rails defaults previously used `www.jp.umaxica.app` in some Core configuration, and the
-legacy `jpx.umaxica.*` and `core-jp.umaxica.*` families are still accepted by production Host
-Authorization during the cutover.
+The 2026-11-10 amendment in `adr/cosmos-sphere-surfaces-and-rp-independence.md` supersedes the
+earlier Core hostname. Production Host Authorization lists the new Core and Warp families without
+accepting the retired bare regional family.
 
 ## Request Routing
 
 The Rails-owned rows below are derived from `config/routes/core.rb`, which is the source of truth
 for what Rails answers on the Core host. Every path Rails does not route falls to Next.js.
 
-For `jp.umaxica.app`:
+For `www-jp.umaxica.app`:
 
 | Path                     | Origin           | Cookie forwarding             |
 | ------------------------ | ---------------- | ----------------------------- |
@@ -80,15 +86,15 @@ storage, a URL nonce, hydration-time Rails API result, or non-sensitive public s
 
 Before setting `CORE_BROWSER_JWT_COOKIE_ENABLED=1` in production, record evidence for all of these:
 
-1. A request to `https://jp.umaxica.app/_next/...` with a synthetic `Cookie` header reaches the
+1. A request to `https://www-jp.umaxica.app/_next/...` with a synthetic `Cookie` header reaches the
    Next.js origin without a `Cookie` header.
-2. A request to a page route on `https://jp.umaxica.app/...` with a synthetic `Cookie` header
+2. A request to a page route on `https://www-jp.umaxica.app/...` with a synthetic `Cookie` header
    reaches the Next.js origin without a `Cookie` header.
 3. A response from Next.js that attempts to emit `Set-Cookie` reaches the browser without
    `Set-Cookie`.
-4. A request to `https://jp.umaxica.app/api/v0/...` reaches Rails Core with the credential cookie
-   header intact.
-5. Requests to `https://jp.umaxica.app/oidc/callback`, `/sign/out`, `/sign/out/complete`, and
+4. A request to `https://www-jp.umaxica.app/api/v0/...` reaches Rails Core with the credential
+   cookie header intact.
+5. Requests to `https://www-jp.umaxica.app/oidc/callback`, `/sign/out`, `/sign/out/complete`, and
    `/api/v0/preferences/...` reach Rails Core with required cookies intact.
 6. A request to the preserved `https://side.jp.umaxica.app/api/v0/...` hostname with a synthetic
    `Cookie` header reaches Warp without a `Cookie` header, and Warp rejects any bypassed request
@@ -98,7 +104,7 @@ Before setting `CORE_BROWSER_JWT_COOKIE_ENABLED=1` in production, record evidenc
 
 ## Cloudflare Access Interaction
 
-Development published `jp.umaxica.{app,com,org}` through Cloudflare Tunnel behind a Cloudflare
+Development published `www-jp.umaxica.{app,com,org}` through Cloudflare Tunnel behind a Cloudflare
 Access application on 2026-08-10. Rails Core answers every path on those hostnames today; the
 Next.js origin does not exist yet, so the split above is not in force. Evidence:
 `research/implementation/2026-08-10-development-tunnel-access-verification.md`.
@@ -116,12 +122,13 @@ The `core-jp` application sets `http_only_cookie_attribute` to `false`, which ma
 one application with one policy and a shared session, so one authenticated session admits a
 principal to all three realms.
 
-Both are accepted for development and are not defects there. Both block treating `jp.umaxica.org` as
-production-ready: the cookie attribute collides with this boundary's invariant that JavaScript
-cannot read credential material, and the shared application prevents governing or revoking staff
-access independently of the end-user and corporate realms, which `AGENTS.md` requires to stay
-separate. Set `http_only_cookie_attribute` to `true` and give `jp.umaxica.org` its own application
-with its own policy before the staff realm carries production traffic. Open, not actioned.
+Both are accepted for development and are not defects there. Both block treating
+`www-jp.umaxica.org` as production-ready: the cookie attribute collides with this boundary's
+invariant that JavaScript cannot read credential material, and the shared application prevents
+governing or revoking staff access independently of the end-user and corporate realms, which
+`AGENTS.md` requires to stay separate. Set `http_only_cookie_attribute` to `true` and give
+`www-jp.umaxica.org` its own application with its own policy before the staff realm carries
+production traffic. Open, not actioned.
 
 ## Production Blocker
 

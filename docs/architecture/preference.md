@@ -1,5 +1,10 @@
 # Preference Architecture
 
+> **Surface amendment (2026-11-10):** Base and Visa preference-write controllers and routes have
+> been retired. Edit currently reads preference state for presentation and request context; no
+> Preference management route remains. The writer and authority descriptions below document the
+> former contract. Preference records and migrations remain for the next database review.
+
 > **Partially superseded by Identity Authority inversion:** The preference vocabulary in this
 > document remains useful only where it does not assign preference, settings, dashboard, or session
 > authority to `sign/id`. `acme/www` is the Session, Token, Account, Preference, Authorization, and

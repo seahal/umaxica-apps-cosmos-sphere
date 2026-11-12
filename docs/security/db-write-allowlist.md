@@ -11,22 +11,15 @@ authority to invent new state.
 
 ## Current Allowlist
 
-| ID  | Classification               | Request phase               | Expected write                                                                              | GET/HEAD lifecycle exception? | Current scope                                      |
-| --- | ---------------------------- | --------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------- |
-| W8  | Preference explicit update   | Preference write endpoint   | Persist an intentional preference update from PATCH/PUT/DELETE/POST.                        | No                            | non-GET preference endpoints                       |
-| W9  | Preference reset/rebootstrap | Preference reset endpoint   | Retire or replace the current shared preference and rebootstrap a fresh preference.         | No                            | explicit reset/delete endpoint                     |
-| W10 | Cookie consent write         | Web/API preference endpoint | Persist cookie-consent flags and receipt, then issue the committed Preference snapshot.     | No                            | Base app/org/com API and preference cookie screens |
-| W11 | Theme write                  | Web/API preference endpoint | Persist the submitted theme and issue the committed Preference snapshot.                    | No                            | Base app/org/com preference endpoints              |
-| W16 | OIDC callback                | Protocol callback           | Exchange code, create or update local session/token state, and complete callback lifecycle. | No                            | OIDC callback endpoints                            |
-| W17 | Social/auth callback         | Protocol callback           | Complete external login callback state and create or update local session/token state.      | No                            | social/OIDC ceremony callbacks                     |
-| W18 | Maintenance or repair task   | Explicit operator task      | Repair, admin, or maintenance writes performed outside ordinary read-only request handling. | No                            | explicitly invoked tasks only                      |
+| ID  | Classification             | Request phase          | Expected write                                                                              | GET/HEAD lifecycle exception? | Current scope                     |
+| --- | -------------------------- | ---------------------- | ------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------- |
+| W16 | OIDC callback              | Protocol callback      | Exchange code, create or update local session/token state, and complete callback lifecycle. | No                            | retained Edit (Org) OIDC callback |
+| W18 | Maintenance or repair task | Explicit operator task | Repair, admin, or maintenance writes performed outside ordinary read-only request handling. | No                            | explicitly invoked tasks only     |
 
-The former W1-W7 preference GET writes and W14-W15 authentication GET writes were removed from the
-allowlist on 2026-09-25 after checking the current request lifecycle. `set_preferences_cookie`
-returns through read-only preference loading for `GET`/`HEAD`; `transparent_refresh_allowed?`
-rejects browser navigation; and authenticated session activity tracking defaults off for
-`GET`/`HEAD`. The preference transport and authentication refresh records are changed only at their
-explicit write endpoints. W16-W17 remain separate protocol-callback write boundaries.
+Preference writes W8-W11 and social/auth callback writes W17 were removed with the former browser
+surfaces on 2026-11-11. Preference models and migrations remain for the next database review, but
+this application has no Preference write route. The remaining protocol callback boundary is the Edit
+(Org) OIDC callback. Earlier W1-W7 and W14-W15 GET-write entries were removed on 2026-09-25.
 
 W12 and W13, the former App/Org/Com login-time preference adoption writes, were retired on
 2026-10-31. Visa APP/ORG now performs one-way explicit-field sign-in reflection and a separate

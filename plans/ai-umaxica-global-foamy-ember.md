@@ -1,5 +1,9 @@
 # Plan: rails_performance / Coverband / Swagger UI on dedicated `*.umaxica.dev` hosts
 
+Historical plan: Sphere removed `rails_performance` on 2026-11-10 per
+`docs/backlog/2026-11-10-remove-rails-performance.md`. The request-performance dashboard steps below
+are superseded for Sphere; Coverband and Swagger remain.
+
 ## Context
 
 The Global Rails application has four operator dashboards (Mission Control Jobs, Flipper UI, Blazer,
@@ -23,12 +27,11 @@ these hosts correctly.
 
 1. **`performance.umaxica.dev`** — the request said `performace.umaxica.dev`; confirmed as a typo
    and corrected. The Cloudflare DNS record must be created with the corrected spelling.
-2. **`group :development` only** — same as `pghero` / `blazer` / `rails_db`. Consequence to record
-   in the ADR: **Coverband will only observe development code execution, not production.** That is a
-   deliberate departure from Coverband's usual purpose. Section 6 of the request
-   ("production相当環境で") is therefore _not_ satisfied; promoting to
-   `group :development, :production` is a separate, later decision that must also revisit
-   `mounted_engine_invariant_test.rb`.
+2. **`group :development` only** — same as `pghero` / `blazer`. Consequence to record in the ADR:
+   **Coverband will only observe development code execution, not production.** That is a deliberate
+   departure from Coverband's usual purpose. Section 6 of the request ("production相当環境で") is
+   therefore _not_ satisfied; promoting to `group :development, :production` is a separate, later
+   decision that must also revisit `mounted_engine_invariant_test.rb`.
 
 ### Execution constraint for this session
 
@@ -71,8 +74,7 @@ FQDN が必要な環境でのみ許可される" and never widens to `*.umaxica.
 
 ## Step 1 — Gems and lockfile
 
-`Gemfile`, inside `group :development`, each with a comment naming the risk (matching the `rails_db`
-comment style):
+`Gemfile`, inside `group :development`, each with a comment naming the risk:
 
 ```ruby
 # Server-side request performance dashboard. Development only: its own config/routes.rb calls

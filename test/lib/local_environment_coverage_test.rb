@@ -8,9 +8,7 @@ require "test_helper"
 class LocalEnvironmentCoverageTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  setup do
-    load Rails.root.join("lib/local_environment.rb").to_s
-  end
+  load Rails.root.join("lib/local_environment.rb").to_s
 
   test "load! is a no-op in production" do
     previous = ENV["RAILS_ENV"]
@@ -62,6 +60,14 @@ class LocalEnvironmentCoverageTest < ActiveSupport::TestCase
     assert_equal [nil, nil], LocalEnvironment.parse("# hi")
     assert_equal [nil, nil], LocalEnvironment.parse("1BAD=1")
     assert_equal ["OK", "1"], LocalEnvironment.parse("OK=1")
+  end
+
+  test "public parsing unquotes escaped double and single quoted values" do
+    assert_equal(
+      ["DOUBLE", "quote\" slash\\ newline\n return\r tab\t"],
+      LocalEnvironment.parse(%q(DOUBLE="quote\" slash\\ newline\n return\r tab\t")),
+    )
+    assert_equal ["SINGLE", "it's"], LocalEnvironment.parse(%q(SINGLE='it\'s'))
   end
 
   test "default_path points at the repository .env" do

@@ -35,12 +35,11 @@ class PrimaryDatabaseOwnershipTest < ActiveSupport::TestCase
   end
 
   test "specialized record classes keep their existing databases" do
-    assert_equal "publishing", PublishingRecord.connection_db_config.name
-    assert_equal "app_setting", AppSettingRecord.connection_db_config.name
-    assert_equal "com_setting", ComSettingRecord.connection_db_config.name
-    assert_equal "org_setting", OrgSettingRecord.connection_db_config.name
     assert_equal "chronicle", ChronicleRecord.connection_db_config.name
-    assert_equal "occurrence", OccurrenceRecord.connection_db_config.name
-    assert_equal "avatar", AvatarRecord.connection_db_config.name
+    assert_equal "rp_core_app", RpCoreAppRecord.connection_db_config.name
+    assert_equal "rp_core_org", RpCoreOrgRecord.connection_db_config.name
+    assert_equal "rp_warp_app", RpWarpAppRecord.connection_db_config.name
+    assert_equal "rp_warp_org", RpWarpOrgRecord.connection_db_config.name
+    assert_equal "rp_palm_app", RpPalmAppRecord.connection_db_config.name
   end
 end

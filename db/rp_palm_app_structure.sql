@@ -44,6 +44,9 @@ CREATE TABLE public.rp_callback_states (
     consumed_at timestamp(6) with time zone,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT chk_rp_callback_states_browser_binding_digest_bytes CHECK ((octet_length(browser_binding_digest) = 32)),
+    CONSTRAINT chk_rp_callback_states_nonce_digest_bytes CHECK ((octet_length(nonce_digest) = 32)),
+    CONSTRAINT chk_rp_callback_states_state_digest_bytes CHECK ((octet_length(state_digest) = 32)),
     CONSTRAINT chk_rp_palm_app_callback_states_cell CHECK ((((realm)::text = 'app'::text) AND ((client_id)::text = 'palm-app-jp'::text)))
 );
 
@@ -482,6 +485,8 @@ ALTER TABLE ONLY public.rp_sessions
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261112113749'),
+('20261112113747'),
 ('20261025100000'),
 ('20261023130001'),
 ('20261023130000'),

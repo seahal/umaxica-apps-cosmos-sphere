@@ -107,33 +107,18 @@ class CoreBrowserOriginBoundaryTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       csrf = response.parsed_body.fetch("csrf_token")
-      expiry = 2.minutes.from_now.change(usec: 0)
-      attributes = {
-        oidc_scope: "openid profile",
-        oidc_jti: SecureRandom.uuid,
-        oidc_nonce: SecureRandom.hex(16),
-        oidc_auth_time: 1.minute.ago,
-        refresh_token_expires_at: expiry,
-      }
-      rp =
-        case setting
-        when "PUBLIC_CORE_SERVICE_URL"
-          OpAppGrant.create!(
-            authentication_epoch: 0, client_token: client_tokens(:one), oidc_client_id: "core-app-jp",
-            **attributes,
-          )
-        when "PUBLIC_CORE_STAFF_URL"
-          OpOrgGrant.create!(
-            authentication_epoch: 0,
-            operator_token: operator_tokens(:one), oidc_client_id: "core-org-jp",
-            **attributes,
-          )
-        else
-          raise ArgumentError, "unsupported test surface"
-        end
-      cookies[OidcRpBrowserCredentialContract::REFRESH_COOKIE] = rp.issue_refresh_token!(expires_at: expiry)
-      original_digest = rp.refresh_token_digest
-      original_expiry = rp.refresh_token_expires_at
+      cell = RpCellBinding.fetch((setting == "PUBLIC_CORE_SERVICE_URL") ? "rp_core_app" : "rp_core_org")
+      enrollment = RpCallbackCommitter.call(
+        cell:, issuer: OidcIssuer.for_resource_type((setting == "PUBLIC_CORE_SERVICE_URL") ? "client" : "operator"),
+        subject: "origin-subject", sid: "origin-#{cell.connection}", absolute_expires_at: 10.minutes.from_now,
+      )
+
+      assert_predicate enrollment, :success?
+      rp = enrollment.session
+      cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = rp.public_id
+      cookies[OidcRpBrowserCredentialContract::REFRESH_COOKIE] = "external-session.external-secret"
+      original_generation = rp.installed_generation
+      original_expiry = rp.absolute_expires_at
 
       post "/api/v0/token/refresh", headers: {
         "Accept" => "application/json",
@@ -145,10 +130,8 @@ class CoreBrowserOriginBoundaryTest < ActionDispatch::IntegrationTest
       assert_response :forbidden
       rp.reload
 
-      assert_equal original_digest, rp.refresh_token_digest
-      assert_equal original_expiry, rp.refresh_token_expires_at
-      assert_nil rp.previous_refresh_token_digest
-      assert_nil rp.refresh_token_rotated_at
+      assert_equal original_generation, rp.installed_generation
+      assert_equal original_expiry, rp.absolute_expires_at
       assert_nil rp.revoked_at
     end
   end

@@ -1,7 +1,13 @@
 # Authentication
 
-Applies to browser authentication on each supported surface; method availability remains
-surface-specific. These are durable requirements, not current verification results.
+> **Scope after the 2026-11-10 hard reset:** Only Edit (`org`) Browser RP authentication remains
+> served by this repository. AUTH-1, AUTH-3, AUTH-9–13, AUTH-15, and AUTH-17 still describe retained
+> browser-RP boundaries. Other items below describe retired Auth/Base/identity workflows and are
+> retained as traceability, not as active route requirements. See the accepted
+> [surface hard-reset spec](../../specs/sphere-operator-tools-hard-reset/spec.md) and the
+> [Browser RP checklist](browser-rp.md).
+
+These are durable requirements for their stated scope, not current verification results.
 
 - AUTH-1: State-changing browser requests retain Rails CSRF, Origin and Fetch Metadata protection;
   ceremony binding adds protection rather than replacing it. Scoped exceptions: the Sign-in path
@@ -83,11 +89,11 @@ surface-specific. These are durable requirements, not current verification resul
   cold JWKS client reuse the fresh key fetched by the first request when the distributed window
   identifies that key as recently published (D-144).
 
-- AUTH-18: APP/ORG Passkey lifecycle mutations and their audit outbox facts share the owning
-  principal transaction. Additional metadata cannot replace the authoritative surface, target UUID
-  or actor reference. Delivery preserves nil system actors and business occurrence time after
-  credential deletion; retry after Chronicle commit before acknowledgement creates no second event.
-  See [Passkey lifecycle and audit](../security/passkey-lifecycle-and-audit.md).
+- AUTH-18: The scheduled Passkey audit job delivers retained outbox facts by immutable event UUID,
+  validates source-owned metadata, and acknowledges only after the Chronicle row exists. A failure
+  leaves the source row retryable and is surfaced after later rows are attempted. Interactive
+  Passkey lifecycle routes are retired. See
+  [Passkey lifecycle and audit](../security/passkey-lifecycle-and-audit.md).
 - AUTH-19: APP/ORG sign-in and APP sign-up: a Base → Auth admission reference (`entry_ref`) or an
   Auth → Base result reference presented from any browser other than the one that started the flow
   never attaches a ceremony that Base confirms, never redeems the admission, never yields an
@@ -119,18 +125,17 @@ surface-specific. These are durable requirements, not current verification resul
   outage degradation still refuses missing/empty tokens, failed challenges and missing secrets; only
   explicitly upstream-unavailable results may pass under the incident flag. See
   [Turnstile](../security/turnstile.md).
-- AUTH-23: APP email sign-in resend requires confirmed admission, original browser/surface
-  binding and an unexpired authenticated state. Cross-browser, expired and retargeted states cannot
+- AUTH-23: APP email sign-in resend requires confirmed admission, original browser/surface binding
+  and an unexpired authenticated state. Cross-browser, expired and retargeted states cannot
   dispatch; destination cooldown and verification budgets remain effective. This bound continuation
   needs no fresh CAPTCHA. See
   [resend exception](../security/turnstile.md#email-sign-in-resend-exception).
-- AUTH-24: APP unbound email candidates cannot select an actor or receive login/recovery OTP,
-  even if their email status says VERIFIED. Rejected attempts preserve the candidate and issue no
-  login credentials. See
-  [binding contract](../security/identity-resolution-and-credential-binding.md).
-- AUTH-25: APP security-lock recovery requires the existing verified effective email OTP proof
-  and an eligible account lock. Recovery authority is scoped to lock recovery and does not itself
-  issue a login session or reset a password. See
+- AUTH-24: APP unbound email candidates cannot select an actor or receive login/recovery OTP, even
+  if their email status says VERIFIED. Rejected attempts preserve the candidate and issue no login
+  credentials. See [binding contract](../security/identity-resolution-and-credential-binding.md).
+- AUTH-25: APP security-lock recovery requires the existing verified effective email OTP proof and
+  an eligible account lock. Recovery authority is scoped to lock recovery and does not itself issue
+  a login session or reset a password. See
   [recovery scope](../security/credential-gateway.md#current-security-lock-recovery-scope).
 
 - AUTH-26: First-party Auth/Preference access and OIDC token verification applies the fixed
@@ -146,16 +151,16 @@ surface-specific. These are durable requirements, not current verification resul
   requests. Challenge cookies use fixed-length selected-Operator binding or a non-authenticating
   sentinel. Missing, disabled, wrong-owner and invalid-signature Passkey assertions share the
   generic credential refusal and verification response floor.
-- AUTH-29: APP withdrawal and security-lock recovery keep real/dummy session payload lengths
-  equal, cover complete OTP issuance with the response floor, and never authenticate dummy state.
+- AUTH-29: APP withdrawal and security-lock recovery keep real/dummy session payload lengths equal,
+  cover complete OTP issuance with the response floor, and never authenticate dummy state.
 - AUTH-30: Closed Org invitation provisioning refuses every invitation state before code lookup,
   preserves existing records and retains the common surface rate limit. See
   [nondisclosure decisions](../../adr/credential-response-nondisclosure.md).
 
-- AUTH-31: APP/ORG authorization-code coordination preserves the request validator's protocol
-  error classification: an unsupported response type is `unsupported_response_type`, an inactive
-  resource is `access_denied`, and a disallowed scope is `invalid_scope`. Refused requests return no
-  success redirect; missing required parameters remain `invalid_request`. See
+- AUTH-31: APP/ORG authorization-code coordination preserves the request validator's protocol error
+  classification: an unsupported response type is `unsupported_response_type`, an inactive resource
+  is `access_denied`, and a disallowed scope is `invalid_scope`. Refused requests return no success
+  redirect; missing required parameters remain `invalid_request`. See
   [authorization request profile](../../adr/oidc-authorization-request-profile.md).
 
 - AUTH-32: APP Google/Apple callbacks resolve the verified issuer/subject under the admitted intent.

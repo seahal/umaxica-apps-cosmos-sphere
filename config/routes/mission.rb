@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # Mission owns the Solid Queue job-monitoring surface (Mission Control Jobs) for this
-# application's own Global job queue. Public canonical host: mission.umaxica.dev.
+# application's own Global job queue. Public canonical host: mission-sphere-jp.umaxica.dev.
 # Development host: mission.core.dev.localhost.
 constraints host: [ENV["PUBLIC_MISSION_URL"], ENV["PRIVATE_MISSION_URL"], "mission.core.dev.localhost"].compact do
   # Cloudflare Access fronts this host, but the mounted engine's controllers are not this

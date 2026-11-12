@@ -15,9 +15,8 @@ particular service, and a host firewall is not an acceptable substitute for it.
    `127.0.0.1:3001:3000`, never `3001:3000`. A `ports:` entry with no host address makes Podman bind
    `0.0.0.0`, which places the service on every host interface — LAN, Wi-Fi, Ethernet, and Tailscale
    included.
-3. **Host-native datastore access is loopback-only.** PostgreSQL (`primary`, `replica`) and Valkey
-   publish only explicit `127.0.0.1` mappings for host-native Rails (`5432`/`5433`, `6379`, `6380`,
-   and `6381`). Containers continue to use Compose DNS names.
+3. **Datastores are never published.** PostgreSQL (`primary`, `replica`) and Valkey are reached only
+   by Compose DNS name; host-native Rails is not supported.
 
 ## Container Bind and Host Publication Are Separate Decisions
 
@@ -38,58 +37,24 @@ changing nothing about host exposure.
 
 ## Current Publications
 
-| Service                         | Host publication           | Why                                                                                                                     |
-| ------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `core` (Rails, 3000)            | `127.0.0.1:3001`           | Keeps host port `3000` available for host-native Rails while forwarding host browser traffic to container port `3000`.  |
-| `core` (Vite, 3036)             | `127.0.0.1:3036`           | `@vite/client` opens its HMR socket to the dev server from the browser.                                                 |
-| `core` (noVNC, 6080)            | `127.0.0.1:6080`           | The developer's own browser watches the container's browser desktop. RFB (5900) stays inside the container.             |
-| `primary` (writer)              | `127.0.0.1:5432`           | Host-native Rails writer; containers use `primary:5432`.                                                                |
-| `replica` (reader)              | `127.0.0.1:5433`           | Host-native Rails reader; containers use `replica:5432`.                                                                |
-| `valkey-cache`                  | `127.0.0.1:6380`           | Rails.cache. Dev Container uses Compose DNS `valkey-cache:6379`.                                                        |
-| `valkey-kvs`                    | `127.0.0.1:6381`           | Rate-limit and auth-state. Dev Container uses Compose DNS `valkey-kvs:6379`.                                            |
-| `valkey`                        | `127.0.0.1:6379`           | Compatibility + diagnostic dashboards. Not a canonical cache or KVS endpoint.                                           |
-| `loki`, `tempo`, `prometheus`   | none                       | Storage backends behind the Alloy gateway. Reached only by Alloy and Grafana on the `observability` network.            |
-| `alloy` (OTLP/HTTP, 4318)       | `127.0.0.1:4318`           | Host-native Rails exports telemetry here; it resolves no Compose DNS name. See "The two observability listeners" below. |
-| `alloy` (12345, OTLP/gRPC 4317) | none                       | The management UI is an unauthenticated control surface; nothing on the host speaks OTLP/gRPC.                          |
-| `grafana`                       | `127.0.0.1:13000`          | The developer's own browser. 3000/3001 belong to Rails, so the UI takes 13000.                                          |
-| `cloudflare-tunnel`             | none, and none is possible | The connector is outbound-only.                                                                                         |
+Each Cosmos repository publishes exactly one host port: its Dev Container Rails. The four
+repositories use different host ports so their Dev Containers can run side by side:
 
-### The two observability listeners
+| Repository                       | Host publication | Container port |
+| -------------------------------- | ---------------- | -------------- |
+| `umaxica-apps-cosmos-access`     | `127.0.0.1:3001` | `core:3000`    |
+| `umaxica-apps-cosmos-governance` | `127.0.0.1:3002` | `core:3000`    |
+| `umaxica-apps-cosmos-press`      | `127.0.0.1:3003` | `core:3000`    |
+| `umaxica-apps-cosmos-sphere`     | `127.0.0.1:3004` | `core:3000`    |
 
-Development observability publishes exactly two host ports, both loopback:
+Everything else is reached over Compose networks by service name and has no host publication:
+PostgreSQL (`primary`, `replica`), Valkey (`valkey`, `valkey-cache`, `valkey-kvs`), Vite (3036),
+noVNC (6080), fakecloud (4566), Grafana, Alloy, Tempo, Prometheus and Loki. Host-native Rails is not
+supported, so nothing on the host needs a datastore or telemetry port. Without the Vite publication,
+assets still load through Rails, but browser hot module replacement does not connect.
 
-```text
-127.0.0.1:13000 -> Grafana        (browser UI for this machine only)
-127.0.0.1:4318  -> Alloy OTLP/HTTP (telemetry ingress for host-native Rails)
-```
-
-Nothing else in the observability group is reachable from the host. Tempo (3200/4317/4318),
-Prometheus (9090), Loki (3100) and the Alloy management UI (12345) are consumed over the
-`observability` network by service name, and adding a publication for any of them creates an
-ingestion or query path that bypasses the single Alloy gateway
-(`adr/traces-and-metrics-routing-via-alloy.md`).
-
-Grafana keeps its upstream container port `3000`; only the host side is 13000, because host `3000`
-is host-native Rails and `3001` is Dev Container Rails. Grafana attaches to `observability` alone —
-never to `frontend` — so no Cloudflare Tunnel ingress and no Tailscale route can reach it. It is a
-local-only UI, and its admin credentials (`GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`, default
-`admin`/`admin`) are development-only values that assume exactly this loopback boundary. Overriding
-them in the gitignored `.env` is supported; publishing Grafana anywhere else is not.
-
-Host-native Rails reaches the ingress with:
-
-```text
-OPEN_TELEMETRY=true
-OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
-```
-
-Compose `core` keeps the container-network form instead: `http://alloy:4318`. The two are not
-interchangeable — `alloy` does not resolve on the host, and `127.0.0.1` inside a container is the
-container itself.
-
-IPv6: rootless Podman publishes these as IPv4 only, so no `::`-bound listener is created. The
-loopback form pins the IPv4 side explicitly. If a future service needs IPv6 loopback, write
-`[::1]:PORT:PORT` as a second, equally explicit entry — never a bare `PORT:PORT`.
+`test/tooling/compose_host_port_exposure_test.rb` pins this: only `core` publishes, only container
+port `3000`, and only to loopback.
 
 ## Kafka
 
@@ -131,26 +96,16 @@ Run on the **host**, not inside a container:
 
 ```sh
 podman ps --format 'table {{.Names}}\t{{.Ports}}'
-sudo ss -lntup | grep -E ':(3000|3001|3036|6080|9092|5432|5433|6379|6380|6381|13000|4318)\b'
+sudo ss -lntup | grep -E ':(3001|3002|3003|3004)\b'
 ```
 
-Expected: `core` shows `127.0.0.1:3001->3000/tcp`, `primary` shows `127.0.0.1:5432->5432/tcp`,
-`replica` shows `127.0.0.1:5433->5432/tcp`, `valkey` shows `127.0.0.1:6379->6379/tcp`,
-`valkey-cache` shows `127.0.0.1:6380->6379/tcp`, `valkey-kvs` shows `127.0.0.1:6381->6379/tcp`. The
-Dev Container `core` service shows loopback-only Rails publications when the combined config is
-used. No line anywhere contains `0.0.0.0`, `*`, or a LAN address for these services. `grafana` shows
-`127.0.0.1:13000->3000/tcp` and `alloy` shows `127.0.0.1:4318->4318/tcp`; `tempo`, `prometheus` and
-`loki` show no host mapping at all.
+Expected: each running repository's `core` shows its own `127.0.0.1:300N->3000/tcp`, and no other
+container shows a host mapping. No line contains `0.0.0.0`, `*`, or a LAN address.
+
+From a second machine on the same LAN, this must fail to connect:
 
 ```sh
-curl -f http://127.0.0.1:13000/api/health   # Grafana answers; the LAN address must not
-```
-
-From a second machine on the same LAN, both of these must fail to connect:
-
-```sh
-curl --max-time 5 http://<host-lan-ip>:3001/health
-curl --max-time 5 http://<host-lan-ip>:3036/
+curl --max-time 5 http://<host-lan-ip>:3001/
 ```
 
 The container-network path is gated separately by the transport probe in

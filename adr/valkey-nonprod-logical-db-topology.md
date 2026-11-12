@@ -2,13 +2,12 @@
 
 ## Status
 
-Accepted (2026-09-13). Partially superseded (2026-09-19) for **physical service
-topology** and **application configuration**: nonprod runs `valkey-cache` and
-`valkey-kvs` as separate Compose services (plus a compatibility `valkey` for
-rails_performance / Coverband). Development vs test isolation remains logical
-DBs on those shared instances; this ADR is not authorization to create
-per-environment or per-worker Valkey services. Canonical logical DB indexes
-live in Rails `config/valkey.yml` and must not be re-canonicalized in Compose.
+Accepted (2026-09-13). Partially superseded (2026-09-19) for **physical service topology** and
+**application configuration**: nonprod runs `valkey-cache` and `valkey-kvs` as separate Compose
+services (plus a compatibility `valkey` for Coverband). Development vs test isolation remains
+logical DBs on those shared instances; this ADR is not authorization to create per-environment or
+per-worker Valkey services. Canonical logical DB indexes live in Rails `config/valkey.yml` and must
+not be re-canonicalized in Compose.
 
 Supersedes the **development/test physical-service isolation** claims in
 `adr/valkey-cache-and-rate-limit-stores.md` and
@@ -27,27 +26,25 @@ plan's one-service / six-logical-DB layout.
 **Development and test share one Valkey service and one volume.** Responsibilities stay named in
 URLs (never a generic `REDIS_URL`):
 
-| Responsibility          | Dev DB | Test DB |
-| ----------------------- | ------ | ------- |
-| `CACHE_REDIS_URL`       | 0      | 3       |
-| `RATE_LIMIT_REDIS_URL`  | 1      | 4       |
-| `AUTH_STATE_REDIS_URL`  | 2      | 5       |
-| `PERFORMANCE_REDIS_URL` | 12     | 14      |
-| `COVERBAND_REDIS_URL`   | 13     | 15      |
+| Responsibility         | Dev DB | Test DB |
+| ---------------------- | ------ | ------- |
+| `CACHE_REDIS_URL`      | 0      | 3       |
+| `RATE_LIMIT_REDIS_URL` | 1      | 4       |
+| `AUTH_STATE_REDIS_URL` | 2      | 5       |
+| `COVERBAND_REDIS_URL`  | 13     | 15      |
 
-Amended 2026-09-17: `PERFORMANCE_REDIS_URL` and `COVERBAND_REDIS_URL` back the development-only
-diagnostic dashboards (`adr/diagnostic-surfaces-performance-coverband-swagger.md`). They get their
-own logical DBs rather than a namespace inside an existing one because `rails_performance` reads
-with `redis.keys("performance|*")`, an O(keyspace) blocking scan; confined to its own DB it cannot
-stall cache, rate-limit, or auth-state. The test rows are declared so `assert_nonprod_db!` has an
-expected index to validate against, but nothing connects to them — both gems are
-`group :development` — and they are deliberately absent from
+Amended 2026-09-17: `COVERBAND_REDIS_URL` backs the development-only diagnostic dashboard
+(`adr/diagnostic-surfaces-performance-coverband-swagger.md`) in its own logical DB. Its test row is
+declared so `assert_nonprod_db!` has an expected index to validate against, but nothing connects to
+it — Coverband is `group :development` — and it is deliberately absent from
 `Umaxica::Valkey::TestTarget::URL_NAMES` so test boot does not demand variables it will never use.
 
-Both are resolved by `Umaxica::Valkey::ResponsibilityUrls.require_url`, which uses one-argument
-`ENV.fetch`. That matters more here than elsewhere: handed no URL, both gems fall back to
-`redis://127.0.0.1:6379/0` — DB 0, the application cache — so a missing variable would not fail, it
-would quietly write observability data into `Rails.cache`.
+Coverband is resolved through `Umaxica::Valkey::ResponsibilityUrls.require_url`, which uses
+one-argument `ENV.fetch`. A missing URL must fail rather than silently use the gem's default
+`redis://127.0.0.1:6379/0` (DB 0, the application cache).
+
+Amended 2026-11-10: Sphere removed the `performance` responsibility. Logical DB 12 (development) and
+DB 14 (test) are retired from application configuration; no Valkey data was cleared or changed.
 
 Application code talks only through `Umaxica::Valkey::Connection` for auth-state and through the
 existing Rails cache / rate-limit stores for the other two contracts. Auth-state keys are namespaced
@@ -62,33 +59,30 @@ this ADR does not force logical DBs in production.
 
 ## Amendment (2026-09-19)
 
-Application configuration is `config/valkey.yml`, loaded by
-`Umaxica::Valkey::Settings`. Consumers read cache / rate-limit / auth-state;
-they do not branch on `Rails.env` to pick a host.
+Application configuration is `config/valkey.yml`, loaded by `Umaxica::Valkey::Settings`. Consumers
+read cache / rate-limit / auth-state; they do not branch on `Rails.env` to pick a host.
 
 The nonprod application DB pairs are now adjacent odd/even indexes:
 
-| Responsibility | Development | Test                         |
-| -------------- | ----------- | ---------------------------- |
-| cache          | DB 1        | DB 2 reserved; MemoryStore   |
-| rate-limit     | DB 3        | DB 4                         |
-| auth-state     | DB 5        | DB 6                         |
+| Responsibility | Development | Test                       |
+| -------------- | ----------- | -------------------------- |
+| cache          | DB 1        | DB 2 reserved; MemoryStore |
+| rate-limit     | DB 3        | DB 4                       |
+| auth-state     | DB 5        | DB 6                       |
 
-`valkey-cache` serves development cache. The ordinary test suite does not
-connect to cache Valkey. Rate-limit and auth-state use `valkey-kvs`.
+`valkey-cache` serves development cache. The ordinary test suite does not connect to cache Valkey.
+Rate-limit and auth-state use `valkey-kvs`.
 
-`VALKEY_TEST_HOST` / `VALKEY_TEST_PORT` and hand-exported
-`CACHE_REDIS_URL` / `RATE_LIMIT_REDIS_URL` / `AUTH_STATE_REDIS_URL` are no
-longer part of the test boot contract. Production still uses those URL names
-as `url_key` values and fails fast when they are missing.
+`VALKEY_TEST_HOST` / `VALKEY_TEST_PORT` and hand-exported `CACHE_REDIS_URL` / `RATE_LIMIT_REDIS_URL`
+/ `AUTH_STATE_REDIS_URL` are no longer part of the test boot contract. Production still uses those
+URL names as `url_key` values and fails fast when they are missing.
 
-Parallel Minitest workers share the test logical DBs. Isolation is
-`<run-id>:<worker-id>` key namespaces, not extra DBs or extra services.
-`scripts/test-isolated` is optional; `bundle exec rails test` is the entry
-point.
+Parallel Minitest workers share the test logical DBs. Isolation is `<run-id>:<worker-id>` key
+namespaces, not extra DBs or extra services. `scripts/test-isolated` is optional;
+`bundle exec rails test` is the entry point.
 
-The 2026-09-13 table above remains the historical mapping (cache 0/3,
-rate-limit 1/4, auth-state 2/5).
+The 2026-09-13 table above remains the historical mapping (cache 0/3, rate-limit 1/4, auth-state
+2/5).
 
 ## Consequences
 

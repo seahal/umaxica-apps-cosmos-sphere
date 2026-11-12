@@ -13,7 +13,7 @@ module CoreBrowserApiBoundary
     # Every endpoint on this boundary answers per-subject state derived from a credential cookie, and
     # the session endpoint hands out a CSRF token. None of it may sit in a shared cache, so the
     # directive belongs to the boundary rather than to whichever action remembers to set it.
-    before_action :set_core_browser_api_no_store!
+    prepend_before_action :set_core_browser_api_no_store!
   end
 
   private
@@ -186,7 +186,7 @@ module CoreBrowserApiBoundary
       transport: :cookie,
       channel: :browser,
       authn: Actor::Authentication.new(
-        login_public_id: AuthorizationTokenClaims.session_id(current_token_payload),
+        login_public_id: current_token_payload.fetch("sid"),
         access_claims: current_token_payload,
         acr: current_token_payload["acr"],
         amr: current_token_payload["amr"],
@@ -198,10 +198,8 @@ module CoreBrowserApiBoundary
         token_claims: current_token_payload,
         surface: core_actor_tld,
       ),
-      preferences: Actor::Preference::NULL,
       configuration: Actor::Configuration::NULL,
       step_up: Actor::StepUp::NULL,
-      selection: Actor::SelectedContext::NULL,
       trace_id: observability_context.trace_id,
       span_id: observability_context.span_id,
     )

@@ -7,51 +7,16 @@ module Security
   class PublicEntrypointInventoryTest < ActiveSupport::TestCase
     self.fixture_table_names = []
 
-    APP_CONTROLLER_PREFIXES = %w(
-      auth base core warp docs guid help info news palm tech
-    ).freeze
-
-    APPLICATION_CLASS_PREFIXES = %w(
-      Auth:: Base:: Core:: Warp:: Docs:: Guid:: Help:: Info:: News:: Palm:: Tech::
-    ).freeze
-
+    APPLICATION_PREFIXES = %w(core warp palm).freeze
+    RETIRED_PREFIXES = %w(auth base guid tech visa docs edit help info news performance).freeze
     PUBLIC_MODES = %i(bare open guest).freeze
     PRIVATE_MODES = %i(private deny_all).freeze
-
     DOCUMENT_PATH = Rails.root.join("docs/security/public-entrypoints.md")
     DOCUMENTED_CATEGORY_IDS = %w(
-      PUBLIC_ROOTS
-      PUBLIC_DASHBOARD
-      PUBLIC_LOCAL_AUTH_ADMISSION
-      PUBLIC_LOBBY
-      PUBLIC_HEALTH
-      PUBLIC_REVISION
-      PUBLIC_CSP_REPORTS
-      PUBLIC_WELL_KNOWN
-      PUBLIC_ROBOTS_SITEMAPS
-      PUBLIC_PWA_OFFLINE
-      PUBLIC_CONTENT_READ_APIS
-      PUBLIC_PREFERENCE
-      PUBLIC_WEB_EDGE
-      PUBLIC_OAUTH_OIDC_SSO
-      PUBLIC_SIGN_IN_UP
-      PUBLIC_AUTH_STEP_UP
-      PUBLIC_SIGN_OUT
-      PUBLIC_WITHDRAWAL
-      PUBLIC_IDENTITY_RECOVERY
-      PUBLIC_SOCIAL
-      PUBLIC_AUTH_APP_SETTINGS_COMPAT
-      PUBLIC_CORE_API
-      PUBLIC_WARP_SETTINGS
-      PUBLIC_APPLE_NOTIFICATIONS
-      PUBLIC_MCP
-      PUBLIC_GUID_RESOLUTION
-      PUBLIC_BASE_OWNER_API
+      PUBLIC_ROOTS PUBLIC_DASHBOARD PUBLIC_HEALTH PUBLIC_REVISION PUBLIC_CSP_REPORTS
+      PUBLIC_WELL_KNOWN PUBLIC_ROBOTS_SITEMAPS PUBLIC_PREFERENCE PUBLIC_OAUTH_OIDC_SSO
+      PUBLIC_SIGN_IN_UP PUBLIC_SIGN_OUT PUBLIC_CORE_API PUBLIC_WARP_SETTINGS PUBLIC_PWA_OFFLINE
     ).freeze
-
-    BASE_OWNER_API_PATH = %r{
-      \A/api/v0/(avatar|membership|iam|support|publishing|identity/(?:standing|selection)|tech-capability-checks)\b
-    }x
 
     RouteEntry = Struct.new(:verb, :path, :controller_path, :action, :controller_class, :mode, keyword_init: true)
 
@@ -63,7 +28,16 @@ module Security
       end
     end
 
-    test "application routes resolve to locally declared authentication modes" do
+    test "retired controller namespaces do not own application routes" do
+      routed = Rails.application.routes.routes.filter_map do |route|
+        controller = route.defaults[:controller].to_s
+        controller if RETIRED_PREFIXES.include?(controller.split("/").first)
+      end.uniq
+
+      assert_empty routed
+    end
+
+    test "owned application routes resolve to local authentication declarations" do
       missing =
         application_route_entries.filter_map do |entry|
           next if local_authentication_declaration?(entry.controller_class)
@@ -74,7 +48,7 @@ module Security
       assert_empty missing, "Application routes must declare authentication mode locally:\n#{missing.join("\n")}"
     end
 
-    test "public application routes are covered by the documented public categories" do
+    test "every public application route matches a documented category" do
       undocumented =
         application_route_entries.filter_map do |entry|
           next unless PUBLIC_MODES.include?(entry.mode)
@@ -86,7 +60,7 @@ module Security
       assert_empty undocumented, "Public routes need a documented category:\n#{undocumented.join("\n")}"
     end
 
-    test "private and deny-all routes are not public entrypoints" do
+    test "private and deny-all routes do not match public categories" do
       wrongly_public =
         application_route_entries.filter_map do |entry|
           next unless PRIVATE_MODES.include?(entry.mode)
@@ -98,37 +72,35 @@ module Security
       assert_empty wrongly_public, "Private routes must not match public categories:\n#{wrongly_public.join("\n")}"
     end
 
-    test "Auth admission attachment is GET-only on the account surfaces" do
-      entries =
-        application_route_entries.select do |entry|
-          entry.controller_path.match?(%r{\Aauth/(app|org)/ceremony_bindings\z})
+    test "unknown-host root remains the only application route outside the owned surface namespaces" do
+      application_controllers =
+        Rails.application.routes.routes.filter_map do |route|
+          route.defaults[:controller].to_s.presence
         end
 
-      assert_equal 2, entries.size
-      assert_equal ["GET"], entries.map(&:verb).uniq
-      assert_equal ["show"], entries.map(&:action).uniq
-      assert_equal ["/ceremony_bindings"], entries.map(&:path).uniq
+      unexpected =
+        application_controllers.reject do |controller|
+          controller == "unknown_hosts" || controller == "rails/pwa" ||
+            controller == "inertia_rails/devtools/entries" ||
+            APPLICATION_PREFIXES.include?(controller.split("/").first)
+        end
+
+      assert_empty unexpected
+      assert_includes application_controllers, "unknown_hosts"
     end
 
-    test "PUBLIC_PWA_OFFLINE covers exactly the two Rails PWA endpoints" do
-      # Rails::PwaController is a framework controller, so these routes are outside
-      # application_route_entries by construction. They are still public entrypoints, so the category
-      # is enforced here instead. See adr/pwa-offline-route-exception.md.
+    test "PUBLIC_PWA_OFFLINE covers exactly the Warp and Palm framework endpoints" do
       entries =
         Rails.application.routes.routes.filter_map do |route|
-          controller_path = route.defaults[:controller].to_s
-          next unless controller_path == "rails/pwa"
+          next unless route.defaults[:controller] == "rails/pwa"
 
-          [route.verb, route.path.spec.to_s.sub(/\(\.:format\)\z/, ""), route.defaults[:action].to_s]
+          [route.verb, route.path.spec.to_s.sub(/\(\.:format\)\z/, ""), route.defaults[:action]]
         end
 
-      # Auth retired its Worker, so seven Base, Warp and Palm hosts publish the two Rails PWA endpoints.
-      assert_equal 14, entries.size, "expected two PWA endpoints on each of the seven base/warp/palm hosts"
+      assert_equal 6, entries.size
       assert_equal ["GET"], entries.map(&:first).uniq
-      assert_equal(
-        [["/offline", "offline"], ["/service-worker", "service_worker"]],
-        entries.map { |entry| entry.drop(1) }.uniq.sort,
-      )
+      assert_equal [["/offline", "offline"], ["/service-worker", "service_worker"]],
+                   entries.map { |entry| entry.drop(1) }.uniq.sort
     end
 
     private
@@ -138,7 +110,7 @@ module Security
         controller_path = route.defaults[:controller].to_s
         action = route.defaults[:action].to_s
         next if controller_path.blank? || action.blank?
-        next unless application_controller_path?(controller_path)
+        next unless APPLICATION_PREFIXES.include?(controller_path.split("/").first)
 
         controller_class = "#{controller_path.camelize}Controller".safe_constantize
         mode = authentication_mode(controller_class, action)
@@ -154,14 +126,8 @@ module Security
       end
     end
 
-    def application_controller_path?(controller_path)
-      APP_CONTROLLER_PREFIXES.any? { |prefix| controller_path.start_with?("#{prefix}/") }
-    end
-
     def authentication_mode(controller_class, action)
       flunk("Missing controller class for application route") if controller_class.blank?
-      flunk("Unexpected controller class #{controller_class.name}") unless
-        application_controller_class?(controller_class)
 
       if controller_class.respond_to?(:authentication_mode_for)
         controller_class.authentication_mode_for(action)
@@ -172,10 +138,6 @@ module Security
       end
     end
 
-    def application_controller_class?(controller_class)
-      controller_class.name.start_with?(*APPLICATION_CLASS_PREFIXES)
-    end
-
     def local_authentication_declaration?(controller_class)
       controller_class.const_defined?(:AUTHENTICATION_MODE, false) ||
         (controller_class.respond_to?(:local_authentication_mode_rules) &&
@@ -183,191 +145,48 @@ module Security
     end
 
     def documented_public_category(entry)
-      return false unless PUBLIC_MODES.include?(entry.mode)
-
-      documented_public_content?(entry) || documented_public_auth?(entry) || documented_public_api?(entry)
+      public_root?(entry) || public_health?(entry) || public_revision?(entry) ||
+        public_csp_report?(entry) || public_well_known?(entry) || public_robots_or_sitemap?(entry) ||
+        public_preference?(entry) || public_oidc?(entry) || public_sign_entry?(entry) ||
+        public_sign_out?(entry) || public_core_api?(entry) || public_warp_dashboard_or_settings?(entry)
     end
 
-    def documented_public_content?(entry)
-      public_root?(entry) ||
-        public_service_worker_retirement?(entry) ||
-        public_legacy_dashboard?(entry) ||
-        public_local_auth_admission?(entry) ||
-        public_lobby?(entry) ||
-        public_health?(entry) ||
-        public_revision?(entry) ||
-        public_csp_report?(entry) ||
-        public_well_known?(entry) ||
-        public_robots_or_sitemap?(entry) ||
-        public_content_read_api?(entry) ||
-        public_preference?(entry) ||
-        public_web_or_edge?(entry)
-    end
-
-    def documented_public_auth?(entry)
-      public_oauth_oidc_or_sso?(entry) ||
-        public_sign_in_or_up?(entry) ||
-        public_auth_step_up?(entry) ||
-        public_sign_out?(entry) ||
-        public_withdrawal?(entry) ||
-        public_identity_recovery?(entry) ||
-        public_social?(entry) ||
-        public_auth_app_settings_compat?(entry)
-    end
-
-    def documented_public_api?(entry)
-      public_core_api?(entry) ||
-        public_warp_settings?(entry) ||
-        public_apple_notification?(entry) ||
-        public_mcp?(entry) ||
-        public_guid_resolution?(entry) ||
-        public_base_owner_api?(entry)
-    end
-
-    # Base Self-RP to owner calls (R5-WU12/14/15). Browser-unreachable in practice: each call is
-    # gated by the caller's URL-bound private_key_jwt plus the actor's Access JWT, not a session.
-    def public_base_owner_api?(entry)
-      entry.controller_path.match?(%r{\Abase/(app|com|org)/api/v0/}) &&
-        entry.path.match?(BASE_OWNER_API_PATH)
-    end
-
-    # Base and Warp only. Auth and the content surfaces do not serve MCP, so an MCP route appearing
-    # under them is an undocumented entrypoint rather than a covered one.
-    def public_mcp?(entry)
-      post?(entry) && entry.path == "/mcp" &&
-        entry.controller_path.match?(%r{\A(base|warp)/(app|com|org)/mcps\z})
-    end
-
-    def public_guid_resolution?(entry)
-      get?(entry) && entry.controller_path == "guid/net/api/v0/resources" &&
-        entry.path.start_with?("/api/v0/resources/")
-    end
-
-    def public_root?(entry) = get?(entry) && entry.path == "/"
-
-    def public_service_worker_retirement?(entry)
-      get?(entry) && entry.path == "/service-worker" &&
-        entry.controller_path.match?(%r{\Aauth/(app|org)/service_worker_retirements\z})
-    end
-
-    def public_legacy_dashboard?(entry)
-      get?(entry) && entry.path == "/dashboard" &&
-        entry.action == "show" &&
-        entry.controller_path.match?(%r{\A(?:base/(app|com|org)/roots|warp/(app|com|org)/dashboards)\z})
-    end
-
-    def public_local_auth_admission?(entry)
-      case entry.controller_path
-      when %r{\Aauth/(app|com|org)/ceremony_bindings\z}
-        get?(entry) && entry.path == "/ceremony_bindings" && entry.action == "show"
-      when %r{\Abase/(app|com|org)/ceremony_binding_confirmations\z}
-        entry.path == "/ceremony_bindings/:binding_ref/confirmation" &&
-          { "show" => "GET", "create" => "POST" }[entry.action] == entry.verb
-      else
-        false
-      end
-    end
-
-    def public_lobby?(entry)
-      get?(entry) && entry.path == "/lobby" &&
-        entry.controller_path.match?(%r{\Abase/(app|com|org)/lobbies\z})
-    end
+    def public_root?(entry) = PUBLIC_MODES.include?(entry.mode) && get?(entry) && entry.path == "/"
 
     def public_health?(entry)
-      get?(entry) && (entry.path.start_with?("/health") || entry.path == "/api/v0/health.json")
+      get?(entry) && [
+        "/health", "/health/liveness", "/health/readiness", "/health/startup", "/api/v0/health.json",
+      ].include?(entry.path)
     end
 
-    def public_revision?(entry)
-      get?(entry) && ["/revision", "/api/v0/revision.json"].include?(entry.path)
-    end
+    def public_revision?(entry) = get?(entry) && ["/revision", "/api/v0/revision.json"].include?(entry.path)
 
     def public_csp_report?(entry) = post?(entry) && entry.path == "/csp-violation-report"
 
-    def public_well_known?(entry) = get?(entry) && entry.path.start_with?("/.well-known/")
+    def public_well_known?(entry) = get?(entry) && entry.path == "/.well-known/jwks.json"
 
     def public_robots_or_sitemap?(entry) = get?(entry) && ["/robots.txt", "/sitemap.xml"].include?(entry.path)
 
-    def public_content_read_api?(entry)
-      return false unless get?(entry)
-
-      entry.controller_path.start_with?("docs/", "help/", "info/", "news/") &&
-        (entry.path == "/" || entry.path.start_with?("/api/v0/entries"))
-    end
-
     def public_preference?(entry)
-      entry.path.start_with?("/preference") || entry.path.start_with?("/api/v0/preferences")
+      entry.controller_path.match?(%r{\A(core|warp)/(app|org)/api/v0/preferences/(cookies|themes)\z}) &&
+        (get?(entry) || entry.verb == "PATCH")
     end
 
-    def public_web_or_edge?(entry) = entry.path.start_with?("/web/v0/", "/edge/v0/")
-
-    def public_oauth_oidc_or_sso?(entry)
-      entry.path.start_with?("/oauth", "/oidc", "/sso", "/auth/", "/sign/oidc/handoff")
+    def public_oidc?(entry)
+      entry.controller_path.match?(%r{\A(core|warp|palm)/(app|org)/oidc/(callbacks|closures)\z}) &&
+        ((get?(entry) && entry.path == "/oidc/callback") ||
+          (post?(entry) && entry.path == "/oidc/closures"))
     end
 
-    def public_sign_in_or_up?(entry)
-      if %w(/sign/cancellation /sign/switch).include?(entry.path)
-        return entry.verb == "POST" && entry.action == "create" &&
-            entry.controller_path.match?(%r{\Aauth/(app|com|org)/sign/(cancellations|switches)\z})
-      end
-
-      entry.path == "/sign" || entry.path == "/oidc/callback" ||
-        entry.path.start_with?("/sign/in", "/sign/up", "/web/v0/in/")
+    def public_sign_entry?(entry)
+      entry.controller_path.match?(%r{\A(core|warp|palm)/(app|org)/sign/(entries|interruptions)\z}) &&
+        ((entry.path == "/sign" && (get?(entry) || post?(entry))) ||
+          (get?(entry) && entry.path == "/sign/interruption"))
     end
 
     def public_sign_out?(entry)
-      entry.path.start_with?("/sign/out") || entry.controller_path.end_with?("/sign_outs", "/sign/outs")
-    end
-
-    def public_auth_step_up?(entry)
-      path_pattern, actions =
-        case entry.controller_path
-        when %r{\Aauth/(app|com|org)/verifications\z}
-          [%r{\A/verification\z}, { "show" => %w(GET), "create" => %w(POST) }]
-        when %r{\Aauth/(app|com|org)/verification/setups\z}
-          [%r{\A/verification/setup(?:/new)?\z}, { "new" => %w(GET), "create" => %w(POST) }]
-        when %r{\Aauth/(app|com|org)/verification/handoffs\z}
-          [%r{\A/verification/handoff\z}, { "show" => %w(GET), "create" => %w(POST) }]
-        when %r{\Aauth/(app|com|org)/verification/cancellations\z}
-          [%r{\A/verification/cancellation\z}, { "create" => %w(POST) }]
-        when %r{\Aauth/(app|com|org)/verification/passkeys\z}
-          [%r{\A/verification/passkey(?:/(?:new|options))?\z},
-           { "new" => %w(GET), "options" => %w(POST), "create" => %w(POST) },]
-        when %r{\Aauth/(app|com|org)/verification/registration/passkeys\z}
-          [%r{\A/verification/registration/passkey(?:/(?:new|options))?\z},
-           { "new" => %w(GET), "options" => %w(POST), "create" => %w(POST) },]
-        when %r{\Aauth/(app|com|org)/verification/registration/handoffs\z}
-          [%r{\A/verification/registration/handoff\z}, { "show" => %w(GET), "create" => %w(POST) }]
-        when "auth/app/verification/totps"
-          [%r{\A/verification/totp(?:/new)?\z}, { "new" => %w(GET), "create" => %w(POST) }]
-        when %r{\Aauth/(app|com)/verification/emails\z}
-          [%r{\A/verification/emails(?:/new|/:id(?:/edit)?)?\z},
-           { "new" => %w(GET), "edit" => %w(GET), "create" => %w(POST), "update" => %w(PATCH PUT) },]
-        when %r{\Aauth/(app|com)/verification/redeliveries\z}
-          [%r{\A/verification/emails/:email_id/redelivery\z}, { "create" => %w(POST) }]
-        else
-          return false
-        end
-      entry.path.match?(path_pattern) && actions.fetch(entry.action, []).include?(entry.verb)
-    end
-
-    def public_withdrawal?(entry)
-      (entry.path.start_with?("/identity/withdrawal") &&
-        entry.controller_path.match?(%r{\Abase/(app|com)/identity/withdrawal(?:s|/sessions)\z})) ||
-        (entry.path.start_with?("/identity/privacy/erasure") &&
-          entry.controller_path.match?(%r{\Abase/(app|com)/identity/privacy/erasure(?:s|/statuses)\z}))
-    end
-
-    def public_identity_recovery?(entry)
-      entry.path.start_with?("/identity/recovery") &&
-        entry.controller_path.match?(%r{\Abase/(app|com)/identity/(?:recoveries|recovery/)})
-    end
-
-    def public_social?(entry)
-      entry.path.start_with?("/social") || entry.controller_path.match?(%r{\A(auth|base)/app/social/})
-    end
-
-    def public_auth_app_settings_compat?(entry)
-      entry.controller_path.start_with?("auth/app/settings/") && entry.path.start_with?("/settings/")
+      entry.controller_path.match?(%r{\A(core|warp|palm)/(app|org)/sign/(outs|out/completions)\z}) &&
+        ["/sign/out", "/sign/out/new", "/sign/out/edit", "/sign/out/completion"].include?(entry.path)
     end
 
     def public_core_api?(entry)
@@ -376,18 +195,13 @@ module Security
           (post?(entry) && entry.path == "/api/v0/token/refresh"))
     end
 
-    def public_warp_settings?(entry)
-      get?(entry) && entry.controller_path.start_with?("warp/") && entry.path == "/settings"
+    def public_warp_dashboard_or_settings?(entry)
+      get?(entry) && entry.controller_path.start_with?("warp/") &&
+        ["/dashboard", "/settings"].include?(entry.path)
     end
 
-    def public_apple_notification?(entry) = post?(entry) && entry.path == "/apple/notifications"
+    def get?(entry) = entry.verb.match?(/\bGET\b/)
 
-    def get?(entry) = route_allows?(entry, "GET")
-
-    def post?(entry) = route_allows?(entry, "POST")
-
-    def route_allows?(entry, verb)
-      entry.verb.split("|").include?(verb)
-    end
+    def post?(entry) = entry.verb.match?(/\bPOST\b/)
   end
 end

@@ -1,3 +1,7 @@
+> **Route status (2026-11-11):** This state inventory predates the surface hard reset.
+> Auth/Base/Core/Palm/Tech/Visa/Warp controller references below are historical; models and
+> migrations remain for the next database review.
+
 # Current transition inventory
 
 ## OP Back-Channel Logout participant (2026-10-25)
@@ -206,8 +210,8 @@ lifecycle status. Diagram: `idp-credential-registration-otp-challenge.mmd`.
 
 Legacy Source checks and immutable-proof triggers remain until remaining callers are retired. The
 Email series uses bounded keyed receipts and an original bootstrap FK bound into proof; Source
-binding/audit commit before Ticket receipts. APP Email HTTP and encrypted Notifier journeys
-passed targeted tests. `EmailCredentialRegistrationOtpDeliveryGuard` checks original
+binding/audit commit before Ticket receipts. APP Email HTTP and encrypted Notifier journeys passed
+targeted tests. `EmailCredentialRegistrationOtpDeliveryGuard` checks original
 owner/device/Root/candidate/generation and bootstrap Parent/Session/admission under locks through
 transport without a state transition. Resend and verification reject cancelled or invalid original
 bootstrap authority rather than adopting a later permission. Whole-suite checks, HTTP receipt-fault
@@ -216,17 +220,17 @@ production queue or secret was changed.
 
 ## idp-sign-up-otp-challenge
 
-Storage: APP typed Email/Telephone Ticket ceremonies' OTP verifier, generation, expiry,
-consumption and bounded receipt columns. This is a derived issued/verified proof axis, not a new
-signup flow status. Sources are the independently implemented `EmailSignUpOtpIssuer`,
+Storage: APP typed Email/Telephone Ticket ceremonies' OTP verifier, generation, expiry, consumption
+and bounded receipt columns. This is a derived issued/verified proof axis, not a new signup flow
+status. Sources are the independently implemented `EmailSignUpOtpIssuer`,
 `EmailSignUpOtpVerificationCommitter`, `EmailSignUpOtpDeliveryGuard` and corresponding Telephone
 operations. The old Source context/HOTP implementation is superseded for these wired signup paths;
 remaining legacy callers and column removal are separately tracked implementation work.
 
-The service requires the original browser nonce from the explicit APP locator session, compares
-its digest with the original Ticket and repeats admission after taking its row lock. The public
-Ticket ID is not a browser credential. Missing, mistyped, malformed, foreign or rotated nonces
-refuse without proof consumption; Rails CSRF and the separate HTTP phase gate remain intact.
+The service requires the original browser nonce from the explicit APP locator session, compares its
+digest with the original Ticket and repeats admission after taking its row lock. The public Ticket
+ID is not a browser credential. Missing, mistyped, malformed, foreign or rotated nonces refuse
+without proof consumption; Rails CSRF and the separate HTTP phase gate remain intact.
 
 | Transition ID                  | From               | Event                      | To                    | Guard and effect                                                                                                                             |
 | ------------------------------ | ------------------ | -------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -265,7 +269,7 @@ refuses transport without advancing this axis.
 | idp-auth-email-otp-challenge:T003 | issued               | wrong code                  | issued            | Atomic shared failure count and real candidate failures; stale scope refuses before comparison                                                                                             |
 | idp-auth-email-otp-challenge:T004 | verified             | verification retry          | verified          | Original result deadline remains live; original proof unchanged; already_verified receipt, not a second successful OTP consumption; controllers explicitly continue from verified evidence |
 | idp-auth-email-otp-challenge:T005 | issued or verified   | deadline elapsed            | expired predicate | No state write; parent and Auth expiry cap both deadlines                                                                                                                                  |
-| idp-auth-email-otp-challenge:T006 | issued               | cancel_email_otp_challenge! | cancelled         | App DELETE under pending parent and ceremony locks; retained cancellation time refuses verification and delivery; the browser's temporary email state is removed                       |
+| idp-auth-email-otp-challenge:T006 | issued               | cancel_email_otp_challenge! | cancelled         | App DELETE under pending parent and ceremony locks; retained cancellation time refuses verification and delivery; the browser's temporary email state is removed                           |
 | idp-auth-email-otp-challenge:T007 | cancelled            | issue_email_otp!            | issued            | A new generation may start on the still-pending parent; the cancelled generation does not regain authority                                                                                 |
 
 Verified proof reissue is refused. Source Contact OTP generations and root/RP authority remain
@@ -282,8 +286,9 @@ transport return explicit refusals. OIDC expiry/cancellation adds no invented tr
 
 ## idp-contact-audit-outbox
 
-Storage: `client_contact_audit_outboxes` in app Zenith. Sources: `ContactAuditOutbox`, `ContactBindingAuditRecorder`, `ContactAuditDeliveryJob`.
-Tests: `contact_audit_delivery_job_test.rb`, `contact_ceremony_source_audit_test.rb`.
+Storage: `client_contact_audit_outboxes` in app Zenith. Sources: `ContactAuditOutbox`,
+`ContactBindingAuditRecorder`, `ContactAuditDeliveryJob`. Tests:
+`contact_audit_delivery_job_test.rb`, `contact_ceremony_source_audit_test.rb`.
 
 | Transition ID                 | From                            | Event              | To                              | Guard and effect                                                                                        |
 | ----------------------------- | ------------------------------- | ------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -569,9 +574,9 @@ their concrete authority until their own slice is completed.
 
 ## idp-client-sign-up
 
-APP contact entry is fail-closed (D-177): a second entry submit while the browser's attempt
-is not terminal-and-cleaned is refused and writes nothing; no entry path halts or cleans an earlier
-Flow. The former `superseded_by_restart` HALTED writer is removed. The birthdate checkpoint halts an
+APP contact entry is fail-closed (D-177): a second entry submit while the browser's attempt is not
+terminal-and-cleaned is refused and writes nothing; no entry path halts or cleans an earlier Flow.
+The former `superseded_by_restart` HALTED writer is removed. The birthdate checkpoint halts an
 attempt below the minimum age through `SignUpTermination` (HALTED with same-request cleanup) without
 writing the birthdate (D-178). The lifecycle edges and terminal absorption remain unchanged.
 
@@ -587,10 +592,10 @@ owner and the exact Ticket deadline refuse. This adds no state edge and does not
 complete fault/concurrency matrix.
 
 Signup policies compare expiry with the owning Ticket database clock; authorization is refused at
-and after the deadline. Real app Ticket policy tests cover the microsecond before, exact
-deadline and microsecond after. The controller rebuilds context and revalidates finalization policy
-after acquiring the Ticket lock, before Source mutation. Email HTTP deadline-crossing tests verify
-that refusal creates neither binding nor Source intent. Email and telephone Source finalizers
+and after the deadline. Real app Ticket policy tests cover the microsecond before, exact deadline
+and microsecond after. The controller rebuilds context and revalidates finalization policy after
+acquiring the Ticket lock, before Source mutation. Email HTTP deadline-crossing tests verify that
+refusal creates neither binding nor Source intent. Email and telephone Source finalizers
 additionally require an active owner under its lock; suspended-owner public tests preserve the
 candidate proof and create no intent. The complete fault/concurrency and exact recovery matrix
 remains unfinished.
@@ -1055,8 +1060,8 @@ same resolver. Re-verification retains its separate purpose check.
 
 WU-24c/d store one immutable `curfew_at` at OP database issuance time + 30 minutes; Switch copies
 the original deadline and refuses inconsistent history. `entry_intent` is NOT NULL and immutable:
-APP binding collection also locks every owned sign-up Flow in ID order and retains the whole set
-if any child is in progress, not physically purgeable, or awaiting artifact cleanup. A completed
+APP binding collection also locks every owned sign-up Flow in ID order and retains the whole set if
+any child is in progress, not physically purgeable, or awaiting artifact cleanup. A completed
 registration does not require artifact cleanup, but still obeys its own physical-retention boundary;
 the default infinite retention is not shortened here. Eligible Flow rows are deleted before their
 restrictive Binding. An expired Auth session is deleted only after status-specific retention and its
@@ -3311,8 +3316,8 @@ Sources: `app/models/concerns/session_limit_resolution_transactionable.rb`,
 
 The browser gate carries an opaque raw challenge; its lookup uses the model's digest primitive and
 the persisted `challenge_digest`, never a nonexistent raw `challenge` column. Actor, browser
-binding, original parent and expiry checks still precede selection or revocation. APP
-session-limit promotion and APP controller/gate checks passed the 18-test selection recorded in
+binding, original parent and expiry checks still precede selection or revocation. APP session-limit
+promotion and APP controller/gate checks passed the 18-test selection recorded in
 `evidence/2026-10-08-email-login-capacity-query-3Q7M.md`.
 
 Tests executed: `test/models/session_limit_resolution_transactionable_test.rb`.
@@ -4012,8 +4017,8 @@ result/grant/operation/browser/actor/candidate/digest provenance and an identity
 intent; released bindings and consumed Tickets without a committed Source fact remain refused.
 Initial consumption requires the same Ticket candidate reference and digest; final binding mutation
 rechecks the digest under the Source lock, rejecting same-owner candidate substitution. Base app
-settings confirmation commits finalization and its Source intent under the owner lock. App
-telephone signup OTP success retains the original signed flow binding when redirecting to the guard
+settings confirmation commits finalization and its Source intent under the owner lock. App telephone
+signup OTP success retains the original signed flow binding when redirecting to the guard
 checkpoint; the next endpoint does not infer another Ticket from destination or browser input.
 Replacement releases the old effective binding without overwriting its status, clears its old OTP
 and finalizes the new candidate with both Source intents in that transaction. Wrong OTP leaves the

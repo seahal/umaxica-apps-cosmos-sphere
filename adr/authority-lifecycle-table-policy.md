@@ -71,11 +71,11 @@ The lifecycle service remains responsible for transition authorization, includin
 The pre-deployment owner-authority decision is surface-local and concrete. After a resource-family
 cutover, the following relation is the only owner authority for that family:
 
-| Surface | Principal | Resource families |
-| --- | --- | --- |
-| `app` | `Client` | `Client -> ClientPersona`, `Client -> Enterprise` |
-| `com` | `Visitor` | `Visitor -> Individual`, `Visitor -> Company` |
-| `org` | `Operator` | `Operator -> Agent`, `Operator -> Bureau` |
+| Surface | Principal  | Resource families                                 |
+| ------- | ---------- | ------------------------------------------------- |
+| `app`   | `Client`   | `Client -> ClientPersona`, `Client -> Enterprise` |
+| `com`   | `Visitor`  | `Visitor -> Individual`, `Visitor -> Company`     |
+| `org`   | `Operator` | `Operator -> Agent`, `Operator -> Bureau`         |
 
 Identity bindings, assignments, memberships, administrator relations, legacy owner fields, and
 legacy `Organization` hierarchy data are migration evidence only. Legacy `Organization` is not
@@ -83,8 +83,8 @@ legacy `Organization` hierarchy data are migration evidence only. Legacy `Organi
 owner reference, cross-surface relation, or lifecycle-based automatic transfer is permitted.
 
 Ownership facts and current authority eligibility are separate. A suspended principal retains the
-ownership fact but cannot exercise authority. Inactive or discarded principals and resources are
-not automatic candidates, and unresolved or ineligible rows fail closed. Candidate mapping has no
+ownership fact but cannot exercise authority. Inactive or discarded principals and resources are not
+automatic candidates, and unresolved or ineligible rows fail closed. Candidate mapping has no
 tie-breaker: zero, ambiguous, inactive-only, membership-only, administrator-only, legacy-only,
 cross-surface, and contradictory candidates require rejection or manual review.
 
@@ -97,18 +97,18 @@ rollback is permitted. After a consumer has read the new relation, rollback to l
 forbidden and recovery is forward-only. Legacy records may remain historical/read-only until their
 separately approved retirement conditions are met.
 
-This amendment approves the authority semantics and the pre-deployment lifecycle representation
-used by the current implementation slice: six concrete, surface-local lifecycle tables, one per
-resource family, each with a concrete resource foreign key, an explicit checked state, and a
-database-clock `state_changed_at`. A missing lifecycle row remains unresolved and is never
-interpreted as active. Existing resources require an explicitly reviewed, idempotent backfill;
-the lifecycle tables do not by themselves authorize a consumer cutover.
+This amendment approves the authority semantics and the pre-deployment lifecycle representation used
+by the current implementation slice: six concrete, surface-local lifecycle tables, one per resource
+family, each with a concrete resource foreign key, an explicit checked state, and a database-clock
+`state_changed_at`. A missing lifecycle row remains unresolved and is never interpreted as active.
+Existing resources require an explicitly reviewed, idempotent backfill; the lifecycle tables do not
+by themselves authorize a consumer cutover.
 
-This owner-authority amendment does not redefine selector/switcher act-as context. The
-surface-local identity, assignment, membership, and avatar checks used by those paths can encode
-legitimate delegated or member access and are not owner facts. An owner-only replacement requires a
-separate access/delegation decision and consumer-specific cutover review; the presence of an
-ownership row must not be used to infer that selector or switcher behavior should change.
+This owner-authority amendment does not redefine selector/switcher act-as context. The surface-local
+identity, assignment, membership, and avatar checks used by those paths can encode legitimate
+delegated or member access and are not owner facts. An owner-only replacement requires a separate
+access/delegation decision and consumer-specific cutover review; the presence of an ownership row
+must not be used to infer that selector or switcher behavior should change.
 
 The current owner-specific consumer boundary is intentionally narrower: `AccountPolicy` switches
 from the legacy identity contract only after the concrete account-family marker, while the quota
@@ -155,12 +155,12 @@ creates Avatar, Handle, the surface binding, and initial owner `AvatarAssignment
 transaction. `Base::App::AvatarsController#create` and `BaseSelectorBootstrapAuthority` must remain
 service callers and must not write Avatar authority or lifecycle tables directly.
 
-`Avatar.create_with_owner` is deprecated compatibility API only. It must delegate to
-`AvatarProvisioning::Create`, is a removal candidate, and must not independently write ownership,
-binding, Handle, or assignment rows. `avatars.client_id` is migration compatibility only; authority
-comes from binding plus assignment. The next backfill-oriented slice must begin with a read-only
-conflict inventory before any historical row mutation. A separate `dry_run` mode or preview API is
-not required; the inventory is the non-mutating audit boundary.
+`Avatar.create_with_owner` was a deprecated compatibility API around `AvatarProvisioning::Create`.
+The owner-approved 2026-11-10 surface hard reset removed that wrapper; no compatibility call path
+remains. `avatars.client_id` is migration compatibility only; authority comes from binding plus
+assignment. Any future backfill-oriented slice must begin with a read-only conflict inventory before
+historical row mutation. A separate `dry_run` mode or preview API is not required; the inventory is
+the non-mutating audit boundary.
 
 ## Related
 

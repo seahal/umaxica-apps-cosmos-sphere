@@ -77,18 +77,28 @@ class HealthTest < ActiveSupport::TestCase
   end
 
   test "profile dependency allowlists are explicit" do
-    assert_equal [AppRpRecord, AppSettingRecord, AppSignalRecord, AvatarRecord, OccurrenceRecord],
+    assert_equal [RpCoreAppRecord, RpWarpAppRecord, RpPalmAppRecord, ChronicleRecord],
                  Health::Profiles::App.record_classes
-    assert_equal [OrgRpRecord, OrgSettingRecord, OrgSignalRecord], Health::Profiles::Org.record_classes
-    assert_equal [AppPrincipalRecord, OpBaseAppRecord, AppSettingRecord], Health::Profiles::SignApp.record_classes
+    assert_equal [ChronicleRecord], Health::Profiles::Com.record_classes
+    assert_equal [RpCoreOrgRecord, RpWarpOrgRecord, ChronicleRecord], Health::Profiles::Org.record_classes
   end
 
   test "liveness check never touches dependencies" do
-    result = Health::LivenessCheck.call(profile: Health::Profiles::SignApp)
+    result = Health::LivenessCheck.call(profile: Health::Profiles::App)
 
     assert_predicate result, :ok?
     assert_equal :liveness, result.check
     assert_empty result.dependencies
+  end
+
+  test "liveness reports starting while Rails is not initialized" do
+    Rails.application.stub(:initialized?, false) do
+      result = Health::LivenessCheck.call(profile: Health::Profiles::App)
+
+      assert_predicate result, :ok?
+      assert_equal "ok", result.as_public_json[:status]
+      assert_equal "starting", result.as_public_json.dig(:details, :status)
+    end
   end
 
   test "readiness checks only the current profile dependencies" do
@@ -211,7 +221,7 @@ class HealthTest < ActiveSupport::TestCase
   end
 
   test "startup uses only the boot check" do
-    result = Health::StartupCheck.call(profile: Health::Profiles::SignApp)
+    result = Health::StartupCheck.call(profile: Health::Profiles::App)
 
     assert_predicate result, :ok?
     assert_equal :startup, result.check
@@ -220,7 +230,7 @@ class HealthTest < ActiveSupport::TestCase
 
   test "startup reports unavailable while booting" do
     Rails.application.stub(:initialized?, false) do
-      result = Health::StartupCheck.call(profile: Health::Profiles::SignApp)
+      result = Health::StartupCheck.call(profile: Health::Profiles::App)
 
       assert_not result.ok?
       assert_equal "starting", result.as_public_json.dig(:details, :status)
@@ -228,11 +238,23 @@ class HealthTest < ActiveSupport::TestCase
   end
 
   test "snapshot aggregates the three probes as nested dependencies" do
-    result = Health::SnapshotCheck.call(profile: Health::Profiles::SignApp)
+    result = Health::SnapshotCheck.call(profile: Health::Profiles::App)
     json = result.as_public_json
 
     assert_equal "health", json[:check]
     assert_equal %w(liveness readiness startup), json[:dependencies].keys
+  end
+
+  test "snapshot reports unavailable when readiness is not ready" do
+    profile = fake_profile(
+      checks: [FakeCheck.new(Health::DependencyResult.new(kind: :database, status: :unready))],
+    )
+
+    result = Health::SnapshotCheck.call(profile: profile)
+
+    assert_not result.ok?
+    assert_equal "unavailable", result.as_public_json[:status]
+    assert_equal "unready", result.as_public_json.dig(:details, :status)
   end
 
   private

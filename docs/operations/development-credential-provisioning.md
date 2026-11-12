@@ -240,3 +240,28 @@ gh repo view
 - `docs/operations/container-engine-podman-notes.md` — rootless Podman and SELinux behaviour.
 - `docs/hld.md` — the environment-variable catalog and the `.env` boundary.
 - `docs/reference/repository-language-policy.md` — language rules for repository prose.
+
+## Identifier lookup HMAC keys
+
+The following four secrets live only in each environment's Rails encrypted credentials:
+
+- `APP_EMAIL_ADDRESS_HMAC_KEY`
+- `ORG_EMAIL_ADDRESS_HMAC_KEY`
+- `APP_TELEPHONE_NUMBER_HMAC_KEY`
+- `ORG_TELEPHONE_NUMBER_HMAC_KEY`
+
+Sphere development and test each use four independently generated keys. Do not put these keys in
+`.env`, `.env.container.devcontainer`, Compose or exported environment variables. Their readers use
+`Rails.application.credentials.option` directly: installed Rails `Rails.app.creds` combines sources
+and gives ENV precedence, so it does not enforce this credentials-only boundary. Missing or blank
+lookup credentials fail the operation explicitly. History/live-key collision checks use the same
+credential source; separate history keys and identifier encryption keys are outside this change.
+
+Replacing a lookup key leaves existing stored lookup digests stale; it does not change the separate
+keys that decrypt addresses and telephone numbers. Obtain owner permission before reindexing
+retained development data. `IdentifierBlindIndexBackfill` saves rows individually and is not atomic
+across models/databases; finalized APP bindings can reject its writes through database triggers.
+Inspect those records before selecting the existing restricted maintenance procedure; never disable
+triggers or reset the development databases. See the
+[rotation runbook](../runbooks/cosmos-credential-value-rotation.md) and
+[scoped change](../../specs/identifier-hmac-credentials/spec.md).

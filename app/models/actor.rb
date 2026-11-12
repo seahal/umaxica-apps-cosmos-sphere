@@ -5,10 +5,10 @@
 # ActorValuesContext snapshot.
 #
 # It is push-based: the controller/authentication pipeline resolves
-# authentication, authorization, preference, selection, and step-up, then calls
+# authentication, authorization, and step-up, then calls
 # Actor.install_context!. Actor never rebuilds auth state from the request and
 # never performs token decode, DB lookup, transparent refresh, DPoP/DBSC
-# verification, preference hydration, or policy-user construction. It is a
+# verification or policy-user construction. It is a
 # snapshot reader only.
 #
 # Actor.current / Actor.context return ActorValuesContext.empty when no context
@@ -143,18 +143,6 @@ class Actor < ActiveSupport::CurrentAttributes
       update(configuration: value)
     end
 
-    def preferences = context.preferences || Actor::Preference::NULL
-
-    def preferences=(value)
-      update(preferences: value)
-    end
-
-    def selection = context.selection || Actor::SelectedContext::NULL
-
-    def selection=(value)
-      update(selection: value)
-    end
-
     def step_up = context.step_up || Actor::StepUp::NULL
 
     def step_up=(value)
@@ -187,8 +175,7 @@ class Actor < ActiveSupport::CurrentAttributes
 
     def staff? = operator?
 
-    # Step-up freshness, derived from the resolved step_up context. StepUpResolver
-    # already enforces TTL + scope/aal/binding, so a satisfied step_up is a fresh one.
+    # Freshness comes from the explicit request step_up context.
     def step_up_fresh? = step_up.satisfied?
 
     # True when the current request demands a step-up that is not yet satisfied.
@@ -221,8 +208,6 @@ class Actor < ActiveSupport::CurrentAttributes
 
     def normalize_context_value(key, value)
       case key
-      when :preferences
-        value || Actor::Preference::NULL
       when :authn
         value || Actor::Authentication::NULL
       when :authz
@@ -231,8 +216,6 @@ class Actor < ActiveSupport::CurrentAttributes
         value || Actor::StepUp::NULL
       when :configuration
         value || Actor::Configuration::NULL
-      when :selection
-        value || Actor::SelectedContext::NULL
       else
         value
       end

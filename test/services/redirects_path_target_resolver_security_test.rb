@@ -35,11 +35,4 @@ class RedirectsPathTargetResolverSecurityTest < ActiveSupport::TestCase
       assert_equal payload, result.value
     end
   end
-
-  test "redirect rejection has a durable event name at authentication pt call sites" do
-    source = Rails.root.join("app/controllers/concerns/authentication_redirects.rb").read
-
-    assert_includes source, "path_target.rejected"
-    assert_includes source, "log_signed_target_rejection"
-  end
 end

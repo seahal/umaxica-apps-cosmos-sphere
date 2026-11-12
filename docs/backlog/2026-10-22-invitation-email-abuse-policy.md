@@ -3,12 +3,16 @@
 Status: Deferred; recorded at the user's request on 2026-10-22. No implementation change is
 authorized by this entry. Stored in `docs/backlog/` at the user's explicit request.
 
+> **Surface reset (2026-11-11):** The Auth and Base controllers referenced below are retired and are
+> not current routes or implementation contracts.
+
 ## Current findings
 
 OrgInvitationService.create currently returns an unsuccessful result with the message that
-organization invitations are unavailable pending Bureau migration. OrgOperatorLifecycleInvitationIssuer
-calls that service. No active invitation-mail send path was established through this issuance path.
-The Auth org invitation controller accepts invitation codes; it is not an invitation-mail sender.
+organization invitations are unavailable pending Bureau migration.
+OrgOperatorLifecycleInvitationIssuer calls that service. No active invitation-mail send path was
+established through this issuance path. The Auth org invitation controller accepts invitation codes;
+it is not an invitation-mail sender.
 
 Issuance being closed is not proof of rate limiting. Existing invitation acceptance remains a
 separate endpoint to inspect when this work is selected.
@@ -25,15 +29,15 @@ separate endpoint to inspect when this work is selected.
 ## Scope and verification context
 
 Development environment only. Cloudflare Tunnel is excluded. The user plans Amazon EKS with
-CloudFront and AWS WAF; the AWS rate-limiting mechanism is undecided. Planned edge controls are
-not current guarantees, and this entry does not select an AWS product or authorize external changes.
+CloudFront and AWS WAF; the AWS rate-limiting mechanism is undecided. Planned edge controls are not
+current guarantees, and this entry does not select an AWS product or authorize external changes.
 Development configuration selects `SMS_PROVIDER=test` in the checked-in environment file and SES
 SMTP for email; live provider settings and quotas were not inspected. Provider quotas must not be
 assumed to enforce application destination budgets.
 
 The source inspection was performed on 2026-10-22 at commit
-`febec3225cc9a0cfa53b9cbe817d20d366aba5a2`, including pre-existing uncommitted changes.
-A combined run of `test/services/sign/in/otp_resend_policy_test.rb`,
+`febec3225cc9a0cfa53b9cbe817d20d366aba5a2`, including pre-existing uncommitted changes. A combined
+run of `test/services/sign/in/otp_resend_policy_test.rb`,
 `test/controllers/auth/authentication_rate_limit_test.rb` and
 `test/operations/telephone_sign_up_otp_issuer_test.rb` stopped during test database preparation:
 `PG::DuplicateTable` for `publishing_media_files`. Test bodies did not run. Existing tests were

@@ -6,10 +6,8 @@ require "test_helper"
 class JumpRtSurfaceIdentityTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  test "Jump issuer capability includes active app and org namespaces and Palm app" do
+  test "Jump issuer capability includes retained Sphere and external RP namespaces" do
     expected = {
-      "AUTH_APP" => "PUBLIC_AUTH_SERVICE_URL",
-      "AUTH_ORG" => "PUBLIC_AUTH_STAFF_URL",
       "BASE_APP" => "PUBLIC_BASE_SERVICE_URL",
       "BASE_ORG" => "PUBLIC_BASE_STAFF_URL",
       "VISA_APP" => "PUBLIC_VISA_SERVICE_URL",
@@ -21,13 +19,13 @@ class JumpRtSurfaceIdentityTest < ActiveSupport::TestCase
       "PALM_APP" => "PUBLIC_PALM_SERVICE_URL",
     }
 
-    assert_equal 11, JumpRtSurface::ISSUER_NAMESPACES.size
+    assert_equal 9, JumpRtSurface::ISSUER_NAMESPACES.size
     assert_equal expected, JumpRtSurface::ISSUER_ORIGIN_ENV
     assert_equal expected.keys.sort, JumpRtSurface::ISSUER_NAMESPACES.sort
   end
 
-  test "Acme, Edit, Side, and unknown namespaces have no Jump issuer capability" do
-    %w(ACME_APP ACME_COM ACME_ORG EDIT_ORG CORE_NET JUMP_APP PALM_COM).each do |namespace|
+  test "retired surfaces, Edit, Side, and unknown namespaces have no Jump issuer capability" do
+    %w(AUTH_APP AUTH_ORG ACME_APP ACME_COM ACME_ORG EDIT_ORG CORE_NET JUMP_APP PALM_COM).each do |namespace|
       assert_raises(JumpRtConfigurationError, namespace) { JumpRtSurface.normalize_namespace(namespace) }
     end
     [nil, "", "0", "auth_app\u0000"].each do |namespace|
@@ -35,19 +33,18 @@ class JumpRtSurfaceIdentityTest < ActiveSupport::TestCase
     end
   end
 
-  test "Visa app and org controllers resolve to active Jump issuer namespaces" do
+  test "retained Sphere and external RP issuer identities resolve by controller surface" do
+    assert_equal "CORE_APP", JumpRtSurface.namespace_for_controller("Core::App::RootsController")
+    assert_equal "CORE_ORG", JumpRtSurface.namespace_for_controller("Core::Org::RootsController")
+    assert_equal "WARP_APP", JumpRtSurface.namespace_for_controller("Warp::App::RootsController")
+    assert_equal "WARP_ORG", JumpRtSurface.namespace_for_controller("Warp::Org::RootsController")
+    assert_equal "PALM_APP", JumpRtSurface.namespace_for_controller("Palm::App::RootsController")
+    assert_equal "BASE_APP", JumpRtSurface.namespace_for_controller("Base::App::RootsController")
+    assert_equal "BASE_ORG", JumpRtSurface.namespace_for_controller("Base::Org::RootsController")
     assert_equal "VISA_APP", JumpRtSurface.namespace_for_controller("Visa::App::Oauth::AuthorizationsController")
     assert_equal "VISA_ORG", JumpRtSurface.namespace_for_controller("Visa::Org::Sign::ByesController")
     assert_raises(JumpRtConfigurationError) do
       JumpRtSurface.namespace_for_controller("Visa::Com::Oauth::TokensController")
-    end
-  end
-
-  test "Acme controllers have no Jump issuer namespace" do
-    %w(App Com Org).each do |surface|
-      assert_raises(JumpRtConfigurationError) do
-        JumpRtSurface.namespace_for_controller("Acme::#{surface}::RootsController")
-      end
     end
   end
 
@@ -58,16 +55,28 @@ class JumpRtSurfaceIdentityTest < ActiveSupport::TestCase
     assert_equal "https://www.umaxica.app/.well-known/jwks.json", JumpRtSurface.issuer_jwks_uri("BASE_APP", env: env)
   end
 
-  test "an explicit https scheme on the PUBLIC_* origin is accepted" do
-    env = { "PUBLIC_PALM_SERVICE_URL" => "https://palm-jp.umaxica.app" }
+  test "Sphere issuer origins read their own configured host variables" do
+    {
+      "CORE_APP" => ["PUBLIC_CORE_SERVICE_URL", "www-jp.umaxica.app"],
+      "CORE_ORG" => ["PUBLIC_CORE_STAFF_URL", "www-jp.umaxica.org"],
+      "WARP_APP" => ["PUBLIC_WARP_SERVICE_URL", "warp-jp.umaxica.app"],
+      "WARP_ORG" => ["PUBLIC_WARP_STAFF_URL", "warp-jp.umaxica.org"],
+      "PALM_APP" => ["PUBLIC_PALM_SERVICE_URL", "palm-jp.umaxica.app"],
+    }.each do |namespace, (env_name, host)|
+      assert_equal "https://#{host}", JumpRtSurface.issuer_origin(namespace, env: { env_name => host })
+    end
+  end
 
-    assert_equal "https://palm-jp.umaxica.app", JumpRtSurface.issuer_origin("PALM_APP", env: env)
+  test "an explicit https scheme on the PUBLIC_* origin is accepted" do
+    env = { "PUBLIC_BASE_SERVICE_URL" => "https://www.umaxica.app" }
+
+    assert_equal "https://www.umaxica.app", JumpRtSurface.issuer_origin("BASE_APP", env: env)
   end
 
   test "missing PUBLIC_* surface origin fails closed and names the setting" do
-    error = assert_raises(JumpRtConfigurationError) { JumpRtSurface.issuer_origin("CORE_ORG", env: {}) }
+    error = assert_raises(JumpRtConfigurationError) { JumpRtSurface.issuer_origin("BASE_ORG", env: {}) }
 
-    assert_match(/PUBLIC_CORE_STAFF_URL/, error.message)
+    assert_match(/PUBLIC_BASE_STAFF_URL/, error.message)
   end
 
   {
@@ -103,9 +112,14 @@ class JumpRtSurfaceIdentityTest < ActiveSupport::TestCase
   # (adr/jump-directed-rails-handoff-contract.md).
   test "development Rails may present a canonical public issuer origin" do
     canonical = {
-      "AUTH_APP" => "auth.umaxica.app",
       "BASE_APP" => "www.umaxica.app",
-      "WARP_ORG" => "www-jp.umaxica.org",
+      "BASE_ORG" => "www.umaxica.org",
+      "VISA_APP" => "visa.umaxica.app",
+      "VISA_ORG" => "visa.umaxica.org",
+      "CORE_APP" => "www-jp.umaxica.app",
+      "CORE_ORG" => "www-jp.umaxica.org",
+      "WARP_APP" => "warp-jp.umaxica.app",
+      "WARP_ORG" => "warp-jp.umaxica.org",
       "PALM_APP" => "palm-jp.umaxica.app",
     }
 

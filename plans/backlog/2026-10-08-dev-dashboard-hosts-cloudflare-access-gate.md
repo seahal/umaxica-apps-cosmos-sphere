@@ -10,6 +10,10 @@ and proposed steps below remain available; current Access coverage is unverified
 `evidence/2026-10-07-performance-dev-hostname-access-gate-B6K2.md` documents Access containment for
 `performance.umaxica.dev` after the initial probe, without establishing current coverage.
 
+Sphere's Rails Performance route was removed on 2026-11-10. This historical backlog does not request
+an external Cloudflare change; any remaining Sphere tunnel, DNS, or Access records need separate
+owner approval before cleanup.
+
 Related:
 
 - `adr/diagnostic-surfaces-performance-coverband-swagger.md` — the dashboard pattern and its Basic

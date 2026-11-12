@@ -3,6 +3,9 @@
 Status: Proposed on 2026-11-05. Not yet triaged. The owner asked for a decision on whether this
 derivation needs remediation; no code change is authorized by this note.
 
+> **Surface reset (2026-11-11):** The Base controller referenced below is retired and is not a
+> current route or implementation contract.
+
 ## Observation
 
 The anonymous Preference cookies are the only cookies this application writes with a `Domain`

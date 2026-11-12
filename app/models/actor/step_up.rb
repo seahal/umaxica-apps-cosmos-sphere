@@ -25,7 +25,7 @@ class Actor
       :resource_bound,
       :tenant_bound,
     ) do
-      def self.null = NULL
+      def self.null = self::NULL
 
       def satisfied? = !!satisfied
 

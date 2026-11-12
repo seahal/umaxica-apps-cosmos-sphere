@@ -3,43 +3,26 @@
 
 require "test_helper"
 
-# Pins the legacy `/web/v0` and `/edge/v0` API surface so it can shrink but never grow.
+# Pins the legacy `/web/v0` and `/edge/v0` API surface. The Sphere route split retired its Base and
+# Auth owners, so no legacy operations remain in this application.
 #
 # `adr/api-route-vocabulary-consolidation.md` (Accepted 2026-06-13) makes `/api/v0` the canonical
 # namespace and treats these two as transitional: "Future API routes, and future migrations of
 # existing API routes, should converge toward `/api/v0/...`". That direction had no enforcement, so
 # nothing stopped the legacy surface from growing while the ADR said it should be shrinking.
 #
-# This guard is not a migration. The same ADR forbids one here: "Future route migration requires a
-# compatibility review before any path changes", and `/web/v0` and `/edge/v0` "must not be removed
-# by future work until compatibility review confirms it is safe". Removing an entry below is
-# therefore a reviewed decision, and adding one is a decision to move away from the accepted
-# direction. Either way the edit is the review trigger, exactly as in
+# A route added under either legacy namespace requires a service-specific review, as in
 # `.agents/harnesses/rules/project/regression-guards.mdc`.
 class LegacyApiNamespaceGuardTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
   LEGACY_PREFIXES = %w(/web/v0 /edge/v0).freeze
 
-  # Distinct HTTP operations, deduplicated across services and surfaces: one Rails process serves
-  # each of these on many hosts, and the vocabulary decision is about the path, not the host.
-  #
-  # Classification per `adr/api-route-vocabulary-consolidation.md` section "Classification rule",
-  # recorded in research/rails-nextjs-openapi-contract-audit.md. `api` marks an actual API endpoint and
-  # therefore a migration candidate; `ceremony` marks an endpoint whose classification the ADR does
-  # not settle.
-  LEGACY_OPERATIONS = {
-    "GET /edge/v0/token/check" => :api,
-    "POST /edge/v0/token/dbsc" => :api,
-    "POST /edge/v0/token/refresh" => :api,
-    "POST /web/v0/in/email/otp" => :ceremony,
-  }.freeze
+  LEGACY_OPERATIONS = {}.freeze
 
   test "the legacy API namespaces contain exactly the pinned operations" do
     assert_equal LEGACY_OPERATIONS.keys.sort, routed_legacy_operations.to_a.sort,
-                 "the non-Core /web/v0 and /edge/v0 surface changed. " \
-                 "adr/api-route-vocabulary-consolidation.md makes /api/v0 canonical and these two " \
-                 "transitional. Update LEGACY_OPERATIONS only as part of a service-specific review."
+                 "the retired /web/v0 and /edge/v0 namespaces must not return without review"
   end
 
   test "no service serves the same endpoint under both a legacy namespace and /api/v0" do

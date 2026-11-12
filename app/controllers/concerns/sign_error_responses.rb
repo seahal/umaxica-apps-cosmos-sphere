@@ -14,6 +14,14 @@ module SignErrorResponses
 
   include CommonRedirect
 
+  public
+
+  def handle_owner_data_unavailable(_exception)
+    response.set_header("Cache-Control", "no-store")
+    render plain: I18n.t("errors.messages.temporarily_unavailable"), status: :service_unavailable,
+           content_type: "text/plain"
+  end
+
   def handle_application_error(exception)
     respond_to do |format|
       format.html do
@@ -43,28 +51,6 @@ module SignErrorResponses
   alias_method :staff_not_authorized, :handle_not_authorized
 
   def handle_csrf_failure
-    if request.path.include?("/sign/up/telephone") || request.path.include?("/sign/up/email")
-      reason = (request.headers["Origin"] == "null") ? "null_origin" : "csrf_failed"
-      event =
-        if request.path.include?("/telephone")
-          "sign.signup.telephone.create.rejected"
-        else
-          "sign.signup.email.create.rejected"
-        end
-      Rails.logger.info(
-        JitLogEvent.format(
-          event,
-          surface: :app,
-          region: params[:ri],
-          request_id: request.request_id,
-          reason: reason,
-          origin_present: request.headers["Origin"].present?,
-          origin_null: request.headers["Origin"] == "null",
-          csrf_token_present: request.headers["X-CSRF-Token"].present? || params[:authenticity_token].present?,
-          turnstile_token_present: params["cf-turnstile-response"].present?,
-        ),
-      )
-    end
     raise ActionController::InvalidCrossOriginRequest unless request.format.json?
 
     render json: { error: I18n.t("errors.invalid_authenticity_token") },

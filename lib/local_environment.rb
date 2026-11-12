@@ -37,8 +37,8 @@ module LocalEnvironment
 
   def unquote(value)
     if value.length >= 2 && value.start_with?("\"") && value.end_with?("\"")
-      return value[1...-1].gsub(/\\([\\"nrt])/) do |escape|
-        { "\\" => "\\", '"' => '"', "n" => "\n", "r" => "\r", "t" => "\t" }.fetch(escape)
+      return value[1...-1].gsub(/\\([\\"nrt])/) do
+        { "\\" => "\\", '"' => '"', "n" => "\n", "r" => "\r", "t" => "\t" }.fetch(Regexp.last_match(1))
       end
     end
     return value[1...-1].gsub("\\'", "'") if value.length >= 2 && value.start_with?("'") && value.end_with?("'")

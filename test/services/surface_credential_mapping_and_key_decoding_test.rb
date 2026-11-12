@@ -8,34 +8,7 @@ require "jit_security_jwt_keyring"
 # answer at all when they should refuse, rather than raising. Each is a single
 # line, which is exactly why a wrong copy reads as plausible.
 class SurfaceCredentialMappingAndKeyDecodingTest < ActiveSupport::TestCase
-  fixtures :operators, :operator_statuses
-
-  # The risk score is read from the occurrence table of the actor's own surface;
-  # scoring a staff sign-in against the client table would report someone else's
-  # recent failures as theirs.
-  test "the risk score is read from the occurrence table of the actor's own surface" do
-    assert_equal 0, SignRiskEngine.score
-    assert_equal 0, SignRiskEngine.score(staff_id: operators(:one).id)
-    assert_raises(ArgumentError) { SignRiskEngine.score(visitor_id: 1) }
-    assert_equal 0, SignRiskEngine.score(user_id: 1)
-  end
-
-  # Deleting a cookie must not carry an expiry or the httponly flag, because the
-  # deletion has to match the cookie's own path and same-site attributes only.
-  test "cookie deletion options drop the attributes that would stop the deletion matching" do
-    %i(access_cookie_deletion_options refresh_cookie_deletion_options).each do |name|
-      options = CoreBrowserCredentialContract.public_send(name)
-
-      assert_not options.key?(:expires), name
-      assert_not options.key?(:httponly), name
-    end
-
-    oidc = CoreBrowserCredentialContract.oidc_cookie_deletion_options
-
-    assert_equal :lax, oidc.fetch(:same_site)
-    assert_equal CoreBrowserCredentialContract::OIDC_PATH, oidc.fetch(:path)
-    assert_not oidc.key?(:expires)
-  end
+  self.fixture_table_names = []
 
   # A key that cannot be decoded answers nil rather than raising, so a single bad
   # entry in a keyset does not take the whole issuer down at boot.

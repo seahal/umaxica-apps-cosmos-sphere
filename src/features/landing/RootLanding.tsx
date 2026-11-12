@@ -2,7 +2,7 @@ import Button from "@/components/ui/Button";
 // The thin public landing every surface answers with at its root.
 //
 // It used to be a self-contained ERB document with its own inline stylesheet, one copy per surface.
-// The surfaces differ only in their heading and their sign-up destination, so both arrive as props
+// The surfaces differ in their heading and their RP sign-in action, so both arrive as props
 // and the markup is shared.
 import ButtonLink from "@/components/ui/ButtonLink";
 
@@ -57,19 +57,9 @@ export type RootLandingProps = {
   heading: string;
   description: string;
   sign_in?: RootLandingDestination | null;
-  sign_up: RootLandingDestination | null;
-  // Surfaces that offer more than one destination (Warp settings, Palm per-platform sign-up) send
-  // them here; the server has already decided which ones the visitor may see.
-  links?: RootLandingLink[] | null;
 };
 
-export default function RootLanding({
-  heading,
-  description,
-  sign_in: signIn,
-  sign_up: signUp,
-  links,
-}: RootLandingProps) {
+export default function RootLanding({ heading, description, sign_in: signIn }: RootLandingProps) {
   const headingId = "root-landing-title";
 
   return (
@@ -88,21 +78,10 @@ export default function RootLanding({
           <p className="max-w-prose text-lg text-pretty text-fg-muted">{description}</p>
         </header>
 
-        {signIn || signUp || links?.length ? (
+        {signIn ? (
           <nav aria-label="Authentication">
             <ul className="flex flex-wrap items-center gap-4">
-              {signIn ? <li>{renderAuthAction(signIn)}</li> : null}
-              {signUp ? <li>{renderAuthAction(signUp)}</li> : null}
-              {links?.map((link) => (
-                <li key={link.href}>
-                  <a
-                    href={link.href}
-                    className="ui-text-link text-base text-fg-muted underline underline-offset-4 hover:text-fg hover:underline"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
+              <li>{renderAuthAction(signIn)}</li>
             </ul>
           </nav>
         ) : null}

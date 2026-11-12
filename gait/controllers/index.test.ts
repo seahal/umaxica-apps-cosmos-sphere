@@ -23,8 +23,8 @@ describe("Controller index auto-registration", () => {
   test("registers discovered controllers with kebab-cased names", async () => {
     await import("../../src/controllers/index.js");
 
-    expect(register).toHaveBeenCalledWith("theme", expect.anything());
-    expect(register).toHaveBeenCalledWith("theme-toggle", expect.anything());
-    expect(register).toHaveBeenCalledWith("cookie-consent", expect.anything());
+    expect(register).toHaveBeenCalledWith("history-back", expect.anything());
+    expect(register).toHaveBeenCalledWith("turnstile", expect.anything());
+    expect(register).toHaveBeenCalledWith("unsaved-changes", expect.anything());
   });
 });

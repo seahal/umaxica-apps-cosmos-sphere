@@ -50,9 +50,6 @@ module OidcRpLogoutLauncher
     )
     state = SecureRandom.urlsafe_base64(32)
     prepare_oidc_rp_sign_out_notice!(state:, session_record:)
-    unless cancel_visa_o9_admissions_before_rp_revoke!(session_record)
-      return render_oidc_rp_logout_unavailable(status: :service_unavailable)
-    end
 
     begin
       revoke_oidc_rp_session_before_redirect!(session_record)
@@ -71,7 +68,7 @@ module OidcRpLogoutLauncher
       client_id:, resource_type:, refresh_token:, post_logout_redirect_uri:, state:,
     )
   rescue OidcClientRegistry::ClientNotFound, OidcRpLogoutError, URI::InvalidURIError,
-         RpSession::IssuanceRejected, ActiveRecord::ActiveRecordError => e
+         ActiveRecord::ActiveRecordError => e
     Rails.logger.warn(
       JitLogEvent.format(
         "auth.sign_out.rp_initiated_logout_rejected",
@@ -105,16 +102,13 @@ module OidcRpLogoutLauncher
     @sign_out_notice = consume_sign_out_notice
     return head(:not_found) unless @sign_out_notice
 
-    # Every surface's completion renderer reads this flag, either explicitly or through
-    # inertia_rails' default, so a completion reached in a later request still clears history.
-    session[:inertia_clear_history] = true
     render_oidc_rp_logout_completion
   end
 
   def handoff_oidc_rp_logout_to_op!(client_id:, resource_type:, refresh_token:,
                                     post_logout_redirect_uri:, state:)
     clear_oidc_rp_logout_cookies!
-    reset_session_and_clear_inertia_history!
+    reset_session
     Actor.clear
     @current_resource = nil
     @oidc_rp_logout_session = nil
@@ -155,12 +149,12 @@ module OidcRpLogoutLauncher
     raw_token = cookies[OidcRpBrowserCredentialContract::REFRESH_COOKIE].to_s.presence
     return unless raw_token
 
-    token_parts = raw_token.split(RefreshTokenShared::REFRESH_TOKEN_SEPARATOR, 2)
+    token_parts = raw_token.split(OidcRpBrowserCredentialContract::REFRESH_TOKEN_SEPARATOR, 2)
     return unless token_parts.length == 2 && token_parts.all?(&:present?)
 
     public_id = token_parts.first
     binding_sid = session_record.op_session_binding&.sid
-    access_sid = AuthorizationTokenClaims.session_id(@oidc_rp_logout_access_payload)
+    access_sid = @oidc_rp_logout_access_payload.fetch("sid")
     return unless secure_public_id_match?(binding_sid, access_sid)
     return unless secure_public_id_match?(binding_sid, public_id)
 
@@ -221,35 +215,13 @@ module OidcRpLogoutLauncher
     end
   end
 
-  def cancel_visa_o9_admissions_before_rp_revoke!(session_record)
-    surface =
-      case session_record
-      when RpBaseAppSession then "app"
-      when RpBaseOrgSession then "org"
-      else return true
-      end
-    access_token = BrowserCredentialCookie.read(cookies, OidcRpBrowserCredentialContract::ACCESS_COOKIE)
-    result = VisaSensitiveAdmissionClient.new(surface:, access_token:)
-      .revoke_rp_session(rp_session_ref: session_record.public_id)
-    return true if result.ok?
-
-    Rails.logger.error(
-      JitLogEvent.format(
-        "auth.sign_out.o9_session_cancellation_failed",
-        surface: surface,
-        result: result.status,
-      ),
-    )
-    false
-  end
-
   def registered_rp_logout_redirect_uri(client_id:, resource_type:, region:)
     client = OidcClientRegistry.find!(client_id)
     candidate =
       client.post_logout_redirect_uris.find do |uri|
         parsed = URI.parse(uri)
         parsed.host == request.host &&
-          parsed.path == AuthBoundaryAuthorityMap::CANONICAL_RP_SIGN_OUT_PATH &&
+          parsed.path == OidcClientStoresStaticClientStore::CANONICAL_RP_SIGN_OUT_PATH &&
           Rack::Utils.parse_nested_query(parsed.query.to_s) == { "ri" => region.to_s }
       end
     unless candidate && OidcClientRegistry.valid_post_logout_redirect_uri?(
@@ -271,16 +243,6 @@ module OidcRpLogoutLauncher
     )
     uri.query = query.to_query
     uri.to_s
-  end
-
-  def render_oidc_rp_logout_unavailable(status: :unprocessable_content)
-    response.headers["Cache-Control"] = "private, no-store"
-    response.headers["Referrer-Policy"] = "strict-origin"
-    render "auth/shared/sign_outs/unavailable", status: status
-  end
-
-  def render_oidc_rp_logout_completion
-    render "auth/shared/sign_outs/complete", status: :ok
   end
 
   def rp_logout_region

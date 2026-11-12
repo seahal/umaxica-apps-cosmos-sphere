@@ -1,5 +1,14 @@
 # Step-Up Operation Inventory
 
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
+This is a historical inventory of the former Base/Auth step-up workflow. The retained Edit browser
+RP does not expose those verification endpoints; see `docs/checklists/browser-rp.md` for its current
+authentication contract. The records below do not imply that the retired routes remain callable.
+
 This inventory records the step-up operations that are in the current Rails implementation. The
 runtime requirement is owned by the Base action policy and is carried through the Base admission,
 Auth ceremony, result delivery, Base acceptance, and the protected mutation. The scope catalog is
@@ -73,8 +82,8 @@ capability | `Base::Org::Iam::*`, `operator_capability` | Existing Action Policy
 read-only screen checks proof without taking a row lock, while mutations recheck under the owner
 lock | The screen returns grantable capabilities only after proof succeeds; mutations re-evaluate
 capability, tenant and target resource | Refuse without disclosing grant options or changing a
-grant | | org | Operator / support resource | Read the session-revocation screen or revoke
-Client sessions | `Base::Org::Support::Clients::*`, `support_session_revoke` | Existing support
+grant | | org | Operator / support resource | Read the session-revocation screen or revoke Client
+sessions | `Base::Org::Support::Clients::*`, `support_session_revoke` | Existing support
 authorization plus Step-Up; the read-only screen checks proof without taking a row lock, while the
 mutation rechecks under the owner lock | The screen returns the active-session count only after
 proof succeeds; the mutation rechecks target actor, tenant and sessions | Refuse without disclosing

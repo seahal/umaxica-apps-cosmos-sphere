@@ -1,5 +1,14 @@
 # Org Entra Callback Boundary
 
+> **Retired by the 2026-11-11 hard reset:** This local Org Entra ceremony is not served by this
+> repository. The content below records its former callback boundary; it is not a current runbook or
+> implementation description.
+
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 > Current implementation (2026-10-03): this document describes the hand-written ceremony that
 > `adr/org-entra-omniauth-strategy-migration.md` replaced.
 > `ExternalAuthenticationOrgEntraCeremonyStore` and the `Auth::Org::Sign::In::Entra::*` controllers
@@ -98,4 +107,3 @@ generic success response.
 - `adr/org-entra-id-sign-in-boundary.md`
 - `docs/security/social-login-provider-scope.md`
 - `docs/security/social-callback-boundary.md` (app-surface Google/Apple equivalent)
-- `docs/runbooks/entra-org-login.md`

@@ -42,7 +42,7 @@ Rails.application.configure do
   config.flipper.preload = true
 end
 
-# The UI is mounted on the developer surface (config/routes/base.rb).
+# The UI is mounted as an operator tool on its configured host.
 Flipper::UI.configure do |config|
   # The version check calls flippercloud.io from the browser on every page load. The control-plane
   # surface must not reach third-party origins to render.

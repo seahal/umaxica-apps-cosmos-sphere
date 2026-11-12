@@ -38,10 +38,9 @@ info:
     ## Hosts
 
     `servers` appears only where a host is real, public, and knowable from the repository. The
-    Core session paths carry one, and the preference paths list every host that serves them. The health and revision endpoints carry none because they are blocked
-    at the edge. The content and Palm paths carry none because their hosts are supplied by
-    deployment environment variables, and the docs and news content editions have no production
-    host at all.
+    Core session paths carry one, and the preference paths list every host that serves them. The
+    health and revision endpoints carry none because they are blocked at the edge. Palm paths carry
+    none because their hosts are supplied by deployment environment variables.
 
     ## Errors
 
@@ -60,8 +59,6 @@ tags:
     description: Core browser BFF session and token lifecycle, authenticated by first-party cookie.
   - name: Preferences
     description: Cookie-consent and color-theme JSON endpoints under `/api/v0/preferences`.
-  - name: Content
-    description: Read-only published documentation, help, news, and info entries.
 paths:
   /api/v0/health.json:
     get:
@@ -135,7 +132,7 @@ paths:
                   - no-store
   /api/v0/session:
     servers:
-      - url: https://jp.umaxica.app
+      - url: https://www-jp.umaxica.app
         description: Canonical Core public host for the app (end-user application) surface.
     get:
       summary: Current browser session summary
@@ -167,7 +164,7 @@ paths:
           $ref: '#/components/responses/Problem'
   /api/v0/token/refresh:
     servers:
-      - url: https://jp.umaxica.app
+      - url: https://www-jp.umaxica.app
         description: Canonical Core public host for the app (end-user application) surface.
     post:
       summary: Rotate the browser credential pair
@@ -202,13 +199,13 @@ paths:
           $ref: '#/components/responses/Problem'
   /api/v0/preferences/cookie:
     servers:
-      - url: https://jp.umaxica.app
+      - url: https://www-jp.umaxica.app
         description: Core public host for the app (end-user application) surface.
       - url: https://www.umaxica.app
         description: Base public host for the app (end-user application) surface.
       - url: https://auth.umaxica.app
         description: Auth public host for the app (end-user application) surface.
-      - url: https://www-jp.umaxica.app
+      - url: https://warp-jp.umaxica.app
         description: Warp public host for the app (end-user application) surface.
     get:
       summary: Cookie-consent banner state
@@ -284,13 +281,13 @@ paths:
           $ref: '#/components/responses/RateLimited'
   /api/v0/preferences/theme:
     servers:
-      - url: https://jp.umaxica.app
+      - url: https://www-jp.umaxica.app
         description: Core public host for the app (end-user application) surface.
       - url: https://www.umaxica.app
         description: Base public host for the app (end-user application) surface.
       - url: https://auth.umaxica.app
         description: Auth public host for the app (end-user application) surface.
-      - url: https://www-jp.umaxica.app
+      - url: https://warp-jp.umaxica.app
         description: Warp public host for the app (end-user application) surface.
     get:
       summary: Current color theme
@@ -366,137 +363,6 @@ paths:
           $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-  /api/v0/entries:
-    get:
-      summary: List published entries
-      description: Returns the published entries for the content service and audience that answered. Served by the docs, help, info, and news services on this surface, each on its own host. The docs and news editions currently have no public ingress; they are described here because the routes and controllers exist and are covered by contract tests.
-      security: []
-      operationId: listEntries
-      tags:
-        - Content
-      parameters:
-        - name: locale
-          in: query
-          schema:
-            type: string
-            example: ja
-        - name: category
-          in: query
-          schema:
-            type: string
-        - name: tag
-          in: query
-          schema:
-            type: string
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/IfNoneMatch'
-        - $ref: '#/components/parameters/IfModifiedSince'
-      responses:
-        '200':
-          description: 'One page of published entries. The collection is always bounded: a request that omits `page` still receives at most the server-defined page size (20). Pagination is Pagy offset pagination; callers send `page`, never a SQL OFFSET.'
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-                example: max-age=60, public
-            ETag:
-              schema:
-                type: string
-            Last-Modified:
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                  - page
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Entry'
-                  page:
-                    $ref: '#/components/schemas/Page'
-        '304':
-          description: The cached representation is still fresh.
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-                example: max-age=60, public
-            ETag:
-              schema:
-                type: string
-            Last-Modified:
-              schema:
-                type: string
-        '400':
-          $ref: '#/components/responses/Problem'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-  /api/v0/entries/{public_id}:
-    get:
-      summary: Read one published entry
-      description: Served by the docs, help, info, and news services on this surface, each on its own host. The docs and news editions currently have no public ingress.
-      security: []
-      operationId: getEntry
-      tags:
-        - Content
-      parameters:
-        - name: public_id
-          in: path
-          required: true
-          description: Opaque entry identifier. Not the slug and not a database key.
-          schema:
-            type: string
-        - name: locale
-          in: query
-          schema:
-            type: string
-            example: ja
-        - $ref: '#/components/parameters/IfNoneMatch'
-        - $ref: '#/components/parameters/IfModifiedSince'
-      responses:
-        '200':
-          description: The published entry.
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-                example: max-age=60, public
-            ETag:
-              schema:
-                type: string
-            Last-Modified:
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Entry'
-        '304':
-          description: The cached representation is still fresh.
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-                example: max-age=60, public
-            ETag:
-              schema:
-                type: string
-            Last-Modified:
-              schema:
-                type: string
-        '404':
-          $ref: '#/components/responses/Problem'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
         '429':
           $ref: '#/components/responses/RateLimited'
 components:
@@ -675,100 +541,6 @@ components:
         theme:
           type: string
           description: Stored color-theme code (`li`/`dr`/`sy`) or the canonical option (`light`/`dark`/`system`).
-    Entry:
-      type: object
-      description: One published entry, rendered from its frozen published version.
-      required:
-        - public_id
-        - namespace
-        - surface
-        - slug
-        - locale
-        - title
-        - summary
-        - body
-        - published_at
-        - updated_at
-        - snapshot_public_id
-        - taxonomy
-      properties:
-        public_id:
-          type: string
-          description: Opaque entry identifier and the resource identity for `GET /api/v0/entries/{public_id}`. Never a database primary key and not the slug. Treat as an opaque string; its generation scheme is not part of the contract.
-        namespace:
-          type: string
-          description: Content service.
-          enum:
-            - docs
-            - help
-            - news
-            - info
-        surface:
-          type: string
-          description: Audience.
-          enum:
-            - app
-            - com
-            - org
-        slug:
-          type: string
-          nullable: true
-          description: The canonical slug. Always present as a member; the value is null when the entry has no canonical slug row, which `PublishingEntrySerializer#canonical_slug` guards for.
-        locale:
-          type: string
-          example: ja
-        title:
-          type: string
-        summary:
-          type: string
-          nullable: true
-          description: Always present as a member; the value may be null. `publishing_entry_versions.summary` is the only nullable column behind this schema.
-        body:
-          type: object
-          description: Always a structured object, never a bare string. Consumers may rely on the type.
-          additionalProperties: true
-        published_at:
-          type: string
-          format: date-time
-          description: RFC 3339 instant with an explicit `Z` offset. Never null. `PublishingEntrySerializer#call` returns nothing at all when there is no active publication, and `publishing_publications.effective_from` is `NOT NULL`, so an entry that renders always has one. It was previously described as nullable, which described a state that cannot occur.
-        updated_at:
-          type: string
-          format: date-time
-          description: RFC 3339 instant of the published version row. Used for Last-Modified.
-        snapshot_public_id:
-          type: string
-          description: Stable public identifier of the published snapshot used for HTML validators.
-        taxonomy:
-          type: object
-          description: Keyed by vocabulary key for this audience and service. A single-valued vocabulary renders one object or null; a multi-valued vocabulary renders an ordered array.
-          additionalProperties: true
-    Page:
-      type: object
-      description: 'Offset page coordinates for a collection (adr/api-collection-offset-pagination.md). `previous` and `next` are null when there is no adjacent page. The page size is not part of the envelope: it is a server-side constant.'
-      required:
-        - current
-        - previous
-        - next
-        - last
-      properties:
-        current:
-          type: integer
-          minimum: 1
-          description: The requested page number that this envelope describes.
-        previous:
-          type: integer
-          nullable: true
-          minimum: 1
-          description: The previous page number, or null on the first page.
-        next:
-          type: integer
-          nullable: true
-          minimum: 1
-          description: The next page number, or null on the last page.
-        last:
-          type: integer
-          minimum: 1
-          description: The last page number for the current filtered collection.
   responses:
     Problem:
       description: An RFC 9457 problem document.
@@ -835,23 +607,3 @@ components:
       schema:
         type: string
       description: CSRF token obtained from `GET /api/v0/session`. Required on every unsafe method. OpenAPI has no security scheme for a double-submit CSRF token in any version, so it is described here as an ordinary required header.
-    Page:
-      name: page
-      in: query
-      description: 1-based page number. Omitted, it defaults to 1. The page size is server-controlled (20 entries). Callers send a logical page number, not a SQL OFFSET. A value that is not a whole number greater than or equal to 1, and a page past the last page, are refused with 400 rather than silently answering with the first page.
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
-    IfNoneMatch:
-      name: If-None-Match
-      in: header
-      description: Prior `ETag`. A match answers `304` with no body (RFC 9110 13.1.2).
-      schema:
-        type: string
-    IfModifiedSince:
-      name: If-Modified-Since
-      in: header
-      description: Prior `Last-Modified`. RFC 9110 13.1.3.
-      schema:
-        type: string

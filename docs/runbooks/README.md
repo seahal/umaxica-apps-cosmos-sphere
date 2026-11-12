@@ -46,18 +46,17 @@ complete provider subjects. Refer to the approved secret inventory instead.
 
 ## Index
 
-| Runbook                                                                             | Covers                                                                                     |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [Apple second key](apple-second-key.md)                                             | Second Sign in with Apple key creation in the Apple developer portal                       |
-| [ChainSeal key rotation](chain-seal-key-rotation.md)                                | ChainSeal ES384 key rotation and emergency revocation                                      |
-| [Device session token integrity rollout](device-session-token-integrity-rollout.md) | Precondition checks and migration order for device session and token reference constraints |
-| [Entra ID Org login](entra-org-login.md)                                            | Microsoft Entra application registration and enablement for the Org login ceremony         |
-| [Jump RT key rotation](jump-rt-key-rotation.md)                                     | ES384 signing key rotation for Jump redirect tokens                                        |
-| [JWT key rotation](jwt-key-rotation.md)                                             | Access token, Preference token, OIDC ID Token and JWKS key rotation                        |
-| [Operator capability](operator-capability.md)                                       | Bootstrap, grant, revocation and audit procedures for org administrative capabilities      |
-| [Rails master key rotation](rails-master-key-rotation.md)                           | Zero-downtime rotation of the Rails credentials master key                                 |
-| [Passkey](passkey.md)                                                               | AAGUID catalog maintenance and passkey operations                                          |
-| [Secret key base rotation](secret-key-base-rotation.md)                             | Forced replacement of `secret_key_base` and its consequences                               |
-| [Stuck sign-up registration](stuck-sign-up-registration.md)                         | Reading and acting on stuck APP registration reports                                       |
-| [Tech browser RP](tech-browser-rp.md)                                               | Tech Operator RP rollout and recovery                                                      |
-| [Unified enforcement rollout](unified-enforcement-rollout.md)                       | Deployment, provisioning order and verification for unified enforcement                    |
+| Runbook                                                                             | Covers                                                                                                                  |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [ChainSeal key rotation](chain-seal-key-rotation.md)                                | ChainSeal ES384 key rotation and emergency revocation                                                                   |
+| [Device session token integrity rollout](device-session-token-integrity-rollout.md) | Precondition checks and migration order for device session and token reference constraints                              |
+| [Jump RT key rotation](jump-rt-key-rotation.md)                                     | ES384 signing key rotation for Jump redirect tokens                                                                     |
+| [JWT key rotation](jwt-key-rotation.md)                                             | Access token, Preference token, OIDC ID Token and JWKS key rotation                                                     |
+| [Operator capability](operator-capability.md)                                       | CLI bootstrap and audit recovery for org administrative capabilities                                                    |
+| [Rails master key rotation](rails-master-key-rotation.md)                           | Zero-downtime rotation of the Rails credentials master key                                                              |
+| [Passkey](passkey.md)                                                               | Delivery of retained Passkey audit outbox rows to Chronicle                                                             |
+| [Secret key base rotation](secret-key-base-rotation.md)                             | Forced replacement of `secret_key_base` and its consequences                                                            |
+| [Stuck sign-up registration](stuck-sign-up-registration.md)                         | Reading and acting on stuck APP registration reports                                                                    |
+| [Unified enforcement rollout](unified-enforcement-rollout.md)                       | Deployment, provisioning order and verification for unified enforcement                                                 |
+| [Valkey protection](valkey-protection.md)                                           | Network, ACL, TLS and command restrictions for the cache, rate-limit and auth-state stores, with open risks             |
+| [Cosmos credential value rotation](cosmos-credential-value-rotation.md)             | Coordinated rotation of credential values across the four repositories, including checks against staging and production |

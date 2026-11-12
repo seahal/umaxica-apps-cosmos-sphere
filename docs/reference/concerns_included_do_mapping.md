@@ -1,5 +1,9 @@
 # `included do` Mapping Table for Concerns
 
+> **Route status (2026-11-11):** This mapping is a historical snapshot of concerns used by the
+> former Auth/Base/Core/Palm/Tech/Visa/Warp controller trees. Those controller surfaces were
+> removed; current code ownership is established by its remaining include sites.
+
 > Status: reference snapshot. This document is not the controller lifecycle source of truth. Use
 > `docs/architecture/controller-lifecycle.md` for current lifecycle rules.
 

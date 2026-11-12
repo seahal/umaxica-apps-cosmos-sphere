@@ -10,10 +10,6 @@ const { default: SignOutConfirmation } =
   await import("@/features/auth/session/SignOutConfirmation");
 const { default: SignOutCompleted } = await import("@/features/auth/session/SignOutCompleted");
 const { default: SignOutUnavailable } = await import("@/features/auth/session/SignOutUnavailable");
-const { default: AuthAppSignOutEdit } = await import("@/pages/auth/app/sign/outs/edit");
-const { default: AuthAppSignOutComplete } = await import("@/pages/auth/app/sign/outs/complete");
-const { default: AuthAppSignOutUnavailable } =
-  await import("@/pages/auth/app/sign/outs/unavailable");
 const { default: PalmAppSignOutEdit } = await import("@/pages/palm/app/sign/outs/edit");
 const { default: PalmAppSignOutComplete } = await import("@/pages/palm/app/sign/outs/complete");
 const { default: PalmAppSignOutUnavailable } =
@@ -103,16 +99,6 @@ describe("SignOutUnavailable", () => {
     expect(markup).toContain('<input type="hidden" name="authenticity_token" value="csrf-value"/>');
     expect(markup).toContain("再試行");
     expect(markup).toContain("もう一度お試しください。");
-  });
-});
-
-describe("auth/app sign-out pages", () => {
-  it.each([
-    ["edit", AuthAppSignOutEdit, SignOutConfirmation],
-    ["complete", AuthAppSignOutComplete, SignOutCompleted],
-    ["unavailable", AuthAppSignOutUnavailable, SignOutUnavailable],
-  ])("%s re-exports the shared component", (_action, Page, Component) => {
-    expect(Page).toBe(Component);
   });
 });
 

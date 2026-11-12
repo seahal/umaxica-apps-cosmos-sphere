@@ -52,12 +52,19 @@ class OperatorChronicle < ChronicleRecord
 
   belongs_to :staff_chronicle_event, class_name: "OperatorChronicleEvent", foreign_key: :event_id,
                                      inverse_of: :staff_chronicles
-  belongs_to :actor, polymorphic: true
+  # Canonical actors are external historical references, not local Active Record associations.
+  validates :actor_id, :actor_type, presence: true
   belongs_to :staff_chronicle_level, class_name: "OperatorChronicleLevel", foreign_key: :level_id,
                                      inverse_of: :staff_chronicles
   # subject_id/subject_type for cross-DB compatibility (no FK)
   validates :subject_id, presence: true
   validates :subject_type, presence: true
+  validates :context, jsonb_keys_uniqueness: {
+    keys: %w(transaction_public_id halt_generation).freeze,
+    predicate: { event_id: OperatorChronicleEvent::SIGN_FLOW_HALTED }.freeze,
+    writer: ChronicleRecord,
+    strict: ActiveRecord::RecordNotUnique,
+  }
 
   validates :event_id, numericality: { only_integer: true }, allow_nil: true
   validates :level_id, numericality: { only_integer: true }, allow_nil: true
@@ -71,15 +78,6 @@ class OperatorChronicle < ChronicleRecord
 
   def set_timestamp
     self.timestamp ||= Time.current
-  end
-
-  def staff
-    Operator.find(subject_id) if subject_type == "Operator"
-  end
-
-  def staff=(staff)
-    self.subject_id = staff.id.to_s
-    self.subject_type = "Operator"
   end
 
   def event_id_must_exist

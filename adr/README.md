@@ -25,15 +25,11 @@ values.
 - Keep non-authoritative decision notes and implementation handoff notes in `research/`, not under
   `adr/`.
 
-Current Inertia decision:
+Historical Inertia decisions (the Inertia frontend is retired from current routes):
 
-- `adr/inertia-rails-thin-adapter.md` — Inertia Rails is used through its public API only, with no
-  fork, patch, or compatibility layer; history encryption is mandatory, each origin is its own
-  Inertia application, and leaving an origin is a `409` with `X-Inertia-Location`.
+- `adr/inertia-rails-thin-adapter.md` — the former Inertia adapter and origin boundary.
 
-- `adr/inertia-initializer-file-name.md` — the configuration stays in
-  `config/initializers/inertia_rails.rb` (gem-named); upstream's `inertia.rb` example is merged into
-  it, never added as a second file.
+- `adr/inertia-initializer-file-name.md` — the former gem initializer naming decision.
 
 Current OP/Auth/RP responsibility decision:
 

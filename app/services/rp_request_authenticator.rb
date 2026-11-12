@@ -18,15 +18,11 @@ class RpRequestAuthenticator
     end
 
   CELL_STORAGE = {
-    "rp_base_app" => { record: RpBaseAppRecord, session: RpBaseAppSession }.freeze,
     "rp_core_app" => { record: RpCoreAppRecord, session: RpCoreAppSession }.freeze,
     "rp_warp_app" => { record: RpWarpAppRecord, session: RpWarpAppSession }.freeze,
     "rp_palm_app" => { record: RpPalmAppRecord, session: RpPalmAppSession }.freeze,
-    "rp_base_org" => { record: RpBaseOrgRecord, session: RpBaseOrgSession }.freeze,
     "rp_core_org" => { record: RpCoreOrgRecord, session: RpCoreOrgSession }.freeze,
     "rp_warp_org" => { record: RpWarpOrgRecord, session: RpWarpOrgSession }.freeze,
-    "rp_edit_org" => { record: RpEditOrgRecord, session: RpEditOrgSession }.freeze,
-    "rp_tech_org" => { record: RpTechOrgRecord, session: RpTechOrgSession }.freeze,
   }.freeze
 
   # authenticated  - both credentials are valid and bound to each other.

@@ -1,155 +1,66 @@
 # typed: false
 # frozen_string_literal: true
 
-# The explicit allowlist of fully qualified domain names this Rails application serves, and the
-# availability slot each one belongs to.
-#
-# The kill switch in `FqdnAvailabilityGate` selects a Flipper feature from the *slot*, never from the
-# `Host` header. A header that does not appear here resolves to nil and the gate fails closed, so an
-# attacker cannot invent a feature name -- or reach a surface -- by sending an arbitrary `Host`.
-#
-# The hostname lists mirror the `constraints(host:)` declarations in `config/routes/*.rb` exactly:
-# same boot-config slots, same environment variables, same literal development aliases.
-# `Security::Invariants::FqdnAvailabilityRegistryInvariantTest` fails when the two drift apart.
-#
-# Note on naming: `ConfigValues::HostFamilyValues` also carries an `acme_*` family whose values are
-# the `base.*.localhost` development aliases already listed under the `base_*` slots here. There is
-# no separate `acme_*` slot because no route constrains on one.
+# The controller prefixes whose hosts have independent availability switches.
 module FqdnAvailabilityRegistry
-  Slot = Data.define(:name, :hostnames)
-
-  # Slot name => the hostnames that reach it. Values are resolved once per boot, because
-  # `config/routes/*.rb` resolves the same sources once per boot when the routes are drawn.
-  SLOT_SOURCES = {
-    base_service: ->(hosts) { [hosts.base_service.host, ENV["PUBLIC_BASE_SERVICE_URL"], "base.app.localhost"] },
-    base_corporate: ->(hosts) { [hosts.base_corporate.host, ENV["PUBLIC_BASE_CORPORATE_URL"], "base.com.localhost"] },
-    base_staff: ->(hosts) { [hosts.base_staff.host, ENV["PUBLIC_BASE_STAFF_URL"], "base.org.localhost"] },
-    visa_service: ->(hosts) { [hosts.visa_service.host, ENV["PUBLIC_VISA_SERVICE_URL"], "visa.app.localhost"] },
-    visa_corporate: ->(hosts) { [hosts.visa_corporate.host, ENV["PUBLIC_VISA_CORPORATE_URL"], "visa.com.localhost"] },
-    visa_staff: ->(hosts) { [hosts.visa_staff.host, ENV["PUBLIC_VISA_STAFF_URL"], "visa.org.localhost"] },
-    base_network: ->(_hosts) { [ENV["PRIVATE_BASE_NETWORK_URL"], "base.net.localhost"] },
-    base_developer: lambda { |_hosts|
-      [ENV["PUBLIC_BASE_DEVELOPER_URL"], ENV["PRIVATE_BASE_DEVELOPER_URL"], "base.dev.localhost"]
-    },
-    auth_service: ->(hosts) { [hosts.auth_service.host, ENV["PUBLIC_AUTH_SERVICE_URL"], "auth.app.localhost"] },
-    auth_corporate: ->(hosts) { [hosts.auth_corporate.host, ENV["PUBLIC_AUTH_CORPORATE_URL"], "auth.com.localhost"] },
-    auth_staff: ->(hosts) { [hosts.auth_staff.host, ENV["PUBLIC_AUTH_STAFF_URL"], "auth.org.localhost"] },
-    core_service: ->(hosts) { [hosts.core_service.host, ENV["PRIVATE_CORE_SERVICE_URL"]] },
-    core_corporate: ->(hosts) { [hosts.core_corporate.host, ENV["PRIVATE_CORE_CORPORATE_URL"]] },
-    core_staff: ->(hosts) { [hosts.core_staff.host, ENV["PRIVATE_CORE_STAFF_URL"]] },
-    core_network: lambda { |_hosts|
-      [ENV["PRIVATE_CORE_NETWORK_URL"], "core.net.localhost"]
-    },
-    core_developer: lambda { |_hosts|
-      [ENV["PUBLIC_CORE_DEVELOPER_URL"], ENV["PRIVATE_CORE_DEVELOPER_URL"],
-       "core.dev.localhost",]
-    },
-    docs_service: ->(hosts) { [hosts.docs_service.host, "docs.jp.umaxica.app", "docs.app.localhost"] },
-    docs_corporate: ->(hosts) { [hosts.docs_corporate.host, "docs.jp.umaxica.com", "docs.com.localhost"] },
-    docs_staff: ->(hosts) { [hosts.docs_staff.host, "docs.jp.umaxica.org", "docs.org.localhost"] },
-    news_service: ->(hosts) { [hosts.news_service.host, "news.jp.umaxica.app", "news.app.localhost"] },
-    news_corporate: ->(hosts) { [hosts.news_corporate.host, "news.jp.umaxica.com", "news.com.localhost"] },
-    news_staff: ->(hosts) { [hosts.news_staff.host, "news.jp.umaxica.org", "news.org.localhost"] },
-    help_service: ->(hosts) { [hosts.help_service.host, "help.jp.umaxica.app", "help.app.localhost"] },
-    help_corporate: ->(hosts) { [hosts.help_corporate.host, "help.jp.umaxica.com", "help.com.localhost"] },
-    help_staff: ->(hosts) { [hosts.help_staff.host, "help.jp.umaxica.org", "help.org.localhost"] },
-    info_service: ->(hosts) { [hosts.info_service.host, "info.app.localhost", "info.umaxica.app"] },
-    info_corporate: ->(hosts) { [hosts.info_corporate.host, "info.com.localhost", "info.umaxica.com"] },
-    info_staff: ->(hosts) { [hosts.info_staff.host, "info.org.localhost", "info.umaxica.org"] },
-    guid_service: lambda { |hosts|
-      [hosts.guid_service.host, ENV["PRIVATE_GUID_SERVICE_URL"], "guid.umaxica.net", "guid.net.localhost"]
-    },
-    edit_staff: lambda { |hosts|
-      [hosts.edit_staff.host, ENV["PUBLIC_EDIT_STAFF_URL"], ENV["PRIVATE_EDIT_STAFF_URL"],
-       "edit.umaxica.org", "edit.org.localhost",]
-    },
-    tech_staff: ->(hosts) { [hosts.tech_staff.host, ENV["PRIVATE_TECH_STAFF_URL"], "tech.org.localhost"] },
-    mission: lambda { |_hosts|
-      [ENV["PUBLIC_MISSION_URL"], ENV["PRIVATE_MISSION_URL"], "mission.core.dev.localhost"]
-    },
-    flipper: lambda { |_hosts|
-      [ENV["PUBLIC_FLIPPER_URL"], ENV["PRIVATE_FLIPPER_URL"], "flipper.core.dev.localhost"]
-    },
-    blazer: lambda { |_hosts|
-      [ENV["PUBLIC_BLAZER_URL"], ENV["PRIVATE_BLAZER_URL"], "blazer.core.dev.localhost"]
-    },
-    pghero: lambda { |_hosts|
-      [ENV["PUBLIC_PGHERO_URL"], ENV["PRIVATE_PGHERO_URL"], "pghero.core.dev.localhost"]
-    },
-    performance: lambda { |_hosts|
-      [ENV["PUBLIC_PERFORMANCE_URL"], ENV["PRIVATE_PERFORMANCE_URL"], "performance.core.dev.localhost"]
-    },
-    coverband: lambda { |_hosts|
-      [ENV["PUBLIC_COVERBAND_URL"], ENV["PRIVATE_COVERBAND_URL"], "coverband.core.dev.localhost"]
-    },
-    swagger: lambda { |_hosts|
-      [ENV["PUBLIC_SWAGGER_URL"], ENV["PRIVATE_SWAGGER_URL"], "swagger.core.dev.localhost"]
-    },
-    warp_service: ->(hosts) { [hosts.warp_service.host, "warp.app.localhost"] },
-    warp_corporate: ->(hosts) { [hosts.warp_corporate.host, "warp.com.localhost"] },
-    warp_staff: ->(hosts) { [hosts.warp_staff.host, "warp.org.localhost"] },
-    palm_service: ->(hosts) { [hosts.palm_service.host, "palm.app.localhost"] },
+  CONTROLLER_SLOTS = {
+    "core/app/" => :core_service,
+    "core/org/" => :core_staff,
+    "core/net/" => :core_network,
+    "core/dev/" => :core_developer,
+    "warp/app/" => :warp_service,
+    "warp/org/" => :warp_staff,
+    "palm/app/" => :palm_service,
   }.freeze
 
-  SLOT_NAMES = SLOT_SOURCES.keys.freeze
-
+  SLOT_NAMES = CONTROLLER_SLOTS.values.uniq.freeze
   FLAG_PREFIX = "fqdn_available_"
-  # Flipper feature names are persisted operational keys. Keep the historic keys while the
-  # application-facing slots and routes use Warp terminology.
-  PERSISTED_FLAG_SLOT_NAMES = {
-    warp_service: :side_service,
-    warp_corporate: :side_corporate,
-    warp_staff: :side_staff,
-  }.freeze
 
   module_function
 
-  def flag_name_for(slot)
-    persisted_slot = PERSISTED_FLAG_SLOT_NAMES.fetch(slot.to_sym, slot)
-    :"#{FLAG_PREFIX}#{persisted_slot}"
-  end
+  def flag_name_for(slot) = :"#{FLAG_PREFIX}#{slot}"
 
   def flag_names = SLOT_NAMES.map { |slot| flag_name_for(slot) }
 
-  # @return [Symbol, nil] the slot the hostname belongs to, or nil when the hostname is not served.
   def slot_for(hostname)
-    return nil if hostname.blank?
+    host = CoreHostNormalization.normalize(hostname)
+    return if host.nil?
 
-    index.fetch(normalize(hostname), nil)
+    index[host]
   end
 
-  def slots
-    @slots ||= SLOT_SOURCES.map do |name, source|
-      Slot.new(name: name, hostnames: hostnames_from(source))
-    end.freeze
-  end
-
-  # hostname => slot. Built once per boot and frozen.
   def index
-    @index ||= slots.each_with_object({}) do |slot, map|
-      slot.hostnames.each do |hostname|
-        claimed = map[hostname]
+    @index ||=
+      begin
+        owned_routes = []
+        Rails.application.routes.routes.each do |route|
+          controller = route.defaults[:controller].to_s
+          prefix = CONTROLLER_SLOTS.keys.find { |candidate| controller.start_with?(candidate) }
+          next unless prefix
 
-        if claimed && claimed != slot.name
-          raise ArgumentError,
-                "FQDN #{hostname} is claimed by both #{claimed} and #{slot.name}; " \
-                "one hostname cannot have two availability switches"
+          constraint = route.constraints[:host]
+          unless constraint.is_a?(Array) && constraint.present?
+            raise ArgumentError, "#{controller} route has no explicit host constraint"
+          end
+
+          slot = CONTROLLER_SLOTS.fetch(prefix)
+          constraint.each do |value|
+            host = CoreHostNormalization.normalize(value)
+            owned_routes << [host, slot] if host
+          end
         end
+        raise ArgumentError, "owned routes must define host constraints" if owned_routes.empty?
 
-        map[hostname] = slot.name
-      end
-    end.freeze
+        owned_routes.each_with_object({}) do |(host, slot), hosts|
+          existing_slot = hosts[host]
+          if existing_slot && existing_slot != slot
+            raise ArgumentError, "host constraint is assigned to multiple FQDN slots"
+          end
+
+          hosts[host] = slot
+        end
+      end.freeze
   end
 
-  def hostnames_from(source)
-    hostnames =
-      source.call(Rails.configuration.x.boot_config.fetch(:hosts)).compact_blank.map do |value|
-        normalize(value)
-      end
-    hostnames.uniq!
-    hostnames.freeze
-  end
-
-  def normalize(value) = value.to_s.strip.downcase
-  private_class_method :hostnames_from
+  private_class_method :index
 end

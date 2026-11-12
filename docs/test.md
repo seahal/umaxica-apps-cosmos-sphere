@@ -1,5 +1,13 @@
 # Test Specification (TS)
 
+> **Current scope amendment (2026-11-10):** The live Rails browser surfaces are Docs, News, Help,
+> Info, Edit, and the six operator tools. Auth, Base, Core, GUID, Palm, Tech, Visa, and Warp browser
+> routes and frontend pages are retired. The JavaScript behavior and Playwright test suites
+> described below are retired with those pages. Current Rails acceptance is recorded in `AGENTS.md`
+> and the surface hard-reset evidence. The GitHub workflow still invokes the removed JavaScript
+> coverage script; that workflow is read-only in the current workspace and could not be updated
+> here.
+
 > **Partially superseded by Identity Authority inversion:** Identity test expectations in this
 > document must be read through `docs/qa/identity-authority-regression-checklist.md`. `acme/www`
 > commits session, token, account, preference, authorization, and freshness state. `sign/id` is
@@ -16,9 +24,8 @@
 
 ### 1.1 Purpose
 
-This TS defines how the Rails-based Umaxica Apps Cosmos Sphere will be verified across every public
-surface—top, sign, help, docs, news, BFF, and API. It covers strategy, environments, tooling,
-detailed cases, and acceptance criteria derived from the SRS and HLD.
+This TS preserves earlier test strategy and acceptance cases. Current route ownership and
+verification scope follow the surface hard-reset amendment above and the current surface matrix.
 
 ### 1.2 References
 
@@ -75,10 +82,12 @@ detailed cases, and acceptance criteria derived from the SRS and HLD.
   disables PostgreSQL query/maintenance parallelism for test connections, and prepares separate
   writer/reader database names for each configured connection. Valkey rate-limit and auth-state use
   KVS logical DBs 4 and 6 with run/worker key namespaces. Test cache is `MemoryStore`.
-- **Unit tests (JS/TS)**: `bun run test` runs the JavaScript test baseline directly through Vitest.
-- **Integration tests**: Rails integration tests are the automated baseline. The repository has no
-  Rails system tests (`test/system` does not exist). Browser-level Playwright scenarios are deferred
-  until a concrete release flow requires them.
+- **Frontend checks**: `bun run check` validates formatting, lint, Vite configuration types, dead
+  code, and OpenAPI descriptions. No JavaScript behavior-test suite remains.
+- **Integration tests**: Rails integration tests are the automated baseline. Rails system-test
+  infrastructure uses Capybara with Playwright and Chromium; see
+  [the test environment guide](operations/test-environment.md#rails-system-tests). Browser scenarios
+  remain deferred; the infrastructure has not been runtime-verified.
 - **API/contract tests**: Rails controller/integration tests cover API behavior, with
   `committee-rails` available for OpenAPI response validation where schemas exist. `rswag-api` and
   `rswag-ui` (development group) serve the OpenAPI documents and Swagger UI on the swagger host;
@@ -100,7 +109,8 @@ detailed cases, and acceptance criteria derived from the SRS and HLD.
 - **Observability verification**: OTEL traces appear in Tempo; Loki logs capture Turnstile failures;
   Grafana dashboards show request rate and application error signals.
 - **Automation**: CI runs the configured Rails and JS gates: `bin/ci` for the Rails stack and GitHub
-  Actions `bun run check` plus `bun run test:coverage` for JavaScript.
+  Actions `bun run check` for frontend tooling. The workflow's stale `bun run test:coverage` step is
+  blocked on making its read-only workflow file writable.
 
 ---
 
@@ -124,7 +134,7 @@ must be synthetic. Contact forms require Turnstile test keys or bypass for autom
 | Top::Com/App/Org  | `www.umaxica.com`, `www.umaxica.app`, `www.umaxica.org` | Redirect correctness, preference UIs, health endpoints                     |
 | Sign::App/Org     | `log.umaxica.app`, `log.umaxica.org`                    | Registration (email/phone), passkey/TOTP, JWT cookies, logout, withdrawal  |
 | Help::Com/App/Org | `help.umaxica.com`, etc.                                | Contact form validation, Turnstile, encrypted persistence, email/SMS hooks |
-| Docs::_/News::_   | `docs.umaxica.*`, `news.umaxica.*`                      | Health endpoints, React hydration placeholder                              |
+| Docs::_/News::_   | `docs.umaxica.*`, `news.umaxica.*`                      | Server-rendered content roots and health endpoints                         |
 | API::\*           | `api.umaxica.*`                                         | `/health` (text), `/api/v0/health.json`, inquiry validation endpoints      |
 | BFF::\*           | `bff.umaxica.*`                                         | Preference APIs, locale propagation                                        |
 
@@ -195,11 +205,11 @@ must be synthetic. Contact forms require Turnstile test keys or bypass for autom
   RFC 3339 UTC timestamp, with `fail` → 503; a readiness failure must not drop the `liveness` check
   to `fail`. `GET /api/v0/revision.json` returns a nullable revision and the same timestamp format.
 
-### 7.6 Docs/News/Help health
+### 7.6 Docs/News/Help health (retired in Sphere, 2026-11-09)
 
-- **TC-DOC-501** GET `/` on docs/news hosts returns 200 with placeholder markup and hydration
-  dataset.
-- **TC-DOC-502** `/health` (text) + `/api/v0/health.json` respond for docs/news/help staff hosts.
+TC-DOC-501 and TC-DOC-502 describe the former Sphere routes. The accepted Cosmos Press route
+ownership decision moved these host families out of Sphere; their routes and health checks belong
+with Press. These cases are historical and are not Sphere acceptance tests.
 
 ### 7.7 Redirect & Security
 
@@ -224,7 +234,7 @@ must be synthetic. Contact forms require Turnstile test keys or bypass for autom
 | Ruby unit/ctrl/int | `bin/rails test`                             | Covered by `bin/ci`                                             | Adopted baseline.                                                             |
 | Rails system       | Not adopted                                  | Not gated                                                       | No `test/system` directory exists and `config/ci.rb` has no system-test step. |
 | JavaScript checks  | `bun run check`                              | `bin/ci`; format, lint, typecheck in `.github/workflows/ci.yml` | Adopted baseline.                                                             |
-| JavaScript tests   | `bun run test`                               | `bun run test:coverage` in `.github/workflows/ci.yml`           | Adopted baseline; keep expanding behavior-specific coverage.                  |
+| JavaScript tests   | Retired with React/Inertia pages             | Workflow step remains in read-only `.github/workflows/ci.yml`   | No JavaScript behavior tests remain.                                          |
 | API contracts      | Rails tests with selective `committee-rails` | Covered when Rails tests exercise schema validation             | Adopted selectively; `rswag-specs` is not used.                               |
 | Browser E2E        | Not adopted                                  | Not gated                                                       | Deferred until a named cross-browser release flow needs it.                   |
 | Performance/load   | Not adopted                                  | Not gated                                                       | Deferred until load targets and an execution environment are specified.       |
@@ -246,8 +256,8 @@ must be synthetic. Contact forms require Turnstile test keys or bypass for autom
 
 ## 9. Tooling, Data, and Automation
 
-- **Tools**: Minitest, `committee-rails`, Vitest, Oxlint, Oxfmt, Brakeman, Bundler Audit, curl
-  scripts for manual smoke checks.
+- **Tools**: Minitest, `committee-rails`, Oxlint, Oxfmt, Brakeman, Bundler Audit, curl scripts for
+  manual smoke checks.
 - **Fixtures**: Stored per DB context; use `ActiveRecord::FixtureSet.create_fixtures` per database
   connection. Sensitive examples anonymized.
 - **Data cleanup**: Multi-DB tests must wrap in transactions (Rails 8 multi-db test helpers) or rely

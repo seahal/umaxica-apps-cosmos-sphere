@@ -38,7 +38,7 @@ module SecurityTokenLifetimes
 
   # Minimum gap between per-request last_used_at writes. Activity tracking is
   # throttled so an authenticated request does not write to the session row on
-  # every hit (see AuthenticationCurrentResourceResolver#touch_session_activity!).
+  # each accepted session-activity update.
   ACTIVITY_TOUCH_THROTTLE = 60.seconds
 
   module_function

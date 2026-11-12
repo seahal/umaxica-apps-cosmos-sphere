@@ -13,7 +13,7 @@ if Rails.env.development?
 
     # The three surfaces, as relative paths under this same host. `config/routes/swagger.rb` mounts
     # Rswag::Api::Engine at /openapi, so these resolve to the authenticated document endpoint on
-    # swagger.umaxica.dev and nowhere else. Relative on purpose: an absolute URL would hard-code an
+    # swagger-sphere-jp.umaxica.dev and nowhere else. Relative on purpose: an absolute URL would hard-code an
     # origin, and the browser is already on the canonical one. Adding a fourth entry pointing at
     # any other origin would make Swagger UI fetch an OpenAPI document this repository does not
     # control.

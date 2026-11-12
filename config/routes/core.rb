@@ -37,15 +37,6 @@ scope module: :core, as: :core do
       # Versioned BFF API.
       namespace :api do
         namespace :v0 do
-          namespace :preferences do
-            # These preference resources intentionally expose GET + PATCH only. Rails' `resource
-            # ... only: :update` also exposes PUT, which is outside the existing OpenAPI contract.
-            get :cookie, to: "cookies#show"
-            patch :cookie, to: "cookies#update"
-            get :theme, to: "themes#show"
-            patch :theme, to: "themes#update"
-          end
-
           # Machine-readable health and revision. The literal ".json" is part of the path, not a
           # Rails format token (`format: false`), mirroring the `.well-known/jwks.json` precedent.
           # These are JSON-only; the controllers answer 406 to any other `Accept`.
@@ -72,7 +63,7 @@ scope module: :core, as: :core do
         resources :closures, only: :create
       end
 
-      # Canonical browser sign-out ceremony (see config/routes/auth.rb for the pattern).
+      # Canonical browser sign-out ceremony for this relying party.
       scope path: "sign", as: :sign do
         get "", to: "sign/entries#show", as: :show
         post "", to: "sign/entries#create", as: :create
@@ -123,14 +114,6 @@ scope module: :core, as: :core do
       # Versioned BFF API.
       namespace :api do
         namespace :v0 do
-          namespace :preferences do
-            # Keep the established GET + PATCH contract; resource update would add an unapproved PUT.
-            get :cookie, to: "cookies#show"
-            patch :cookie, to: "cookies#update"
-            get :theme, to: "themes#show"
-            patch :theme, to: "themes#update"
-          end
-
           # Machine-readable health and revision. The literal ".json" is part of the path, not a
           # Rails format token (`format: false`), mirroring the `.well-known/jwks.json` precedent.
           # These are JSON-only; the controllers answer 406 to any other `Accept`.
@@ -157,7 +140,7 @@ scope module: :core, as: :core do
         resources :closures, only: :create
       end
 
-      # Canonical browser sign-out ceremony (see config/routes/auth.rb for the pattern).
+      # Canonical browser sign-out ceremony for this relying party.
       scope path: "sign", as: :sign do
         get "", to: "sign/entries#show", as: :show
         post "", to: "sign/entries#create", as: :create

@@ -6,29 +6,25 @@ import CoreAppRootsIndex from "@/pages/core/app/roots/index";
 import CoreOrgRootsIndex from "@/pages/core/org/roots/index";
 import PalmAppRootsIndex from "@/pages/palm/app/roots/index";
 import WarpAppRootsIndex from "@/pages/warp/app/roots/index";
-import WarpComRootsIndex from "@/pages/warp/com/roots/index";
 import WarpOrgRootsIndex from "@/pages/warp/org/roots/index";
 
 const props: RootLandingProps = {
   title: null,
   heading: "Warp App",
   description: "Thin landing endpoint.",
-  sign_up: null,
-  links: [
-    { label: "Settings", href: "/settings?ri=jp" },
-    { label: "Sign up", href: "/oidc/authorization?ri=jp" },
-  ],
 };
 
 describe("RootLanding extra destinations", () => {
-  it("renders every destination the server sent, in order", () => {
-    const markup = renderToStaticMarkup(<RootLanding {...props} />);
-
-    expect(markup).toMatch(/<a href="\/settings\?ri=jp"[^>]*>Settings<\/a>/u);
-    expect(markup).toMatch(/<a href="\/oidc\/authorization\?ri=jp"[^>]*>Sign up<\/a>/u);
-    expect(markup.indexOf('href="/settings?ri=jp"')).toBeLessThan(
-      markup.indexOf('href="/oidc/authorization?ri=jp"'),
+  it("renders the RP sign-in action supplied by the surface", () => {
+    const markup = renderToStaticMarkup(
+      <RootLanding
+        {...props}
+        sign_in={{ label: "Sign in", action: "/sign/in/new", authenticity_token: "csrf-proof" }}
+      />,
     );
+    expect(markup).toContain('action="/sign/in/new"');
+    expect(markup).toContain('value="csrf-proof"');
+    expect(markup).toContain("Sign in");
   });
 
   it("renders the heading a surface without a page title of its own still shows", () => {
@@ -39,12 +35,7 @@ describe("RootLanding extra destinations", () => {
   });
 
   it("renders no destinations when the surface offers none", () => {
-    const markup = renderToStaticMarkup(
-      <RootLanding
-        {...props}
-        links={null}
-      />,
-    );
+    const markup = renderToStaticMarkup(<RootLanding {...props} />);
 
     expect(markup).not.toContain("<a href");
   });
@@ -57,7 +48,6 @@ describe("Core, Warp, and Palm root pages", () => {
     ["core/app", CoreAppRootsIndex],
     ["core/org", CoreOrgRootsIndex],
     ["warp/app", WarpAppRootsIndex],
-    ["warp/com", WarpComRootsIndex],
     ["warp/org", WarpOrgRootsIndex],
     ["palm/app", PalmAppRootsIndex],
   ])("%s renders the shared landing", (_surface, Page) => {

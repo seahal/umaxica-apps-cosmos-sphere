@@ -3,51 +3,38 @@
 
 require "test_helper"
 
-module Palm
-  module App
-    module Sign
-      class OutsControllerTest < ActionDispatch::IntegrationTest
-        HOST = ENV.fetch("PUBLIC_PALM_SERVICE_URL")
+class Palm::App::Sign::OutsControllerTest < ActionDispatch::IntegrationTest
+  test "confirmation is a nonmutating page and has no successful completion notice" do
+    host! ENV.fetch("PUBLIC_PALM_SERVICE_URL")
+    https!
+    get edit_palm_app_sign_out_path(ri: "jp")
 
-        setup do
-          host! HOST
-        end
+    assert_response :success
+    assert_not_includes response.headers.to_h, "Clear-Site-Data"
+    assert_includes response.body, "palm/app/sign/outs/edit"
 
-        test "GET sign-out shows the shared confirmation without mutating sessions" do
-          before = [ClientToken.count, OpAppGrant.count]
+    get palm_app_sign_out_path(ri: "jp")
 
-          get edit_palm_app_sign_out_url(ri: "jp")
+    assert_response :not_found
+  end
 
-          assert_response :success
-          assert_equal "palm/app/sign/outs/edit", inertia_component
-          assert_equal I18n.t("sign.shared.sign_out.title"), inertia_props.fetch("heading")
-          assert_equal before, [ClientToken.count, OpAppGrant.count]
-        end
+  test "uncredentialed logout fails before any Access revocation" do
+    host! ENV.fetch("PUBLIC_PALM_SERVICE_URL")
+    https!
+    get edit_palm_app_sign_out_path(ri: "jp")
 
-        test "POST sign-out without Palm RP credentials is refused before transaction creation" do
-          with_forgery_protection do
-            get edit_palm_app_sign_out_url(ri: "jp")
-            csrf_token = css_select('meta[name="csrf-token"]').first["content"]
-            post palm_app_sign_out_url(ri: "jp"), headers: {
-              "Origin" => "http://#{HOST}",
-              "Sec-Fetch-Site" => "same-origin",
-              "X-CSRF-Token" => csrf_token,
-            }
-
-            assert_response :unauthorized
-          end
-        end
-
-        private
-
-        def with_forgery_protection
-          ActionController::Base.allow_forgery_protection = true
-          yield
-        ensure
-          ActionController::Base.allow_forgery_protection =
-            Rails.configuration.action_controller.allow_forgery_protection
-        end
-      end
+    assert_response :success
+    # Rails owns this page's CSRF token; Access is an external dependency and must not be called.
+    token = response.body[/name="csrf-token" content="([^"]+)"/, 1]
+    OidcOpRevocationClient.stub(:revoke, ->(**) { flunk("no local session can authorize revocation") }) do
+      post palm_app_sign_out_path(ri: "jp"), headers: {
+        "Origin" => "https://#{ENV.fetch("PUBLIC_PALM_SERVICE_URL")}",
+        "Sec-Fetch-Site" => "same-origin",
+        "X-CSRF-Token" => token.to_s,
+      }
     end
+
+    assert_response :unauthorized
+    assert_nil cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE]
   end
 end

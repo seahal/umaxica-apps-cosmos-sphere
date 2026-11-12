@@ -24,12 +24,11 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
 
   test "issues ES384 jump rt jwt with expected claims" do
     with_env(
-      "JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a",
-      "PRIVATE_AUTH_SERVICE_URL" => "sign.example.test",
+      "JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a",
     ) do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?ok=1",
           dst: "internal",
           now: Time.zone.at(1_800_000_000),
@@ -43,7 +42,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
 
         assert_equal "JWT", header["typ"]
         assert_equal "ES384", header["alg"]
-        assert_equal JitSecurityJwtRegistry.surface("AUTH_APP").current_kid, header["kid"]
+        assert_equal JitSecurityJwtRegistry.surface("BASE_APP").current_kid, header["kid"]
         assert_equal 1, payload["schema"]
         assert_equal "jump-redirect", payload["sub"]
         assert_equal "internal", payload["dst"]
@@ -69,11 +68,11 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
 
   test "returns nil for url with invalid percent encoding" do
     with_env(
-      "JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a",
+      "JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a",
     ) do
       JumpRtKeyring.stub(:private_key, @private_key) do
         result = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "http://example.com/%gg",
           dst: "internal",
         )
@@ -86,10 +85,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   # Rack once raised on this query, which refused issuance by accident. Under the WHATWG contract
   # it is two ordinary pairs, so it is signed in order like any other query.
   test "signs a query whose bracketed keys Rack would treat as conflicting shapes" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/?a=scalar&a[b]=nested",
           dst: "internal",
         )
@@ -104,7 +103,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     %w(reuse once).each do |policy|
       assert_raises(ArgumentError, policy) do
         JumpRtIssuer.call(
-          namespace: "AUTH_APP", url: "https://target.example/path", replay_policy: policy, dst: "internal",
+          namespace: "BASE_APP", url: "https://target.example/path", replay_policy: policy, dst: "internal",
         )
       end
     end
@@ -123,14 +122,14 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
 
   test "codec issue payload fixes rpl to reuse" do
     payload = SecurityJwtJumpRtTokenCodec.build_issue_payload(
-      issuer: "https://auth.umaxica.app", normalized_url: "https://www.umaxica.app/", dst: "internal",
+      issuer: "https://www.umaxica.app", normalized_url: "https://www.umaxica.app/", dst: "internal",
       ttl: 30, now: Time.zone.at(1_800_000_000), jti: "jti", audience: "https://jump.umaxica.net",
     )
 
     assert_equal "reuse", payload.fetch(:rpl)
     assert_raises(ArgumentError) do
       SecurityJwtJumpRtTokenCodec.build_issue_payload(
-        issuer: "https://auth.umaxica.app", normalized_url: "https://www.umaxica.app/", dst: "internal",
+        issuer: "https://www.umaxica.app", normalized_url: "https://www.umaxica.app/", dst: "internal",
         replay_policy: "once", ttl: 30, now: Time.zone.at(1_800_000_000), jti: "jti",
         audience: "https://jump.umaxica.net",
       )
@@ -141,11 +140,11 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     hosts = HostSet.new(Origin.new(host: "sign.example.test"))
     boot_config = BootConfig.new(hosts, OpenStruct.new(ttl_seconds: 30, audience: "https://jump.umaxica.net"))
 
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       Rails.configuration.x.stub(:boot_config, boot_config) do
         JumpRtKeyring.stub(:private_key, @private_key) do
           token = JumpRtIssuer.call(
-            namespace: "AUTH_APP",
+            namespace: "BASE_APP",
             url: "https://target.example/path",
             now: Time.zone.at(1_800_000_000),
             jti: "jti-test",
@@ -161,9 +160,9 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "refuses invalid destination kind" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
-        token = JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://target.example/", dst: "unknown")
+        token = JumpRtIssuer.call(namespace: "BASE_APP", url: "https://target.example/", dst: "unknown")
 
         assert_nil token
       end
@@ -172,19 +171,19 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
 
   test "requires an explicit internal destination and refuses all other values" do
     assert_raises(ArgumentError) do
-      JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://target.example/")
+      JumpRtIssuer.call(namespace: "BASE_APP", url: "https://target.example/")
     end
 
     [nil, "external", "unknown", [], {}, 1].each do |destination|
       assert_nil JumpRtIssuer.call(
-        namespace: "AUTH_APP", url: "https://target.example/", dst: destination,
+        namespace: "BASE_APP", url: "https://target.example/", dst: destination,
       ), destination.inspect
     end
 
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP", url: "https://target.example/", dst: "internal",
+          namespace: "BASE_APP", url: "https://target.example/", dst: "internal",
         )
 
         assert_equal "internal", JWT.decode(token, nil, false).first.fetch("dst")
@@ -193,17 +192,17 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "issue ttl accepts one and thirty seconds and refuses zero and thirty one" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         [0, 31].each do |ttl|
           assert_nil JumpRtIssuer.call(
-            namespace: "AUTH_APP", url: "https://target.example/", dst: "internal", ttl: ttl,
+            namespace: "BASE_APP", url: "https://target.example/", dst: "internal", ttl: ttl,
           ), "ttl=#{ttl}"
         end
 
         [1, 30].each do |ttl|
           token = JumpRtIssuer.call(
-            namespace: "AUTH_APP", url: "https://target.example/", dst: "internal", ttl: ttl,
+            namespace: "BASE_APP", url: "https://target.example/", dst: "internal", ttl: ttl,
           )
           payload, = JWT.decode(token, nil, false)
 
@@ -214,12 +213,12 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "normalized url utf16 length accepts 2047 and 2048 units and refuses 2049" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         [2_047, 2_048].each do |length|
           base = "https://target.example/"
           url = base + ("a" * (length - base.length))
-          token = JumpRtIssuer.call(namespace: "AUTH_APP", url: url, dst: "internal")
+          token = JumpRtIssuer.call(namespace: "BASE_APP", url: url, dst: "internal")
           payload, = JWT.decode(token, nil, false)
 
           assert_equal length, payload.fetch("url").encode(Encoding::UTF_16LE).bytesize / 2
@@ -228,16 +227,16 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
         base = "https://target.example/"
         oversized = base + ("a" * (2_049 - base.length))
 
-        assert_nil JumpRtIssuer.call(namespace: "AUTH_APP", url: oversized, dst: "internal")
+        assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: oversized, dst: "internal")
       end
     end
   end
 
   test "unicode path is percent encoded before applying the normalized url length limit" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP", url: "https://target.example/😀?q=a%20b&plus=a%2Bb", dst: "internal",
+          namespace: "BASE_APP", url: "https://target.example/😀?q=a%20b&plus=a%2Bb", dst: "internal",
         )
         payload, = JWT.decode(token, nil, false)
 
@@ -249,11 +248,11 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "url length is checked after dangerous query pairs are stripped" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         oversized_before_normalization = "https://target.example/?keep=1&rt=#{"x" * 3_000}"
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP", url: oversized_before_normalization, dst: "internal",
+          namespace: "BASE_APP", url: oversized_before_normalization, dst: "internal",
         )
         payload, = JWT.decode(token, nil, false)
 
@@ -266,12 +265,12 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   # remains below 4,095 bytes. The nearest reachable issue case verifies the hard ceiling and ASCII
   # compact serialization; exact 4,095/4,096/4,097 JWTs require violating the receiver's claim caps.
   test "maximum valid claims produce an ascii compact jwt within the 4096 byte bound" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         base = "https://target.example/"
         url = base + ("a" * (2_048 - base.length))
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP", url: url, dst: "internal", jti: "j" * 128,
+          namespace: "BASE_APP", url: url, dst: "internal", jti: "j" * 128,
         )
 
         assert_predicate token, :ascii_only?
@@ -282,24 +281,21 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "refuses unsafe destination urls" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
-        assert_nil JumpRtIssuer.call(namespace: "AUTH_APP", url: "javascript:alert(1)", dst: "internal")
-        assert_nil JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://user:pass@target.example/", dst: "internal")
-        assert_nil JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://target.example/#fragment", dst: "internal")
-        assert_nil JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://target.example/\n", dst: "internal")
+        assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: "javascript:alert(1)", dst: "internal")
+        assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: "https://user:pass@target.example/", dst: "internal")
+        assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: "https://target.example/#fragment", dst: "internal")
+        assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: "https://target.example/\n", dst: "internal")
       end
     end
   end
 
   test "strips redirect-target query keys before signing the url" do
-    with_env(
-      "JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a",
-      "PRIVATE_AUTH_SERVICE_URL" => "sign.example.test",
-    ) do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?ok=1&pt=/evil&rt=stale&xt=foo&keep=2",
           dst: "internal",
         )
@@ -311,10 +307,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "strips redirect uri by default before signing the url" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?redirect_uri=https%3A%2F%2Fwww.example.com%2Fauth%2Fcallback&ok=1",
           dst: "internal",
         )
@@ -326,10 +322,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "preserves explicitly allowed redirect uri inside the signed url" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?redirect_uri=https%3A%2F%2Fwww.example.com%2Fauth%2Fcallback&rt=stale&ok=1",
           preserve_query_keys: ["redirect_uri"],
           dst: "internal",
@@ -345,10 +341,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "keeps the order and repeated pairs of the remaining query when signing the url" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?tag=b&rt=stale&tag=a&q=a%2Bb&s=a+b",
           dst: "internal",
         )
@@ -360,10 +356,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "strips nested and percent-encoded forms of redirect-target keys before signing the url" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?ok=1&rt%5B%5D=x&next[x]=evil&%72t=y&redirect_uri%5Ba%5D=z",
           dst: "internal",
         )
@@ -375,10 +371,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "a preserved key keeps its position among the remaining pairs" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?ok=1&redirect_uri=https%3A%2F%2Fwww.example.com%2Fcb&rt=stale&z=2",
           preserve_query_keys: ["redirect_uri"],
           dst: "internal",
@@ -392,10 +388,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "drops query entirely when only redirect-target keys are present" do
-    with_env("JWT_AUTH_APP_ACTIVE_KID" => "sign-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
-          namespace: "AUTH_APP",
+          namespace: "BASE_APP",
           url: "https://target.example/path?rt=stale&pt=/evil",
           dst: "internal",
         )
@@ -410,7 +406,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     JumpRtKeyring.stub(:active_kid, nil) do
       error =
         assert_raises(JumpRtConfigurationError) do
-          JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://target.example/", dst: "internal")
+          JumpRtIssuer.call(namespace: "BASE_APP", url: "https://target.example/", dst: "internal")
         end
 
       assert_match(/Jump RT signing key configuration/, error.message)
@@ -419,7 +415,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     JumpRtKeyring.stub(:private_key, nil) do
       error =
         assert_raises(JumpRtConfigurationError) do
-          JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://target.example/", dst: "internal")
+          JumpRtIssuer.call(namespace: "BASE_APP", url: "https://target.example/", dst: "internal")
         end
 
       assert_match(/Jump RT signing key configuration/, error.message)
@@ -434,22 +430,21 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     end
   end
 
-  test "resolves issuer namespace from controller class name" do
-    assert_equal "AUTH_APP", JumpRtSurface.namespace_for_controller("Auth::App::DashboardsController")
-    assert_equal "AUTH_ORG", JumpRtSurface.namespace_for_controller("Auth::Org::DashboardsController")
-    assert_equal "BASE_APP", JumpRtSurface.namespace_for_controller("Base::App::RootsController")
+  test "retained Sphere and external RP controller names resolve to Jump namespaces" do
+    assert_equal "CORE_APP", JumpRtSurface.namespace_for_controller("Core::App::RootsController")
     assert_equal "CORE_ORG", JumpRtSurface.namespace_for_controller("Core::Org::RootsController")
-    %w(Auth Base Core).each do |service|
+    assert_equal "WARP_APP", JumpRtSurface.namespace_for_controller("Warp::App::RootsController")
+    assert_equal "WARP_ORG", JumpRtSurface.namespace_for_controller("Warp::Org::RootsController")
+    assert_equal "PALM_APP", JumpRtSurface.namespace_for_controller("Palm::App::RootsController")
+    assert_equal "BASE_APP", JumpRtSurface.namespace_for_controller("Base::App::RootsController")
+    assert_equal "BASE_ORG", JumpRtSurface.namespace_for_controller("Base::Org::RootsController")
+    assert_equal "VISA_APP", JumpRtSurface.namespace_for_controller("Visa::App::Oauth::AuthorizationsController")
+    assert_equal "VISA_ORG", JumpRtSurface.namespace_for_controller("Visa::Org::Oauth::AuthorizationsController")
+    %w(Auth Edit Jump).each do |service|
       assert_raises(JumpRtConfigurationError) do
-        JumpRtSurface.namespace_for_controller("#{service}::Com::RootsController")
+        JumpRtSurface.namespace_for_controller("#{service}::Org::RootsController")
       end
     end
-    assert_raises(JumpRtConfigurationError) do
-      JumpRtSurface.namespace_for_controller("Jump::App::RootsController")
-    end
-  end
-
-  test "retired Sign controllers and issuer identities have no compatibility mapping" do
     %w(App Com Org).each do |surface|
       assert_raises(JumpRtConfigurationError) do
         JumpRtSurface.namespace_for_controller("Sign::#{surface}::DashboardsController")
@@ -460,46 +455,10 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     end
   end
 
-  test "Core and Palm issuer origins match their public JWKS origins" do
-    %w(APP ORG).each do |tld|
-      assert_equal "https://jp.umaxica.#{tld.downcase}", JumpRtSurface.issuer_origin("CORE_#{tld}")
+  test "retired namespaces cannot be normalized" do
+    %w(AUTH_APP AUTH_ORG).each do |namespace|
+      assert_raises(JumpRtConfigurationError, namespace) { JumpRtSurface.normalize_namespace(namespace) }
     end
-    assert_raises(JumpRtConfigurationError) { JumpRtSurface.issuer_origin("CORE_COM") }
-    assert_equal "PALM_APP", JumpRtSurface.namespace_for_controller("Palm::App::Sign::OutsController")
-    assert_equal "https://palm-jp.umaxica.app", JumpRtSurface.issuer_origin("PALM_APP")
-    assert_raises(JumpRtConfigurationError) do
-      JumpRtSurface.namespace_for_controller("Palm::Com::RootsController")
-    end
-  end
-
-  test "Warp app and org use independent Jump RT issuers while OIDC side client identifiers remain fixed" do
-    assert_equal "WARP_APP", JumpRtSurface.namespace_for_controller("Warp::App::RootsController")
-    assert_equal "WARP_ORG", JumpRtSurface.namespace_for_controller("Warp::Org::RootsController")
-    assert_equal "https://www-jp.umaxica.app", JumpRtSurface.issuer_origin("WARP_APP")
-    assert_equal "https://www-jp.umaxica.org", JumpRtSurface.issuer_origin("WARP_ORG")
-    assert_raises(JumpRtConfigurationError) do
-      JumpRtSurface.namespace_for_controller("Warp::Com::RootsController")
-    end
-    warp_app = OidcClientStoresStaticClientStore.clients.fetch("warp-app-jp")
-
-    assert_equal "warp-app-jp", warp_app.fetch(:aud)
-    assert_equal "WARP_APP_JP", warp_app.fetch(:jwt_namespace)
-  end
-
-  test "Edit has no Jump issuer while its OIDC private key client remains configured" do
-    %w(Info::Org Docs::App Docs::Com).each do |publishing_surface|
-      assert_raises(JumpRtConfigurationError) do
-        JumpRtSurface.namespace_for_controller("Edit::Org::Publishing::#{publishing_surface}::EntriesController")
-      end
-    end
-    assert_raises(JumpRtConfigurationError) do
-      JumpRtIssuer.call(namespace: "EDIT_ORG", url: "https://www.umaxica.org/oauth/authorize", dst: "internal")
-    end
-    assert_raises(JitSecurityJwtRegistry::ConfigurationError) do
-      JitSecurityJwtRegistry.surface("EDIT_ORG")
-    end
-    assert_equal "EDIT_ORG_WW", JitSecurityJwtRegistry.oidc_client("EDIT_ORG_WW").namespace
-    assert_equal "edit-org-ww", OidcClientRegistry.find!("edit-org-ww").client_id
   end
 
   test "normalizes unsupported issuer surface names by raising" do
@@ -526,23 +485,23 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
       https://172.16.0.1/ https://192.168.1.1/ https://169.254.1.1/ https://[::1]/
       https://[::ffff:192.168.1.1]/ https://[fd00::1]/
     ).each do |url|
-      assert_nil JumpRtIssuer.call(namespace: "AUTH_APP", url: url, dst: "internal"), url
+      assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: url, dst: "internal"), url
     end
   end
 
   test "development issuance signs as the canonical PUBLIC_* issuer origin" do
     token =
       Rails.stub(:env, ActiveSupport::EnvironmentInquirer.new("development")) do
-        JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://www.umaxica.app/", dst: "internal")
+        JumpRtIssuer.call(namespace: "BASE_APP", url: "https://www.umaxica.app/", dst: "internal")
       end
 
-    assert_equal "https://auth.umaxica.app", JWT.decode(token, nil, false).first.fetch("iss")
+    assert_equal "https://www.umaxica.app", JWT.decode(token, nil, false).first.fetch("iss")
   end
 
   test "issuance fails closed when the PUBLIC_* issuer origin is unsafe" do
-    with_env("PUBLIC_AUTH_SERVICE_URL" => "auth.app.localhost") do
+    with_env("PUBLIC_BASE_SERVICE_URL" => "base.app.localhost") do
       assert_raises(JumpRtConfigurationError) do
-        JumpRtIssuer.call(namespace: "AUTH_APP", url: "https://www.umaxica.app/", dst: "internal")
+        JumpRtIssuer.call(namespace: "BASE_APP", url: "https://www.umaxica.app/", dst: "internal")
       end
     end
   end

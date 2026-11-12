@@ -4,9 +4,9 @@
 module ActorSupport
   extend ActiveSupport::Concern
 
-  include ::PreferenceRequestOverlay
-
   class ResolutionError < StandardError; end
+
+  public
 
   def current_actor
     Actor.context
@@ -47,8 +47,6 @@ module ActorSupport
       authn: Actor::Authentication::NULL,
       authz: Actor::Authz::NULL,
       configuration: Actor::Configuration::NULL,
-      preferences: Actor::Preference.new,
-      selection: Actor::SelectedContext::NULL,
       step_up: Actor::StepUp::NULL,
       trace_id: nil,
       span_id: nil,
@@ -67,8 +65,6 @@ module ActorSupport
       authn: authn,
       authz: resolved_current_authz(resource: resource, authn: authn),
       configuration: resolved_current_configuration(resource),
-      preferences: resolved_current_preference(resource),
-      selection: resolved_current_selection,
       step_up: resolved_current_step_up,
     )
   end
@@ -117,8 +113,8 @@ module ActorSupport
     return actor_type if actor_type.present? && actor_type != :unauthenticated
     return :unauthenticated if resource.blank?
 
-    return :operator if resource.respond_to?(:operator?) && resource.operator?
-    return :client if resource.is_a?(Client)
+    return :operator if browser_rp_resource_type == "operator"
+    return :client if browser_rp_resource_type == "client"
 
     raise ArgumentError, "unsupported actor resource: #{resource.class.name}"
   end
@@ -129,7 +125,7 @@ module ActorSupport
     resolved_current_token&.dig("sid")
   end
 
-  # The verified access-token claims recorded by AuthenticationBase#load_from_token. This must
+  # The verified access-token claims recorded by BrowserRpAuthentication. This must
   # not fall back to another token: ApplicationPolicy reads its Emergency context from here.
   def resolved_current_token
     @current_access_token_payload if defined?(@current_access_token_payload)
@@ -148,44 +144,12 @@ module ActorSupport
       amr: token&.dig("amr"),
       actor_type: actor_type,
       actor_id: resource&.id,
-      active_sign_sequence_id: resolved_active_sign_sequence_id,
+      active_sign_sequence_id: nil,
     )
-  end
-
-  def resolved_active_sign_sequence_id
-    return unless respond_to?(:session, true)
-    return unless defined?(SignInSequenceCarrier)
-
-    sequence = SignInSequenceCarrier.new(session, surface: Actor.tld).current
-    return if sequence.blank?
-    return if sequence.expired? || sequence.terminal?
-
-    sequence.id
-  rescue StandardError => e
-    raise_actor_resolution_error!(:sign_sequence, e)
   end
 
   def resolved_current_configuration(_resource)
     Actor::Configuration::NULL
-  end
-
-  def resolved_current_selection
-    # An RP cell process has no OP root to read; its controller supplies the owner's answer.
-    cell_selection = rp_cell_selected_context if respond_to?(:rp_cell_selected_context, true)
-    return cell_selection if cell_selection
-
-    token = current_session if respond_to?(:current_session, true)
-    return Actor::SelectedContext::NULL if token.blank?
-
-    Actor::SelectedContext.new(
-      account_public_id: token.try(:selected_account_public_id),
-      collective_public_id: token.try(:selected_collective_public_id),
-      collective_unit_public_id: token.try(:selected_collective_unit_public_id),
-      avatar_public_id: token.try(:selected_avatar_public_id),
-      selected_at: token.try(:selected_at),
-    )
-  rescue StandardError => e
-    raise_actor_resolution_error!(:selected_context, e)
   end
 
   def resolved_current_authz(resource:, authn:)
@@ -197,34 +161,7 @@ module ActorSupport
   end
 
   def resolved_current_step_up
-    return Actor::StepUp::NULL unless defined?(StepUpResolver)
-    return Actor::StepUp::NULL unless respond_to?(:current_session_token, true)
-    # Base authorization reads its OP Access-token event at the protected writer. Actor's legacy
-    # request snapshot cannot represent that unscoped event, so it must not resolve root columns.
-    return Actor::StepUp::NULL if browser_rp_controller?
-
-    scope = resolved_current_step_up_scope
-    return Actor::StepUp::NULL if scope.blank?
-
-    # This runs before the authentication gate. A request without a session has no Step-Up state to
-    # resolve, and a requirement cannot be built without a session binding; the gate refuses it.
-    token = current_session_token
-    return Actor::StepUp::NULL if token.nil?
-
-    StepUpResolver.call(
-      token: token,
-      requirement: step_up_requirement(scope: scope),
-    )
-  rescue ActiveRecord::RecordNotFound
-    raise
-  rescue StandardError => e
-    raise_actor_resolution_error!(:step_up, e)
-  end
-
-  def resolved_current_step_up_scope
-    return verification_scope if respond_to?(:verification_required?, true) && verification_required?
-
-    nil
+    Actor::StepUp::NULL
   end
 
   def raise_actor_resolution_error!(component, exception)
@@ -237,41 +174,6 @@ module ActorSupport
     )
 
     raise ResolutionError.new("Actor #{component} resolution failed"), cause: exception
-  end
-
-  # Hydrate Actor.preferences from the Preference JWT payload -- the signed
-  # projection of the DB, which is the SSoT. The payload is decoded by
-  # set_preferences_cookie, which the controller lifecycle runs before
-  # set_current_actor (locked by controller_lifecycle_order_invariant_test).
-  #
-  # The obsolete auth access-token `prf` claim is intentionally not read here:
-  # it never mirrored the DB and is no longer emitted for newly issued auth
-  # access tokens.
-  #
-  # Bearer/OIDC requests and the endpoints that skip set_preferences_cookie carry
-  # no Preference JWT cookie, so they fall back to the default preference values
-  # (theme sy) plus the request overlay. Actor::Preference::NULL is reserved for
-  # an unbound context, not for "visitor has not chosen a theme yet".
-  def resolved_current_preference(_resource)
-    cookie = Actor::Preference::NULL_COOKIE
-    payload_preferences = current_preference_payload_preferences
-    if payload_preferences.present?
-      return preference_with_request_overlay(
-        Actor::Preference.from_jwt(payload_preferences, cookie: cookie),
-      )
-    end
-
-    preference_with_request_overlay(Actor::Preference.new(cookie: cookie))
-  end
-
-  # The decoded Preference JWT `preferences` hash, or nil when absent or when the
-  # controller does not include the preference concept at all.
-  def current_preference_payload_preferences
-    return unless respond_to?(:preference_payload_preferences, true)
-
-    load_access_token_payload if respond_to?(:load_access_token_payload, true)
-    preferences = preference_payload_preferences
-    preferences if preferences.is_a?(Hash) && preferences.present?
   end
 
   def set_current_observability

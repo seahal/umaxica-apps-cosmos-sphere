@@ -29,33 +29,18 @@ Hash body. `content_digest` is SHA-256 of canonical plaintext and is not a confi
 `publishing_media_files` is global. Revision/version media usages are family-owned with a single
 explicit owner FK.
 
-## Rails controllers
+## HTTP surface ownership
 
-Each public and management controller declares `PUBLISHING_AUDIENCE`, `PUBLISHING_SURFACE`, and
-`ENTRY_CLASS` explicitly.
+The owner-approved
+[Sphere surface hard-reset specification](../../specs/sphere-operator-tools-hard-reset/spec.md)
+keeps the `edit`, `info`, `news`, `help`, and `docs` routes and presentation in Cosmos Sphere. The
+public published-entry endpoints are served on the retained Docs, News, Help, and Info host groups.
+The earlier Cosmos Press transfer scope is superseded for this repository.
 
-Public URLs: `GET /api/v0/entries`, `GET /api/v0/entries/:public_id`. Management URLs:
-`/publishing/{info,docs,news,help}/{app,com,org}/entries` on `edit.umaxica.org`.
-
-Public read controllers inherit the cache default from their surface-local `BareController` and opt
-in to public caching in `PublishingContentRendering`. Management controllers inherit `no-store` from
-`Edit::Org::ApplicationController` and never opt in. See `docs/reference/http-cache-policy.md`.
-
-The edit host is the staff Publishing management boundary. The Publishing database remains in this
-Rails application while the identity/operator contract is stabilized; this host move deliberately
-does not extract Publishing persistence or introduce cross-database associations.
-
-## Edit landing navigation
-
-Anonymous Publishing management requests start Edit's OIDC flow. On a host that is not same-site
-with the Base authority (for example `edit.org.localhost`), the authorize redirect goes through the
-Jump gateway with an `EDIT_ORG` rt whose keys Edit publishes at `/.well-known/jwks.json`; see
-`docs/runbooks/jump-rt-key-rotation.md`.
-
-Edit's root uses its surface layout with the same typography, column width, and action styling as
-the Base landing. Anonymous visitors enter the existing authenticated Publishing dashboard through
-Sign in; its authentication boundary initiates Edit's OIDC flow. Sign up opens the Base org root,
-where the existing CSRF-protected registration admission form owns account creation. Signed-in
-operators see a Publishing dashboard link. The footer links to Base org preferences with an absolute
-URL, preserving regional context. Edit does not duplicate Base's identity or preference controllers.
-The root response uses `private, no-store` because its navigation depends on login state.
+Sphere retains the Publishing database connection, schema, data, models, and domain operations. This
+hard reset removes the Base route tree, including its local `/api/v0/publishing/*` routes. Edit's
+`PublishingAuthorityClient` remains an outbound client for the separately owned Base authority API,
+addressed through its configured host. This checkout no longer serves that authority API; a local
+Base hostname routed back to this process therefore reaches the unknown-host response until a
+separate owner service is available. No database or record migration is part of this route change.
+See [`content-surface-matrix.md`](content-surface-matrix.md) for the current route boundary.

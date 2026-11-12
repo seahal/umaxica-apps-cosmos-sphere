@@ -1,145 +1,34 @@
 # frozen_string_literal: true
-# typed: false
-
-# == Schema Information
-#
-# Table name: com_preference_chronicles
-# Database name: chronicle
-#
-#  id             :bigint           not null, primary key
-#  actor_type     :text             default(""), not null
-#  context        :jsonb            not null
-#  current_value  :text             default(""), not null
-#  discard_at   :datetime         default(Infinity), not null
-#  ip_address     :inet             default(#<IPAddr: IPv4:0.0.0.0/255.255.255.255>), not null
-#  occurred_at    :datetime         not null
-#  previous_value :text             default(""), not null
-#  purge_eligible_at      :datetime         not null
-#  subject_type   :text             not null
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#  actor_id       :bigint           default(0), not null
-#  event_id       :bigint           default(0), not null
-#  level_id       :bigint           default(0), not null
-#  subject_id     :bigint           not null
-#
-# Indexes
-#
-#  idx_on_subject_type_subject_id_occurred_at_com_pref          (subject_type,subject_id,occurred_at)
-#  index_com_preference_chronicles_on_actor_id_and_occurred_at  (actor_id,occurred_at)
-#  index_com_preference_chronicles_on_actor_type_and_actor_id   (actor_type,actor_id)
-#  index_com_preference_chronicles_on_event_id                  (event_id)
-#  index_com_preference_chronicles_on_level_id                  (level_id)
-#  index_com_preference_chronicles_on_occurred_at               (occurred_at)
-#  index_com_preference_chronicles_on_purge_eligible_at                 (purge_eligible_at)
-#  index_com_preference_chronicles_on_subject_id                (subject_id)
-#
-# Foreign Keys
-#
-#  fk_rails_...  (event_id => com_preference_chronicle_events.id)
-#  fk_rails_...  (level_id => com_preference_chronicle_levels.id)
-#
 
 require "test_helper"
 
 class ComPreferenceChronicleTest < ActiveSupport::TestCase
-  fixtures :com_preferences,
-           :com_preference_chronicles,
-           :com_preference_chronicle_events,
-           :com_preference_chronicle_levels,
-           :com_preference_statuses
+  fixtures :com_preference_chronicles, :com_preference_chronicle_events, :com_preference_chronicle_levels
 
-  setup do
-    @audit = com_preference_chronicles(:one)
-    @preference = com_preferences(:one)
-    @audit.update!(subject_id: @preference.id) # Ensure valid link
-  end
-
-  test "uses bigint primary key" do
-    assert_kind_of Integer, @audit.id
-  end
-
-  test "an audit writer lock blocks a purge lock on another connection" do
-    ComPreferenceChronicle.lock_preference_audit_writers!
-
-    assert_equal "f", probe_advisory_lock("pg_try_advisory_xact_lock")
-  end
-
-  test "a purge lock blocks an audit writer lock on another connection" do
-    ComPreferenceChronicle.lock_preference_audit_for_purge!
-
-    assert_equal "f", probe_advisory_lock("pg_try_advisory_xact_lock_shared")
-  end
-
-  test "belongs to com_preference" do
-    assert_equal @preference, @audit.com_preference
-  end
-
-  test "com_preference helper method returns nil for other subject types" do
-    @audit.subject_type = "OtherType"
-
-    assert_nil @audit.com_preference
-  end
-
-  test "can set com_preference" do
-    new_pref = com_preferences(:two)
-    @audit.com_preference = new_pref
-
-    assert_equal new_pref.id, @audit.subject_id
-    assert_equal "ComPreference", @audit.subject_type
-    assert_equal new_pref, @audit.com_preference
-  end
-
-  test "belongs to com_preference_chronicle_level" do
-    assert_equal com_preference_chronicle_levels(:info), @audit.com_preference_chronicle_level
-  end
-
-  test "belongs to com_preference_chronicle_event" do
-    assert_equal com_preference_chronicle_events(:create_new_preference_token), @audit.com_preference_chronicle_event
-  end
-
-  test "validates presence of subject_id" do
-    assert_raises(ActiveRecord::NotNullViolation) do
-      ComPreferenceChronicle.transaction(requires_new: true) do
-        ComPreferenceChronicle.where(id: @audit.id).update_all(subject_id: nil)
-      end
-    end
-  end
-
-  test "validates presence of subject_type" do
-    @audit.subject_type = nil
-
-    assert_not @audit.valid?
-    assert_includes @audit.errors[:subject_type], I18n.t("errors.messages.blank")
-  end
-
-  test "event_id is integer type" do
-    # event_id is now bigint, not string - length validation doesn't apply
-    @audit.event_id = 1
-
-    assert_kind_of Integer, @audit.event_id
-  end
-
-  test "level_id is integer type" do
-    # level_id is now bigint, not string - length validation doesn't apply
-    @audit.level_id = 1
-
-    assert_kind_of Integer, @audit.level_id
-  end
-
-  private
-
-  def probe_advisory_lock(function)
-    config = ComPreferenceChronicle.connection_db_config.configuration_hash
-    connection = PG.connect(
-      host: config.fetch(:host), port: config.fetch(:port), dbname: config.fetch(:database),
-      user: config.fetch(:username), password: config.fetch(:password),
+  test "historical subject snapshots survive without their external owner" do
+    audit = com_preference_chronicles(:one)
+    audit.update!(
+      subject_id: 987_654_321, subject_type: "ComPreference", actor_id: 123_456_789,
+      actor_type: "HistoricalOwner", discard_at: 1.day.from_now, purge_eligible_at: 2.days.from_now,
     )
-    connection.exec("BEGIN")
-    result = connection.exec("SELECT #{function}(#{ComPreferenceChronicle::PREFERENCE_AUDIT_LOCK_KEY})")
 
-    result.getvalue(0, 0)
-  ensure
-    connection&.finish
+    assert_equal 987_654_321, audit.reload.subject_id
+    assert_equal "HistoricalOwner", audit.actor_type
+    assert_not_nil audit.com_preference_chronicle_event
+    assert_not_nil audit.com_preference_chronicle_level
+  end
+
+  test "missing historical subject identifiers remain invalid" do
+    audit = com_preference_chronicles(:one)
+    audit.subject_id = nil
+
+    assert_not audit.valid?
+    assert_raises(ActiveRecord::NotNullViolation) do
+      ComPreferenceChronicle.transaction(requires_new: true) { audit.save!(validate: false) }
+    end
+    audit.subject_id = 987_654_321
+    audit.subject_type = nil
+
+    assert_not audit.valid?
   end
 end

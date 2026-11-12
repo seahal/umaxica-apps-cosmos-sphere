@@ -1,8 +1,7 @@
-import { createInertiaApp, router } from "@inertiajs/react";
+import { createInertiaApp } from "@inertiajs/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
-  bootSurfaceInertiaApp,
   reportInertiaBootFailure,
   surfaceInertiaDefaults,
   surfacePageResolver,
@@ -61,62 +60,62 @@ const own = () => null;
 describe("surface page resolver", () => {
   test("resolves a page of its own surface from the surface-scoped glob", () => {
     const resolve = surfacePageResolver(
-      pageModules("base/app", ["groups/index"]),
-      "base/app",
+      pageModules("core/app", ["groups/index"]),
+      "core/app",
       LAYOUT,
     );
 
-    expect(resolve("base/app/groups/index")).toBeDefined();
+    expect(resolve("core/app/groups/index")).toBeDefined();
   });
 
   test("attaches the surface layout so no page can render without chrome", () => {
     const resolve = surfacePageResolver(
-      pageModules("base/app", ["groups/index"]),
-      "base/app",
+      pageModules("core/app", ["groups/index"]),
+      "core/app",
       LAYOUT,
     );
 
-    expect(resolve("base/app/groups/index").default.layout).toEqual([LAYOUT]);
+    expect(resolve("core/app/groups/index").default.layout).toEqual([LAYOUT]);
   });
 
   test("keeps a layout a page declared for itself", () => {
-    const modules = pageModules("base/app", ["groups/index"]);
+    const modules = pageModules("core/app", ["groups/index"]);
     present(
-      modules["../../pages/base/app/groups/index.tsx"],
+      modules["../../pages/core/app/groups/index.tsx"],
       "the globbed groups/index page module",
     ).default.layout = [own];
-    const resolve = surfacePageResolver(modules, "base/app", LAYOUT);
+    const resolve = surfacePageResolver(modules, "core/app", LAYOUT);
 
-    expect(resolve("base/app/groups/index").default.layout).toEqual([own]);
+    expect(resolve("core/app/groups/index").default.layout).toEqual([own]);
   });
 
   test("rejects a page belonging to another surface instead of attempting to resolve it", () => {
     const resolve = surfacePageResolver(
-      pageModules("base/app", ["groups/index"]),
-      "base/app",
+      pageModules("core/app", ["groups/index"]),
+      "core/app",
       LAYOUT,
     );
 
-    expect(() => resolve("base/com/groups/index")).toThrow(
-      /does not belong to the "base\/app" surface/u,
+    expect(() => resolve("warp/app/groups/index")).toThrow(
+      /does not belong to the "core\/app" surface/u,
     );
   });
 
   test("rejects an unqualified page name so a missing prefix is not silently accepted", () => {
     const resolve = surfacePageResolver(
-      pageModules("auth/org", ["groups/index"]),
-      "auth/org",
+      pageModules("warp/org", ["groups/index"]),
+      "warp/org",
       LAYOUT,
     );
 
-    expect(() => resolve("groups/index")).toThrow(/does not belong to the "auth\/org" surface/u);
+    expect(() => resolve("groups/index")).toThrow(/does not belong to the "warp\/org" surface/u);
   });
 
   test("rejects a globbed file that is not a page module", () => {
     expect(() =>
       surfacePageResolver(
-        { "../../pages/base/app/groups/index.tsx": { named: true } },
-        "base/app",
+        { "../../pages/core/app/groups/index.tsx": { named: true } },
+        "core/app",
         LAYOUT,
       ),
     ).toThrow(/has no default export/u);
@@ -124,13 +123,13 @@ describe("surface page resolver", () => {
 
   test("fails loudly when the surface has no component for a page the controller rendered", () => {
     const resolve = surfacePageResolver(
-      pageModules("base/app", ["groups/index"]),
-      "base/app",
+      pageModules("core/app", ["groups/index"]),
+      "core/app",
       LAYOUT,
     );
 
-    expect(() => resolve("base/app/groups/show")).toThrow(
-      /has no component in src\/pages\/base\/app/u,
+    expect(() => resolve("core/app/groups/show")).toThrow(
+      /has no component in src\/pages\/core\/app/u,
     );
   });
 });
@@ -138,49 +137,6 @@ describe("surface page resolver", () => {
 describe("surface inertia defaults", () => {
   test("visits use bracket array syntax so Rack parses array parameters", () => {
     expect(surfaceInertiaDefaults.visitOptions()).toEqual({ queryStringArrayFormat: "brackets" });
-  });
-});
-
-describe("Base Inertia step-up challenge handling", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  test("routes the challenge to the entry and cancels Inertia's default HTTP exception handling", async () => {
-    vi.clearAllMocks();
-    document.body.innerHTML = "";
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const location = {
-      href: "https://base.example.test/identity/passkeys/passkey-1?ri=jp",
-      origin: "https://base.example.test",
-      assign: vi.fn(),
-    };
-    vi.stubGlobal("location", location);
-
-    await bootSurfaceInertiaApp({}, "base/app");
-
-    const listener = vi
-      .mocked(router.on)
-      .mock.calls.find(([event]) => event === "httpException")?.[1];
-    expect(listener).toBeDefined();
-
-    const event = new CustomEvent("inertia:httpException", {
-      cancelable: true,
-      detail: {
-        response: {
-          status: 401,
-          headers: { "www-authenticate": 'Bearer error="insufficient_user_authentication"' },
-        },
-      },
-    });
-    listener?.(event);
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(location.assign).toHaveBeenCalledWith(
-      "https://base.example.test/verification?return_target=%2Fidentity%2Fpasskeys%2Fpasskey-1&ri=jp",
-    );
-
-    errorSpy.mockRestore();
   });
 });
 
@@ -197,103 +153,6 @@ describe("reportInertiaBootFailure", () => {
   });
 });
 
-describe("document theme across visits", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    document.cookie = "ct=; path=/; max-age=0";
-    delete document.documentElement.dataset["theme"];
-  });
-
-  test("applies the cookie theme on boot and again whenever the cookie changes", async () => {
-    // Without the root element the boot rejection is reported rather than thrown, which is what
-    // this test wants: the theme wiring runs before `createInertiaApp` is ever called.
-    document.body.innerHTML = "";
-    const nonceMeta = document.createElement("meta");
-    nonceMeta.setAttribute("property", "csp-nonce");
-    nonceMeta.nonce = "test-nonce";
-    document.head.append(nonceMeta);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    document.cookie = "ct=dr; path=/";
-
-    await bootSurfaceInertiaApp({}, "base/app");
-
-    // The cookie read is asynchronous through the Cookie Store API, so the attribute is written a
-    // tick after boot returns rather than during it.
-    await vi.waitFor(() => expect(document.documentElement.dataset["theme"]).toBe("dark"));
-
-    // The theme preference screen writes the cookie server-side, and the cookie store reports that
-    // write directly - no visit has to happen for the document to learn its colours changed.
-    await cookieStore.set({ name: "ct", value: "li" });
-
-    await vi.waitFor(() => expect(document.documentElement.dataset["theme"]).toBe("light"));
-
-    errorSpy.mockRestore();
-    nonceMeta.remove();
-  });
-
-  test("omits the nonce when the layout published an empty one", async () => {
-    document.body.innerHTML = "";
-    for (const meta of document.querySelectorAll('meta[property="csp-nonce"]')) {
-      meta.remove();
-    }
-    const nonceMeta = document.createElement("meta");
-    nonceMeta.setAttribute("property", "csp-nonce");
-    Object.defineProperty(nonceMeta, "nonce", { configurable: true, get: () => "" });
-    document.head.append(nonceMeta);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await bootSurfaceInertiaApp({}, "base/app");
-
-    expect(createInertiaApp).toHaveBeenCalled();
-    expect(vi.mocked(createInertiaApp).mock.calls.at(-1)?.[0]).not.toHaveProperty("nonce");
-    errorSpy.mockRestore();
-    nonceMeta.remove();
-  });
-
-  // The server renders the root element under the inertia_rails default id and the page in a
-  // script element, both of which are the adapter's own defaults. Passing nothing but these keys
-  // is what keeps the two sides on one authority: an `id` or `page` here would be a second one.
-  test("boots with the upstream defaults for the root element and the initial page", async () => {
-    document.body.innerHTML = "";
-    for (const meta of document.querySelectorAll('meta[property="csp-nonce"]')) {
-      meta.remove();
-    }
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await bootSurfaceInertiaApp({}, "base/app");
-
-    const options = present(
-      vi.mocked(createInertiaApp).mock.calls.at(-1)?.[0],
-      "the options handed to createInertiaApp",
-    );
-
-    expect(Object.keys(options).toSorted()).toEqual(["defaults", "resolve", "strictMode"]);
-    errorSpy.mockRestore();
-  });
-
-  test("omits the nonce when the layout published none", async () => {
-    document.body.innerHTML = "";
-    for (const meta of document.querySelectorAll('meta[property="csp-nonce"]')) {
-      meta.remove();
-    }
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await bootSurfaceInertiaApp({}, "base/app");
-
-    expect(createInertiaApp).toHaveBeenCalled();
-    expect(vi.mocked(createInertiaApp).mock.calls.at(-1)?.[0]).not.toHaveProperty("nonce");
-    errorSpy.mockRestore();
-  });
-});
-
-// Importing an entrypoint is genuinely expensive: each one eagerly globs every page module of its
-// surface and pulls in SurfaceLayout's whole tree. On a loaded machine that exceeds Vitest's 5s
-// default, and a timeout mid-import leaves the *next* test's mocks uninitialised, so it fails too —
-// which is why this file failed in pairs under contention. The work is real rather than hung, so
-// the budget is raised rather than the import trimmed or the assertion loosened.
 const ENTRYPOINT_IMPORT_TIMEOUT_MS = 30_000;
 
 describe("surface inertia entrypoint", () => {
@@ -308,7 +167,7 @@ describe("surface inertia entrypoint", () => {
       document.body.innerHTML = "";
       const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      await import("../../src/entrypoints/inertia/base_app.tsx");
+      await import("../../src/entrypoints/inertia/core_app.tsx");
       await Promise.resolve();
 
       expect(errorSpy).toHaveBeenCalledWith(
@@ -321,17 +180,10 @@ describe("surface inertia entrypoint", () => {
 });
 
 describe.each([
-  ["auth/app", "../../src/entrypoints/inertia/auth_app.tsx"],
-  ["auth/com", "../../src/entrypoints/inertia/auth_com.tsx"],
-  ["auth/org", "../../src/entrypoints/inertia/auth_org.tsx"],
-  ["base/com", "../../src/entrypoints/inertia/base_com.tsx"],
-  ["base/org", "../../src/entrypoints/inertia/base_org.tsx"],
   ["palm/app", "../../src/entrypoints/inertia/palm_app.tsx"],
   ["warp/app", "../../src/entrypoints/inertia/warp_app.tsx"],
-  ["warp/com", "../../src/entrypoints/inertia/warp_com.tsx"],
   ["warp/org", "../../src/entrypoints/inertia/warp_org.tsx"],
   ["core/app", "../../src/entrypoints/inertia/core_app.tsx"],
-  ["core/com", "../../src/entrypoints/inertia/core_com.tsx"],
   ["core/org", "../../src/entrypoints/inertia/core_org.tsx"],
 ])("%s inertia entrypoint", (surface, modulePath) => {
   beforeEach(() => {

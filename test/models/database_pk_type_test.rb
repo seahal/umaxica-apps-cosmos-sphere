@@ -7,34 +7,6 @@ class DatabasePkTypeTest < ActiveSupport::TestCase
   # Test that representative tables from each schema have bigint PKs
   # After migration, all status/kind/master tables should use bigint
 
-  test "operator schema tables use bigint primary keys" do
-    assert_bigint_pk(OperatorWorkspaceAccountStatus)
-    assert_bigint_pk(OperatorStatus)
-    assert_bigint_pk(OrganizationStatus)
-  end
-
-  test "principal schema tables use bigint primary keys" do
-    assert_bigint_pk(ClientStatus)
-    assert_bigint_pk(MemberStatus)
-    assert_bigint_pk(ClientSecretCredential)
-  end
-
-  test "avatar schema tables use bigint primary keys" do
-    assert_bigint_pk(HandleStatus)
-    assert_bigint_pk(AvatarCapability)
-  end
-
-  test "occurrence schema tables use bigint primary keys" do
-    assert_bigint_pk(AreaOccurrenceStatus)
-    assert_bigint_pk(EmailOccurrenceStatus)
-  end
-
-  test "config, option, and setting schemas tables use bigint primary keys" do
-    assert_bigint_pk(ComPreferenceStatus)
-    assert_bigint_pk(ComPreferenceLanguageOption)
-    assert_bigint_pk(ComPreference)
-  end
-
   test "chronicle schema tables use bigint primary keys" do
     assert_bigint_pk(OperatorChronicleEvent)
     assert_bigint_pk(ClientChronicleLevel)

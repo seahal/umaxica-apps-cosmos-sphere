@@ -7,6 +7,7 @@ module Core
       module V0
         class SessionsController < BaseController
           AUTHENTICATION_MODE = :bare
+          rescue_from SphereOwnerDataUnavailableError, with: :render_owner_data_unavailable
 
           def show
             authenticated = authenticate_core_browser_cookie!
@@ -23,22 +24,12 @@ module Core
 
           private
 
-          def actor_payload
-            {
-              id: actor_public_id,
-              display_name: current_resource.try(:display_name).presence ||
-                current_resource.try(:name).presence ||
-                actor_public_id,
-            }
+          def render_owner_data_unavailable(_exception)
+            render_problem(:service_unavailable)
           end
 
-          # `public_id` is `null: false, default: ""`, so a record written around the model layer can
-          # carry a blank one. The previous fallback answered that case with the database primary
-          # key, putting an internal identifier on the public wire. Failing loudly is correct: a
-          # blank `public_id` is a data-integrity fault, not a display problem.
-          def actor_public_id
-            current_resource.public_id.presence ||
-              raise(BlankPublicIdentifierError.new(record_class: current_resource.class))
+          def actor_payload
+            raise SphereOwnerDataUnavailableError, "Governance profile data is unavailable in Sphere"
           end
         end
       end

@@ -1,5 +1,9 @@
 # Authentication boundary audit
 
+> **Historical source references:** Authentication controller routes discussed below were retired by
+> the 2026-11-11 surface hard reset. This audit records the former implementation; current surface
+> ownership is in `README.md`.
+
 Audit date: 2026-08-11. Scope: the Rails application only. Edge components (Hono, Next.js,
 Cloudflare Workers) and Cloudflare Access policy configuration were explicitly out of scope.
 
@@ -133,11 +137,12 @@ the identity is now nullable and unread by sign-in.
 
 All verified as already correct; no change was made.
 
-Session cookies (`lib/jit_session_cookie_config.rb`) are `httponly`, `same_site: :lax` and
-host-only in every environment, with `secure` and the `__Host-session` name outside development and
-test, expiring after 14 days. (Updated 2026-10-21: the session cookie no longer carries
-`partitioned` in production or a shared `Domain` in development and test.) SameSite is **not** weakened to accommodate the OIDC callback: `Lax` already permits the
-top-level GET redirect back from Microsoft, which is the only cross-site entry the ceremony needs.
+Session cookies (`lib/jit_session_cookie_config.rb`) are `httponly`, `same_site: :lax` and host-only
+in every environment, with `secure` and the `__Host-session` name outside development and test,
+expiring after 14 days. (Updated 2026-10-21: the session cookie no longer carries `partitioned` in
+production or a shared `Domain` in development and test.) SameSite is **not** weakened to
+accommodate the OIDC callback: `Lax` already permits the top-level GET redirect back from Microsoft,
+which is the only cross-site entry the ceremony needs.
 
 Session fixation is handled at the point of privilege transition — `log_in` calls `reset_session`
 before issuing tokens. Logout revokes the current token, clears auth cookies, and calls
@@ -224,8 +229,7 @@ application logging boundary and was not changed here.
   legacy authenticity token and is rejected without one. Blanket-enabling the flag would therefore
   exercise CSRF for real; the objection is the cost of threading tokens through tests whose subject
   is not CSRF, not futility. Targeted CSRF boundary tests remain the meaningful coverage, and they
-  exist —
-  `test/controllers/protocol_controller_csrf_boundary_test.rb`,
+  exist — `test/controllers/protocol_controller_csrf_boundary_test.rb`,
   `test/integration/social_completion_cross_host_csrf_test.rb`,
   `test/integration/csrf_notification_emission_test.rb`, and
   `test/integration/preference_web_csrf_test.rb`.

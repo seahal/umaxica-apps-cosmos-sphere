@@ -38,10 +38,9 @@ info:
     ## Hosts
 
     `servers` appears only where a host is real, public, and knowable from the repository. The
-    Core session paths carry one, and the preference paths list every host that serves them. The health and revision endpoints carry none because they are blocked
-    at the edge. The content and Palm paths carry none because their hosts are supplied by
-    deployment environment variables, and the docs and news content editions have no production
-    host at all.
+    Core session paths carry one, and the preference paths list every host that serves them. The
+    health and revision endpoints carry none because they are blocked at the edge. Palm paths carry
+    none because their hosts are supplied by deployment environment variables.
 
     ## Errors
 
@@ -62,8 +61,6 @@ tags:
     description: Core browser BFF session and token lifecycle, authenticated by first-party cookie.
   - name: Preferences
     description: Cookie-consent and color-theme JSON endpoints under `/api/v0/preferences`.
-  - name: Content
-    description: Read-only published documentation, help, news, and info entries.
 
 paths:
   /api/v0/health.json:
@@ -83,12 +80,6 @@ paths:
 
   /api/v0/preferences/theme:
     $ref: "app/paths/preferences-theme.yml"
-
-  /api/v0/entries:
-    $ref: "shared/paths/entries.yml"
-
-  /api/v0/entries/{public_id}:
-    $ref: "shared/paths/entry.yml"
 
 components:
   securitySchemes:

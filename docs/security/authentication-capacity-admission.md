@@ -1,13 +1,21 @@
 # Authentication Capacity Admission Boundary
 
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 ## Status
 
-This document records the current implementation audit for the future authentication capacity
-control described by U07 in `three.md`. It does not introduce a waiting room, a queue, a feature
-flag, or a new admission state machine.
+This document is a historical implementation audit of the former Auth, Base, and Visa route stack.
+The 2026-11-10 surface hard reset retired those controller routes and their admission workflows. The
+details below are retained for historical traceability and do not describe current request behavior.
+Current route ownership is in `README.md`; retained Edit browser-RP behavior is covered by
+`docs/checklists/browser-rp.md`.
 
-The current `AuthCeremonyAdmission` and `BaseAuthAdmissionCoordinator` contracts remain security
-admissions. They are not capacity permits and must not be weakened or repurposed.
+The D-82 admission design remains documented in its accepted ADR, but Sphere no longer ships the
+former Auth/Base routes or `BaseAuthAdmissionCoordinator` runtime. The implementation details below
+are retained as historical context and do not describe current Sphere request behavior.
 
 ## Existing entry boundary
 
@@ -40,14 +48,14 @@ The following existing controls remain separate:
 The current routes keep Sign In and Sign Up independent. They must remain independent if a future
 capacity gate is added.
 
-| Surface and flow                  | Entry or continuation boundary                                                                         | Expensive execution that needs a future second check                                                                           |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| App Sign In                       | `auth/app/sign/ins_controller.rb`, then surface-local email, passkey, secret, or challenge controllers | Password/secret verification, email OTP issue/verify, Passkey challenge/verification, TOTP/passcode work                       |
-| Org Sign In and Standby           | `auth/org/sign/ins_controller.rb` and the normal/emergency Passkey controllers                         | Operator Passkey and secret credential verification; Standby continues to forbid Step-Up                                       |
-| App Sign Up                       | `auth/app/sign/ups_controller.rb`, email/telephone and social registration controllers                 | Turnstile/provider verification, OTP issue/verify, Passkey registration, secret credential hashing and finalization            |
-| Provider callback                 | App social callback controllers and registered OIDC callback paths                                     | Provider assertion validation, callback replay checks, and the subsequent Sign In/Sign Up finalizer                            |
-| Resume/direct POST                | Every continuation controller retains the admission, flow/ticket, CSRF, expiry, and owner checks       | A future execution gate must be repeated immediately before the expensive operation; hiding an entry button is insufficient    |
-| Completed App Sign Up handoff     | `finalize_sign_up_from_checkpoint!` enters canonical Sign In admission                                 | Sign In guardrails and Base session issuance remain authoritative; registration completion is not a capacity or session bypass |
+| Surface and flow              | Entry or continuation boundary                                                                         | Expensive execution that needs a future second check                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| App Sign In                   | `auth/app/sign/ins_controller.rb`, then surface-local email, passkey, secret, or challenge controllers | Password/secret verification, email OTP issue/verify, Passkey challenge/verification, TOTP/passcode work                       |
+| Org Sign In and Standby       | `auth/org/sign/ins_controller.rb` and the normal/emergency Passkey controllers                         | Operator Passkey and secret credential verification; Standby continues to forbid Step-Up                                       |
+| App Sign Up                   | `auth/app/sign/ups_controller.rb`, email/telephone and social registration controllers                 | Turnstile/provider verification, OTP issue/verify, Passkey registration, secret credential hashing and finalization            |
+| Provider callback             | App social callback controllers and registered OIDC callback paths                                     | Provider assertion validation, callback replay checks, and the subsequent Sign In/Sign Up finalizer                            |
+| Resume/direct POST            | Every continuation controller retains the admission, flow/ticket, CSRF, expiry, and owner checks       | A future execution gate must be repeated immediately before the expensive operation; hiding an entry button is insufficient    |
+| Completed App Sign Up handoff | `finalize_sign_up_from_checkpoint!` enters canonical Sign In admission                                 | Sign In guardrails and Base session issuance remain authoritative; registration completion is not a capacity or session bypass |
 
 This map is a boundary inventory, not a claim that every expensive operation already has an
 execution-capacity limiter. The current controls prevent unauthorised or stale flow entry, but do

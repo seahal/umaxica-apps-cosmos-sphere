@@ -5,6 +5,9 @@ module Warp
   module App
     class RootsController < Warp::App::ApplicationController
       include ::WarpDashboardPage
+
+      inertia_share chrome: -> { surface_chrome }
+      inertia_share clear_history: -> { session[:inertia_clear_history] == true }
       include ::SessionBoundaryNotFound
 
       AUTHENTICATION_MODE = :open
@@ -21,17 +24,11 @@ module Warp
 
       private
 
-      # Home/Dashboard resolve regional context without redirecting a direct request.
-      def set_region
-        params[:ri] = normalized_param_ri.presence || get_region
-      end
-
       def root_landing_props
         {
           title: nil,
           heading: "Warp App",
-          description: t("base.app.roots.message"),
-          sign_up: nil,
+          description: t("landing.thin_endpoint"),
           links: [
             { label: "Settings", href: warp_app_settings_path(ri: params[:ri]) },
             { label: t("actions.continue"), href: warp_app_sign_show_path(ri: params[:ri]) },

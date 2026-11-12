@@ -212,7 +212,7 @@ class JumpRtReturnVerifier
 
         begin
           JWT::JWK.import(jwk).public_key
-        rescue JWT::JWKError, OpenSSL::PKey::PKeyError, ArgumentError => e
+        rescue JWT::JWKError, OpenSSL::PKey::PKeyError, OpenSSL::PKey::EC::Point::Error, ArgumentError => e
           raise JwksUnavailable, "jwks entry has invalid public key material: #{e.class.name}"
         end
 

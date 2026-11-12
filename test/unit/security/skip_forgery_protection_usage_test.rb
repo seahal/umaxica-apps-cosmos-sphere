@@ -10,20 +10,14 @@ class SkipForgeryProtectionUsageTest < ActiveSupport::TestCase
   # bounded untrusted telemetry and touches no actor, session or cookie state.
   # See app/controllers/concerns/csp_violation_report.rb.
   #
-  # The Auth service-worker retirement script is a same-path GET the browser fetches as a non-XHR
-  # script, which Rails' cross-origin JavaScript guard would refuse; Rails::PwaController skips it
-  # for the same reason. The action reads no parameters and writes no state.
-  # See app/controllers/concerns/service_worker_retirement.rb.
   ALLOWED_SKIP_FORGERY_PROTECTION_PATHS = [
     "app/controllers/concerns/csp_violation_report.rb",
-    "app/controllers/auth/app/service_worker_retirements_controller.rb",
-    "app/controllers/auth/org/service_worker_retirements_controller.rb",
   ].freeze
 
   test "skip_forgery_protection is only used in approved controllers" do
     # Every `.rb` under app/controllers, not just `*_controller.rb`: the call the allowlist exists
     # to track lives in a concern, so a `*_controller.rb` glob passed while seeing nothing, and a
-    # future concern mixed into an Inertia controller would have been invisible to it too.
+    # future controller concern would have been invisible to it too.
     controller_files = Rails.root.glob("app/controllers/**/*.rb")
 
     found_paths =

@@ -1,17 +1,19 @@
 # GET and PATCH /api/v0/preferences/theme on the org surface.
 servers:
-  - url: https://jp.umaxica.org
+  - url: https://www-jp.umaxica.org
     description: Core public host for the org (staff and organization) surface.
   - url: https://www.umaxica.org
     description: Base public host for the org (staff and organization) surface.
   - url: https://auth.umaxica.org
     description: Auth public host for the org (staff and organization) surface.
-  - url: https://www-jp.umaxica.org
+  - url: https://warp-jp.umaxica.org
     description: Warp public host for the org (staff and organization) surface.
 get:
   summary: Current color theme
   description: >-
-    Reports the caller's color theme. No session is required. Served host-locally by each listed host: each host reads and writes its own host-only preference credentials, and a browser calls only its current origin.
+    Reports the caller's color theme. No session is required. Served host-locally by each listed
+    host: each host reads and writes its own host-only preference credentials, and a browser calls
+    only its current origin.
   operationId: getPreferencesTheme
   tags: [Preferences]
   security: []

@@ -1,5 +1,10 @@
 # Acme, Sign, Core, Base, And Palm Architecture
 
+> **Route status (2026-11-10):** References below to Auth, Base, Core, GUID, Palm, Tech, Visa, or
+> Warp controller routes describe earlier implementation. Those controller trees are no longer
+> served by Cosmos Sphere. Current ownership is listed in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 This document maps the historical Acme / Sign / Core / Base / Port vocabulary onto the current Rails
 implementation. The historical component model came from `adr/acme-sign-core-base-port-boundary.md`.
 Later ADRs superseded its authority claims, client names, and Palm role. When this document and an
@@ -30,8 +35,7 @@ them.
 
 - Base is the only physical OpenID Provider and Authorization Server. It serves
   `/.well-known/openid-configuration`, `/.well-known/jwks.json`, `/oauth/authorize`, `/oauth/token`,
-  `/oauth/userinfo`, `/oauth/revoke`, and `/oidc/logout` on each
-  of its app, com, and org hosts.
+  `/oauth/userinfo`, `/oauth/revoke`, and `/oidc/logout` on each of its app, com, and org hosts.
 - Auth is not an issuer and not an RP. It runs the credential ceremonies (sign-in, sign-up, passkey,
   social federation) and hands the result back to Base through an opaque, short-lived handoff. Auth
   has no `/oidc/callback`, `/oidc/authorization`, or back-channel logout route.
@@ -43,14 +47,14 @@ them.
 Every first-party RP is a confidential client that uses the authorization code flow with PKCE S256,
 `state`, `nonce`, and `private_key_jwt`. The current client IDs in `AuthBoundaryAuthorityMap` are:
 
-| Surface | Client IDs                                                  | Actor                       |
-| ------- | ----------------------------------------------------------- | --------------------------- |
-| Core    | `core-app-jp`, `core-org-jp` (+ approved `-us` faces)       | client / operator           |
-| Warp    | `warp-app-jp`, `warp-org-jp` (+ approved `-us` faces)       | client / operator           |
-| Base    | `base-app-ww`, `base-org-ww` (self-RP)                     | client / operator           |
-| Edit    | `edit-org-ww`                                               | operator                    |
-| Palm    | `palm-app-jp`                                               | client                      |
-| Tech    | `tech-org-ww` (requires `tech.access`)                      | operator                    |
+| Surface | Client IDs                                            | Actor             |
+| ------- | ----------------------------------------------------- | ----------------- |
+| Core    | `core-app-jp`, `core-org-jp` (+ approved `-us` faces) | client / operator |
+| Warp    | `warp-app-jp`, `warp-org-jp` (+ approved `-us` faces) | client / operator |
+| Base    | `base-app-ww`, `base-org-ww` (self-RP)                | client / operator |
+| Edit    | `edit-org-ww`                                         | operator          |
+| Palm    | `palm-app-jp`                                         | client            |
+| Tech    | `tech-org-ww` (requires `tech.access`)                | operator          |
 
 Each RP host exposes the same route contract:
 
@@ -68,9 +72,9 @@ The `docs`, `news`, and `help` surfaces are content surfaces, not OIDC RPs.
 
 ## Session Hierarchy
 
-Identity → Base Browser Session (`ClientToken` / `OperatorToken`) → RP Session per
-registered client. RP surfaces share no cookies or sessions with each other or with Base. Each RP
-cell has its own session store (`config/database.yml` `rp_*` connections), keyed by client ID.
+Identity → Base Browser Session (`ClientToken` / `OperatorToken`) → RP Session per registered
+client. RP surfaces share no cookies or sessions with each other or with Base. Each RP cell has its
+own session store (`config/database.yml` `rp_*` connections), keyed by client ID.
 
 ## Sign-Out
 

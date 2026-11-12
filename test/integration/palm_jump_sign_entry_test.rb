@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../support/oidc_state_test_support"
 
 class PalmJumpSignEntryTest < ActionDispatch::IntegrationTest
   self.fixture_table_names = []

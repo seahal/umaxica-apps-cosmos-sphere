@@ -7,12 +7,9 @@ these scans are authoritative for deployed edge configuration.
 
 ## Scanned Surfaces
 
-Run every scan against the production hostname of each trust boundary separately. A passing result
-on one surface says nothing about the others.
-
-- `app` — end-user application
-- `org` — staff and organization surface
-- `com` — public and corporate surface
+Run each applicable scan against the canonical production hostname for Docs, News, Help, and Info.
+Test Edit and the operator tools through their configured access boundary without submitting
+credentials to a public scanner. A passing result on one host says nothing about another host.
 
 ## Scanners and Cadence
 
@@ -30,15 +27,14 @@ Header scanners report only that a header is present. CSP Evaluator is what dete
 policy is meaningful, so treat `unsafe-inline`, an over-broad host allowlist, or a missing
 `object-src` as a finding even when Security Headers reports a top grade.
 
-HSTS preload applies to the registrable domain and all subdomains at once. Because the `app`, `org`,
-and `com` surfaces are separated by subdomain, confirm preload state before adding, renaming, or
-retiring any hostname. See `docs/reference/subdomains.md`.
+HSTS preload applies to the registrable domain and all subdomains at once. Confirm preload state
+before adding, renaming, or retiring a retained surface or operator-tool hostname. See
+`docs/reference/subdomains.md`.
 
-Scan both a representative unauthenticated page and, where the scanner permits, a page that is
-representative of the authenticated layout, because header and asset behavior can differ between
-them. Cookie attributes (`Secure`, `HttpOnly`, `SameSite`, and the `__Host-` prefix) are partly
-covered by the Observatory; verify them externally as well, because surface separation depends on
-them and application tests cannot observe what the edge finally emits.
+Scan representative public content pages and the unauthenticated response at each restricted host.
+Cookie attributes (`Secure`, `HttpOnly`, `SameSite`, and the `__Host-` prefix) are partly covered by
+the Observatory; verify them externally as well, because application tests cannot observe what the
+edge finally emits.
 
 ### DNS, Mail, and Certificates
 
@@ -94,8 +90,8 @@ minimum.
 
 ## Procedure
 
-1. Run each surface-level scan against every surface hostname. Run the DNS, mail, certificate, and
-   preload checks once per registrable domain.
+1. Run each applicable surface scan against each retained public hostname. Run the DNS, mail,
+   certificate, and preload checks once per registrable domain.
 2. Record the date, surface, scanner, and result grade or score.
 3. For any result below the threshold, or any regression, open a tracking issue that names the
    failing control and the responsible configuration.

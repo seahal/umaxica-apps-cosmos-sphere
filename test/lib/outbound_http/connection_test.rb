@@ -71,11 +71,9 @@ class OutboundHttpConnectionTest < ActiveSupport::TestCase
   end
 
   test "a frozen URI constant passed as the endpoint is not mutated during construction" do
-    # Callers such as JitSecurityTurnstileVerifier::VERIFY_URI hand in a frozen
-    # URI class constant. Faraday mutates the URI it is given (it sets #path on
-    # it), so the connection builder must not pass the caller's object straight
-    # through: that raised FrozenError and every Turnstile check failed with a
-    # spurious "unavailable" result.
+    # A caller can hand in a frozen URI class constant. Faraday mutates the URI
+    # it is given (it sets #path on it), so the connection builder must not pass
+    # the caller's object straight through or it raises FrozenError.
     endpoint = URI("https://provider.example/turnstile/v0/siteverify").freeze
 
     connection =

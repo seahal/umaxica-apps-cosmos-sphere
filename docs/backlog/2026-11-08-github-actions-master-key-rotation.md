@@ -39,3 +39,18 @@ tracked file, issue, chat or retained shell history.
   four repositories. Rotating those values per repository is separate work; until it is done, the
   previous keys must be treated as able to reveal current secrets and destroyed once no longer
   needed.
+
+## Schedule decided 2026-11-10 (owner)
+
+- **Rotate the credential values** (HMAC salts, blind-index keys, provider secrets and the other
+  values still identical across the four repositories) **just before the cross-repository connection
+  work** (`specs/cosmos-cross-repository-connection/spec.md` in Access), and in all four
+  repositories in one coordinated step. Agents are working in the repositories in parallel now, so a
+  rotation in the middle would break their runs. Rotating blind-index keys makes existing
+  development data unsearchable; that is accepted under the hard reset, but confirm before running.
+  Start with a read-only inventory of credential entry names (never values) per repository.
+- **`RAILS_MASTER_KEY` in GitHub Actions** is set when CI is rebuilt, not before.
+- **Previous master keys:** after this split work ends, collect them into one folder and export it
+  to cold storage as an incident backup: an encrypted archive on a USB memory stick kept in the
+  owner's safe. Export only after the value rotation above, so the backup can reveal retired values
+  only. No other copy is kept, and no document records the keys themselves.

@@ -64,6 +64,26 @@ class UmaxicaArchitectureCopsTest < ActiveSupport::TestCase
     assert_empty offenses
   end
 
+  def test_other_bare_blocks_are_not_concern_inclusion_hooks
+    offenses = investigate(RuboCop::Cop::Umaxica::NoConcernInclusionHooks, <<~RUBY)
+      around do
+        run
+      end
+    RUBY
+
+    assert_empty offenses
+  end
+
+  def test_concern_hook_names_with_arguments_are_not_the_hook_dsl
+    offenses = investigate(RuboCop::Cop::Umaxica::NoConcernInclusionHooks, <<~RUBY)
+      included(base) do
+        register(base)
+      end
+    RUBY
+
+    assert_empty offenses
+  end
+
   def test_implicitly_public_methods_are_rejected
     offenses = investigate(RuboCop::Cop::Umaxica::ExplicitMethodVisibility, <<~RUBY)
       class ImportService
@@ -244,6 +264,37 @@ class UmaxicaArchitectureCopsTest < ActiveSupport::TestCase
     RUBY
 
     assert_empty offenses
+  end
+
+  def test_empty_class_body_is_accepted_by_the_public_cop_runner
+    source = "class Empty; end\n"
+    cop = RuboCop::Cop::Umaxica::ExplicitMethodVisibility.new(RuboCop::Config.new({}, "#{Dir.pwd}/.rubocop.yml"))
+    processed_source = RuboCop::ProcessedSource.new(source, RUBY_VERSION.to_f, "app/services/empty.rb")
+    commissioner = RuboCop::Cop::Commissioner.new([cop], [], raise_error: true)
+
+    assert_empty commissioner.investigate(processed_source).offenses
+  end
+
+  def test_visibility_declarations_with_receivers_or_dynamic_arguments_do_not_hide_methods
+    source = <<~RUBY
+      class DynamicVisibility
+        def call
+        end
+
+        receiver.public :call
+
+        def execute
+        end
+
+        public execute
+      end
+    RUBY
+    cop = RuboCop::Cop::Umaxica::ExplicitMethodVisibility.new(RuboCop::Config.new({}, "#{Dir.pwd}/.rubocop.yml"))
+    processed_source = RuboCop::ProcessedSource.new(source, RUBY_VERSION.to_f, "app/services/dynamic.rb")
+    commissioner = RuboCop::Cop::Commissioner.new([cop], [], raise_error: true)
+    offenses = commissioner.investigate(processed_source).offenses
+
+    assert_equal %w(call execute), offenses.map { |offense| offense.message[/`(.+?)`/, 1] }
   end
 
   private

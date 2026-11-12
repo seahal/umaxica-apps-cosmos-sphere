@@ -57,36 +57,6 @@ module Palm
         end
       end
 
-      test "retired Palm clients cannot exchange authorization codes or refresh tokens" do
-        palm_host = ENV.fetch("PUBLIC_PALM_SERVICE_URL")
-
-        %w(app-ios-rp app-android-rp).each do |client_id|
-          authorization_code_result = OidcTokenExchangeCoordinator.call(
-            grant_type: "authorization_code",
-            code: "retired-palm-code",
-            redirect_uri: "https://#{palm_host}/oauth/callback",
-            client_id: client_id,
-            client_assertion_type: OidcClientAssertionJwt::ASSERTION_TYPE,
-            client_assertion: "retired-palm-assertion",
-            token_endpoint_uri: OidcIssuer.token_endpoint("client"),
-            code_verifier: "retired-palm-verifier",
-            expected_resource_type: "client",
-          )
-          refresh_token_result = OidcTokenExchangeCoordinator.call(
-            grant_type: "refresh_token",
-            refresh_token: "retired-palm-refresh-token",
-            client_id: client_id,
-            client_assertion_type: OidcClientAssertionJwt::ASSERTION_TYPE,
-            client_assertion: "retired-palm-assertion",
-            token_endpoint_uri: OidcIssuer.token_endpoint("client"),
-            expected_resource_type: "client",
-          )
-
-          assert_equal "invalid_client", authorization_code_result.error, client_id
-          assert_equal "invalid_client", refresh_token_result.error, client_id
-        end
-      end
-
       test "sign does not own native client registration or oauth issuance routes" do
         native_ids = OidcClientRegistry.client_ids.grep(/\Asign.*(?:ios|android|native)|(?:ios|android|native).*sign/i)
 

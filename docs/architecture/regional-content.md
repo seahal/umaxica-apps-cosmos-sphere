@@ -4,9 +4,8 @@
 > normative decision for which repository owns which database. All currently-populated databases
 > (`*_zenith`, `*_ticket`, `*_setting`, `*_signal`, `avatar`, `publishing`) are **Global-only**.
 > `chronicle`, `occurrence`, `primary`, and `queue` exist independently — never shared — in both
-> Global and Regional. Regional owns a new application database and reads Global content only
-> through `GET /api/v0/entries(/:slug)`. This document describes the _delivery_ boundary; the
-> database ownership map is in the ADR.
+> Global and Regional. Regional owns a new application database. Content route ownership is covered
+> by the Cosmos Press decision below; database ownership remains in the ADR.
 
 > **Partially superseded by Identity Authority inversion:** The old RP vocabulary in this document
 > must not be used to treat `acme/www` as an RP-only boundary. `acme/www` is now the Session, Token,
@@ -19,16 +18,17 @@ Regional RP delivery remains outside this repository's stable application archit
 `adr/split-into-regional-and-global-repos.md`, regional RP delivery belongs to the separate regional
 repository.
 
-> **Content surfaces re-scoped (2026-07-16):** Per `adr/publishing-db-content-authority.md`, `info`,
-> `docs`, `news`, and `help` are now all **global content surfaces**. Their content authority lives
-> in the central `publishing` database in this Rails repository, not in a regional repository or
-> per-surface zenith databases. `app`/`com`/`org` are audience identifiers, not database placement.
-> The regional rows for `docs`/`news`/`help` in the boundary map below are historical.
+> **Content data and route ownership (2026-11-09):** Per `adr/publishing-db-content-authority.md`,
+> `info`, `docs`, `news`, and `help` remain global content data families in the central `publishing`
+> database in Sphere. Per the accepted Cosmos Press Route Ownership specification, their HTTP routes
+> and presentation, together with `edit`, now belong to Cosmos Press. Sphere no longer serves their
+> public routes. `app`/`com`/`org` remain audience identifiers, not database placement. The regional
+> rows for `docs`/`news`/`help` in the boundary map below are historical.
 
-Read-only `docs`, `news`, and `help` content delivery in Rails was first accepted by
-`adr/read-only-content-surfaces-in-rails.md` (now superseded). The Rails implementation is public
-and read-only; it does not restore the old regional engine, OIDC RP callbacks, preference writes, or
-authenticated actor lifecycle.
+The earlier read-only Rails delivery described by `adr/read-only-content-surfaces-in-rails.md` is
+retired in Sphere. The transferred routes are not replaced here, and no persistence or OIDC
+registration change is implied. See [`content-surface-matrix.md`](content-surface-matrix.md) for the
+current repository boundary.
 
 ## Boundary Map
 

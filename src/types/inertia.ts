@@ -9,11 +9,6 @@ export type ChromeLink = {
   href: string;
 };
 
-export type ChromeBanner = {
-  title: string | null;
-  body: string;
-};
-
 /**
  * Present only while the session is authenticated through Emergency Access.
  * The server derives it from the signed session token, so a page cannot opt in
@@ -25,45 +20,13 @@ export type ChromeRestrictedMode = {
   sign_out: ChromeLink;
 };
 
-export type ChromeCookieControls = {
-  hidden: boolean;
-  scope: string;
-  /** Same-origin consent endpoint, or null for the read-only link to Base. */
-  endpoint_url: string | null;
-  settings_url: string;
-  title: string;
-  description_html: string;
-  close_button: string;
-  reject_all: string;
-  open_settings: string;
-  accept_all: string;
-};
-
-export type ChromeThemeControls = {
-  hidden: boolean;
-  /** Same-origin path the server declared for this page's theme reads and writes. */
-  endpoint_url: string;
-  title: string;
-  description: string;
-  options: {
-    system: string;
-    light: string;
-    dark: string;
-  };
-};
-
 export type SurfaceChrome = {
   family_label: string | null;
   surface: string;
   locale?: string;
   brand: { name: string; href: string };
-  banner: ChromeBanner | null;
   /** Non-null for a Restricted Mode (Emergency Access) session only. */
   restricted_mode: ChromeRestrictedMode | null;
-  footer_navigation: ChromeLink[] | null;
-  /** Absent on the operational surfaces, which have no preference authority to link to. */
-  cookie_controls: ChromeCookieControls | null;
-  theme_controls: ChromeThemeControls | null;
   /** Relying-party surfaces only: the visitor's sign-in state and where they can go from it. */
   account_navigation: ChromeAccountNavigation | null;
   copyright: string;

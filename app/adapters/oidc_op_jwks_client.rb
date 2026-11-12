@@ -5,6 +5,7 @@ require "json"
 require "uri"
 require "jit_security_jwt_jwk"
 
+# TODO: AUDIT external access: fetches the OP's JWKS.
 class OidcOpJwksClient
   class FetchError < StandardError; end
 
@@ -206,7 +207,7 @@ class OidcOpJwksClient
     raise InvalidDocument, "JWKS document contains duplicate kids" unless kids.size == normalized.size
 
     normalized.to_h.freeze
-  rescue JitSecurityJwtJwk::Error => e
+  rescue JitSecurityJwtJwk::Error, JWT::DecodeError => e
     raise InvalidDocument, e.message
   end
 

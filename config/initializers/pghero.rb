@@ -5,7 +5,7 @@
 # loaded before the routing paths are collected). This file only configures it, so everything
 # here stays behind the same development guard.
 if Rails.env.development?
-  # Cloudflare Access fronts pghero.umaxica.dev, but the mounted engine must not depend on the
+  # Cloudflare Access fronts pghero-sphere-jp.umaxica.dev, but the mounted engine must not depend on the
   # edge alone: PgHero::Engine subclasses nothing of this application, so enforce_access_policy!
   # and surface isolation never run for it, and any request that reached the origin directly
   # would get unauthenticated read access to query stats/table stats and the ability to kill

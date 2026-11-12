@@ -11,6 +11,8 @@ class RpWarpAppCallbackState < RpWarpAppRecord
   validates :state_digest, :browser_binding_digest, :nonce_digest, :pkce_challenge,
             :pkce_verifier_ciphertext, :issuer, :realm, :client_id, :expires_at, presence: true
   validates :realm, inclusion: { in: [REALM] }
+  validates :state_digest, uniqueness: true
+  validates :state_digest, :browser_binding_digest, :nonce_digest, length: { is: 32 }
   validates :client_id, inclusion: { in: [CLIENT_ID] }
   validates :realm, length: { maximum: 3 }
   validates :client_id, length: { maximum: 64 }

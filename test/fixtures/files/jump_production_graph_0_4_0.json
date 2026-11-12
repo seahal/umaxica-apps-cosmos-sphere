@@ -6,12 +6,12 @@
     "base-app-ww": "https://www.umaxica.app",
     "base-com-ww": "https://www.umaxica.com",
     "base-org-ww": "https://www.umaxica.org",
-    "core-app-jp": "https://jp.umaxica.app",
-    "core-com-jp": "https://jp.umaxica.com",
-    "core-org-jp": "https://jp.umaxica.org",
-    "warp-app-jp": "https://www-jp.umaxica.app",
-    "warp-com-jp": "https://www-jp.umaxica.com",
-    "warp-org-jp": "https://www-jp.umaxica.org",
+    "core-app-jp": "https://www-jp.umaxica.app",
+    "core-com-jp": "https://www-jp.umaxica.com",
+    "core-org-jp": "https://www-jp.umaxica.org",
+    "warp-app-jp": "https://warp-jp.umaxica.app",
+    "warp-com-jp": "https://warp-jp.umaxica.com",
+    "warp-org-jp": "https://warp-jp.umaxica.org",
     "palm-app-jp": "https://palm-jp.umaxica.app"
   },
   "edges": [

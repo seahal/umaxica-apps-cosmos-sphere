@@ -4,9 +4,12 @@
 module AuthenticationJwksRendering
   extend ActiveSupport::Concern
 
+  public
+
   def show
     expires_in(1.hour, public: true)
-    render json: ::JitSecurityJwtJwksService.jwk_set(self.class::JWT_KEY_NAMESPACE)
+    namespace = JitSecurityJwtRegistry.normalize_namespace(self.class::JWT_KEY_NAMESPACE)
+    render json: JitSecurityJwtRegistry.jwks_for("surface:#{namespace}")
   end
 
   private

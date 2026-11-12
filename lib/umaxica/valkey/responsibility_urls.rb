@@ -8,7 +8,7 @@ module Umaxica
     # Parses Redis/Valkey URLs. Expected nonprod DB indexes come from config/valkey.yml
     # via Settings.logical_db - they are not duplicated here.
     module ResponsibilityUrls
-      KNOWN = %i(cache rate_limit auth_state performance coverband).freeze
+      KNOWN = %i(cache rate_limit auth_state coverband).freeze
 
       Parsed =
         Data.define(:responsibility, :url, :db, :host, :port) do

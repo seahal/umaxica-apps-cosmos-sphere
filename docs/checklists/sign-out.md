@@ -1,7 +1,9 @@
 # Sign-out
 
-These are acceptance requirements for the APP, COM and ORG OP/RP surfaces. They describe expected
-behavior, not evidence that a deployment has passed acceptance.
+> **Historical after the 2026-11-11 hard reset:** The OP and Browser RP route families described
+> below have been removed from this Rails process, except for the retained Edit RP sign-out path.
+> These prior acceptance requirements are not a current release gate; see `README.md` for live route
+> ownership.
 
 - SIGNOUT-1: A current-session OP logout stops the current Visa device session, every root row in
   its rotation lineage and every grant under that device. Each root has its own

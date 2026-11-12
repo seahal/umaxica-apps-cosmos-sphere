@@ -116,12 +116,8 @@ class OidcOpRevocationClient
         client_assertion_type: OidcClientAssertionJwt::ASSERTION_TYPE,
         client_assertion: assertion,
       }
-    when "client_secret_post"
-      return if client.client_secret.blank?
-
-      { client_secret: client.client_secret }
-    when "none"
-      {}
+    else
+      raise ArgumentError, "Sphere RP revocation requires private_key_jwt"
     end
   end
 

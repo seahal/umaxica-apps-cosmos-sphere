@@ -67,6 +67,13 @@ class ObservabilityRedactorTest < ActiveSupport::TestCase
     )
   end
 
+  test "scrub_url redacts non-HTTP URLs instead of preserving embedded credentials" do
+    redacted = ObservabilityRedactor.scrub("url" => "ftp://user:secret@example.com/private")
+
+    assert_equal ObservabilityRedactor::REDACTED, redacted.fetch("url")
+    assert_not_includes redacted.fetch("url"), "secret"
+  end
+
   test "scrub leaves non-HTTP strings starting with https scheme prefix unchanged" do
     assert_equal "not a url", ObservabilityRedactor.scrub("not a url")
   end

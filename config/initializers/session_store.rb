@@ -1,15 +1,12 @@
 # typed: false
 # frozen_string_literal: true
 
-require Rails.root.join("lib/jit_id_host_env").to_s
-require Rails.root.join("lib/jit_session_cookie_config").to_s
-
-# config/initializers/session_store.rb
-force_secure = JitSessionCookieConfig.force_secure?(
-  id_service_host: JitIdHostEnv.service_url.to_s,
-)
-
+# Operator tools use host-only sessions. Each hostname receives its own cookie with no shared
+# parent-domain state.
 Rails.application.config.session_store(
   :cookie_store,
-  **JitSessionCookieConfig.session_options(force_secure: force_secure),
+  key: "_cosmos_sphere_operator_session",
+  secure: Rails.env.production?,
+  httponly: true,
+  same_site: :lax,
 )

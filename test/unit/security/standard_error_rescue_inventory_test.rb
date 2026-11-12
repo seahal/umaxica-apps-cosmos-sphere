@@ -9,46 +9,9 @@ class StandardErrorRescueInventoryTest < ActiveSupport::TestCase
 
   REVIEWED_RESCUES = {
     "app/controllers/concerns/actor_support.rb" => {
-      count: 4,
-      classification: "auth boundary; each rescue logs and re-raises ActorSupport::ResolutionError",
-    },
-    "app/controllers/concerns/authentication_logoutable.rb" => {
-      count: 4,
-      classification: "logout boundary; each rescue logs and re-raises after session cleanup",
-    },
-    "app/controllers/concerns/social_callback_guard.rb" => {
       count: 1,
-      classification: "callback boundary; clears state and re-raises",
-    },
-    "app/controllers/concerns/social_omniauth_callback_flow.rb" => {
-      count: 1,
-      classification: "callback boundary; clears intent and re-raises",
-    },
-    "app/controllers/concerns/authentication_audit_writer.rb" => {
-      count: 4,
-      classification: "best-effort audit side effect with outbox/fallback recovery",
-    },
-    "app/controllers/concerns/authorization_audit.rb" => {
-      count: 1,
-      classification: "best-effort authorization failure audit side effect",
-    },
-    "app/controllers/concerns/sign_oidc_logout.rb" => {
-      count: 1,
-      classification: "committed authentication logout isolates the best-effort Preference writer",
-    },
-    "app/controllers/concerns/preference_base.rb" => {
-      count: 1,
-      classification: "Preference current-resource resolution; failures are re-raised as resolution errors",
-    },
-    "app/controllers/concerns/authentication_base.rb" => {
-      count: 3,
-      # The refresh-path and redirect-path broad fallbacks were removed: issuer, database, and
-      # redirect construction failures must propagate instead of becoming guessed destinations.
-      classification: "mixed legacy inventory; each remaining site needs follow-up before changing behavior",
-    },
-    "app/controllers/concerns/passkey_sign_in_flow.rb" => {
-      count: 2,
-      classification: "WebAuthn options error response and best-effort risk emission boundaries",
+      classification: "auth boundary; current-resource failures raise ActorSupport::ResolutionError " \
+                      "unless credentials were refused",
     },
   }.freeze
 

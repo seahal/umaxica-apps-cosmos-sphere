@@ -12,6 +12,7 @@ module OutboundHttp
   # Timeouts are required keyword arguments rather than defaults: a caller that
   # forgets one must fail at construction instead of silently inheriting a
   # transport default (`generic/no-silent-fallback.mdc`).
+  # TODO: AUDIT external access: shared Faraday builder for outbound HTTP.
   module Connection
     # Faraday wraps SocketError, SystemCallError, the Net::HTTP timeouts, and
     # OpenSSL::SSL::SSLError into its own hierarchy, so a call site rescuing the
@@ -27,11 +28,10 @@ module OutboundHttp
     def self.build(url:, open_timeout:, read_timeout:, require_https:, write_timeout: nil,
                    require_public_address: false)
       # Faraday mutates the URI it is handed (Faraday::Connection#url_prefix=
-      # assigns #path on it). Call sites legitimately pass a shared class
-      # constant -- JitSecurityTurnstileVerifier::VERIFY_URI is frozen, others
-      # are merely shared -- so build always works on a private copy: a frozen
-      # constant would otherwise raise FrozenError, and a shared mutable one
-      # would be rewritten under other threads.
+      # assigns #path on it). Call sites may pass a shared class constant, so
+      # build always works on a private copy: a frozen constant would otherwise
+      # raise FrozenError, and a shared mutable one would be rewritten under
+      # other threads.
       uri = (url.is_a?(URI::Generic) ? url.dup : URI.parse(url.to_s))
       raise InsecureEndpointError, "outbound HTTP endpoint must be HTTPS" if require_https && !uri.is_a?(URI::HTTPS)
 
@@ -50,9 +50,8 @@ module OutboundHttp
       end
     end
 
-    # Faraday.default_adapter is deliberately left alone: the OmniAuth, OAuth2,
-    # and openid_connect gem chain shares that global, and reassigning it would
-    # change their transport as a side effect of this application's own calls.
+    # Faraday.default_adapter is deliberately left alone: the OAuth2 and OpenID Connect
+    # integrations have their own transport contracts.
     def self.default_adapter
       :net_http
     end

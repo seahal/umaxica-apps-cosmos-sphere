@@ -8,25 +8,10 @@ const srcRoot = fileURLToPath(new URL("./src", import.meta.url));
 // through `renderToStaticMarkup`. Kept as an explicit list so the unit project stays DOM-free.
 const nodeSpecs = [
   "gait/lib/payload.test.ts",
-  "gait/entrypoints/application.test.ts",
-  "gait/entrypoints/bootstrap_entrypoints.test.ts",
   "gait/controllers/webauthn_utils.test.ts",
-  "gait/features/auth/passkeys/messages.test.ts",
   "gait/features/landing/surface_root_landing.test.tsx",
-  "gait/pages/base/app/groups/index.test.tsx",
-  "gait/features/preferences/preference_index.test.tsx",
-  "gait/features/landing/root_landing.test.tsx",
-  "gait/features/auth/auth_shared_screens.test.tsx",
-  "gait/pages/base/app/identity/identity_pages.test.tsx",
   "gait/features/dashboards/warp_dashboard.test.tsx",
   "gait/features/auth/session/sign_out_screens.test.tsx",
-  "gait/features/auth/dashboard/surface_dashboard.test.tsx",
-  "gait/features/identity/activity_index.test.tsx",
-  "gait/pages/auth/app/settings/settings_screens.test.tsx",
-  "gait/pages/palm/app/sign_outs/show.test.tsx",
-  "gait/features/preferences/preference_screens.test.tsx",
-  "gait/features/auth/signin/signin_screens.test.tsx",
-  "gait/features/auth/verification/verification_screens.test.tsx",
 ].map((path) => fileURLToPath(new URL(`./${path}`, import.meta.url)));
 
 const sharedProjectDefaults = {
@@ -118,10 +103,10 @@ export default defineConfig({
         "public/vite/**",
       ],
       thresholds: {
-        statements: 99,
-        branches: 99,
-        functions: 99,
-        lines: 99,
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100,
       },
     },
   },

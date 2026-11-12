@@ -29,12 +29,6 @@ class ComposeHostPortExposureTest < Minitest::Test
   # An IPv4 or IPv6 loopback host address is the only accepted publication target.
   LOOPBACK_HOST_ADDRESSES = ["127.0.0.1", "::1"].freeze
 
-  # The two host-visible observability listeners, and the only ones. Grafana is a browser UI for
-  # the development machine itself; Alloy's 4318 is the OTLP/HTTP ingress that host-native Rails
-  # exports to. Alloy's management UI (12345) and OTLP/gRPC (4317) stay container-only.
-  GRAFANA_DEFAULT_HOST_PORT = "13000"
-  ALLOY_OTLP_HTTP_DEFAULT_HOST_PORT = "4318"
-
   def test_every_published_port_binds_loopback
     offenders = each_published_port.reject { |entry| loopback?(entry.fetch(:published)) }
 
@@ -54,35 +48,15 @@ class ComposeHostPortExposureTest < Minitest::Test
                  "that bypasses the single Alloy gateway."
   end
 
-  def test_grafana_publishes_only_loopback_13000
-    entries = published_ports_for("grafana")
+  # Each Cosmos repository publishes only its Dev Container Rails, on its own host port, so the four
+  # Dev Containers can run side by side. Datastores, Vite, noVNC, fakecloud, Grafana and Alloy are
+  # reached over Compose networks only.
+  def test_only_dev_container_rails_is_published
+    entries = each_published_port.to_a
 
-    assert_equal 1, entries.length, "Grafana publishes exactly one host port; found #{entries.inspect}"
-
-    entry = entries.first
-
-    assert_equal "127.0.0.1", entry.fetch(:published),
-                 "The Grafana UI is for the development machine only and must not reach the LAN, " \
-                 "Cloudflare, or Tailscale."
-    assert_equal GRAFANA_DEFAULT_HOST_PORT, default_host_port(entry),
-                 "Host 3000/3001 belong to host-native and Dev Container Rails; Grafana takes 13000."
-    assert_equal "3000", container_port(entry), "Grafana's container port stays the upstream default."
-  end
-
-  def test_alloy_publishes_only_the_loopback_otlp_http_receiver
-    entries = published_ports_for("alloy")
-
-    assert_equal 1, entries.length, "Alloy publishes exactly one host port; found #{entries.inspect}"
-
-    entry = entries.first
-
-    assert_equal "127.0.0.1", entry.fetch(:published),
-                 "The OTLP ingress accepts host-native Rails only; a LAN-reachable receiver would " \
-                 "accept telemetry from any machine on the network."
-    assert_equal ALLOY_OTLP_HTTP_DEFAULT_HOST_PORT, default_host_port(entry)
-    assert_equal "4318", container_port(entry),
-                 "Only OTLP/HTTP is published. The management UI (12345) and OTLP/gRPC (4317) " \
-                 "stay on the `observability` network."
+    assert_equal [["core", "3000"]], entries.map { |entry| [entry.fetch(:service), container_port(entry)] },
+                 "Only `core` publishes, and only Rails (container port 3000); found " \
+                 "#{entries.map { |entry| describe(entry) }.inspect}"
   end
 
   def test_no_service_uses_host_networking
@@ -129,10 +103,6 @@ class ComposeHostPortExposureTest < Minitest::Test
     end
   end
 
-  def published_ports_for(service)
-    each_published_port.select { |entry| entry.fetch(:service) == service }
-  end
-
   # Compose accepts both the short string form ("127.0.0.1:3000:3000") and the long mapping form
   # ({"target" => 3000, "published" => "3000", "host_ip" => "127.0.0.1"}). Anything this method
   # cannot resolve to a host address is reported rather than assumed safe.
@@ -144,17 +114,6 @@ class ComposeHostPortExposureTest < Minitest::Test
 
     segments = text.split(":")
     (segments.length >= 3) ? segments.first : ""
-  end
-
-  # The host side of a mapping, with any `${VAR:-default}` resolved to its default. The default is
-  # what a fresh clone gets, so it is the value this contract pins.
-  def default_host_port(entry)
-    port = entry.fetch(:entry)
-    return interpolate(port["published"].to_s) if port.is_a?(Hash)
-
-    # Interpolate first: `${GRAFANA_HOST_PORT:-13000}` carries a colon of its own,
-    # so splitting the raw string cuts the mapping in the wrong place.
-    interpolate(port.to_s).split(":")[-2].to_s
   end
 
   def container_port(entry)

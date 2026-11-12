@@ -45,12 +45,9 @@ Bootstrap at least two operators with `iam.capability.grant` and `iam.capability
 console refuses to revoke the last in-force holder of either, but it cannot stop expiry or an
 operator becoming ineligible. When nobody holds them any more, bootstrap again.
 
-Grant every other capability through `/iam/grants/new`, which requires Step-Up and lets a granter
-delegate only what they hold.
-
-Tech's initial `tech.access` grant and publication prerequisites are described in the
-[Tech Browser RP runbook](tech-browser-rp.md). Its initial development grant uses the same audited
-bootstrap; subsequent delegation requires the granter's own current `tech.access`.
+This Rails process no longer serves the operator capability grant UI. The bootstrap task remains
+available for the three IAM bootstrap capabilities above; grant delegation and revocation UI belong
+to the owning operator client.
 
 ## Checking grants
 

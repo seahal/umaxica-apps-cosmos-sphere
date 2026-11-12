@@ -64,7 +64,6 @@ module Oidc
         uri = URI.parse(normalized)
 
         raise ArgumentError, "invalid origin" unless uri.is_a?(URI::HTTP)
-        raise ArgumentError, "invalid origin" unless %w(http https).include?(uri.scheme)
         raise ArgumentError, "invalid origin" if uri.userinfo.present?
         raise ArgumentError, "invalid origin" if uri.host.blank?
         raise ArgumentError, "invalid origin" if uri.path.present? && uri.path != "/"
@@ -123,7 +122,7 @@ module Oidc
 
     def decision_for_authorize_url(url, request:)
       target = parse_target_url(url)
-      return reject_decision("invalid_url", request:, target: nil) if target.nil?
+      return reject_decision("invalid_url", request:) if target.nil?
       return jump_decision("native_custom_scheme", request:, target:) unless http_or_https?(target)
       return jump_decision("not_acme_authorize", request:, target:) unless target.path == "/oauth/authorize"
 
@@ -185,7 +184,6 @@ module Oidc
     def parse_target_url(url)
       uri = URI.parse(url.to_s)
       return nil if uri.scheme.blank? && uri.host.blank?
-      return nil if uri.scheme.blank? && uri.path.present? && !uri.path.start_with?("/")
 
       uri
     rescue URI::InvalidURIError
@@ -214,17 +212,17 @@ module Oidc
       request.host.to_s.downcase
     end
 
-    def reject_decision(reason_code, request:, target:)
+    def reject_decision(reason_code, request:)
       Decision.new(
         kind: :rejected,
         reason_code: reason_code,
         same_site: false,
         request_host: host_only(request),
         request_scheme: request.scheme.to_s.downcase,
-        target_scheme: target&.scheme&.to_s&.downcase,
-        target_host: target&.host&.to_s&.downcase,
-        target_port: target ? normalize_port(target.scheme, target.port) : nil,
-        target_path: target&.path,
+        target_scheme: nil,
+        target_host: nil,
+        target_port: nil,
+        target_path: nil,
         acme_scheme: scheme,
         acme_host: host,
         acme_port: port,

@@ -25,7 +25,7 @@ class CoreBrowserApiSurfacesTest < ActionDispatch::IntegrationTest
     host! ENV.fetch("PUBLIC_CORE_STAFF_URL")
     https!
 
-    get "/api/v0/session", headers: json_probe_headers
+    get "/api/v0/session", headers: { "Accept" => "application/json" }
 
     assert_response :success
     body = response.parsed_body
@@ -37,11 +37,11 @@ class CoreBrowserApiSurfacesTest < ActionDispatch::IntegrationTest
   end
 
   test "org session probe is unavailable while the boundary feature flag is off" do
-    ENV["CORE_BROWSER_JWT_COOKIE_ENABLED"] = nil
+    ENV["CORE_BROWSER_JWT_COOKIE_ENABLED"] = "0"
     host! ENV.fetch("PUBLIC_CORE_STAFF_URL")
     https!
 
-    get "/api/v0/session", headers: json_probe_headers
+    get "/api/v0/session", headers: { "Accept" => "application/json" }
 
     assert_response :service_unavailable
     assert_equal "application/problem+json", response.media_type
@@ -55,26 +55,15 @@ class CoreBrowserApiSurfacesTest < ActionDispatch::IntegrationTest
   test "org token refresh without a refresh cookie is refused as unauthenticated" do
     host! ENV.fetch("PUBLIC_CORE_STAFF_URL")
     https!
-    get "/api/v0/session", headers: json_probe_headers
+    get "/api/v0/session", headers: { "Accept" => "application/json" }
     csrf_token = response.parsed_body.fetch("csrf_token")
 
-    post "/api/v0/token/refresh", headers: json_probe_headers.merge(
+    post "/api/v0/token/refresh", headers: { "Accept" => "application/json" }.merge(
       "X-CSRF-Token" => csrf_token,
       "Origin" => "https://#{request.host}",
     )
 
     assert_response :unauthorized
     assert_equal "application/problem+json", response.media_type
-  end
-
-  private
-
-  def json_probe_headers
-    {
-      "Accept" => "application/json",
-      "Content-Type" => "application/json",
-      "Client-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " \
-                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    }
   end
 end

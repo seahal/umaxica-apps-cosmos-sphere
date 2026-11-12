@@ -7,17 +7,6 @@ require "test_helper"
 class BranchCoverageBatch36ExtraArmsTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  test "OidcEndSessionRequest invalid client path" do
-    req = OidcEndSessionRequest.new(
-      params: { "id_token_hint" => "x", "client_id" => "no-such-client" },
-      request: ActionDispatch::TestRequest.create,
-    )
-    outcome = req.call
-
-    assert_predicate outcome, :success?
-    assert_equal :no_hint, outcome.source
-  end
-
   test "ApplicationPolicy audience empty returns nil" do
     policy = ApplicationPolicy.new(Object.new)
 

@@ -5,9 +5,7 @@ require "test_helper"
 require "jit_security_active_record_encryption_key_provider"
 
 # Credential lookup that has to answer nothing rather than raise when a store
-# cannot serve a key, so the caller's own fallback decision is the one that runs;
-# and the avatar binding matcher, which pairs a binding with a subject only when
-# both are of the same kind.
+# cannot serve a key, so the caller handles the missing configuration.
 class EncryptionKeyLookupAndBindingMatchingTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 

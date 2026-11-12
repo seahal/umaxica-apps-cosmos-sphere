@@ -4,13 +4,11 @@
 require "test_helper"
 
 class OidcRpBrowserCredentialContractTest < ActiveSupport::TestCase
-  test "RP cookie names stay separate from root cookie families" do
+  test "RP cookie names have distinct production and test forms" do
     assert_equal "__Host-rp-access", OidcRpCookieName.access(production: true)
     assert_equal "__Host-rp-refresh", OidcRpCookieName.refresh(production: true)
     assert_equal "rp-access", OidcRpCookieName.access(production: false)
     assert_equal "rp-refresh", OidcRpCookieName.refresh(production: false)
-    assert_not_equal AuthenticationCookieName.access(production: true), OidcRpCookieName.access(production: true)
-    assert_not_equal AuthenticationCookieName.refresh(production: true), OidcRpCookieName.refresh(production: true)
   end
 
   test "RP cookie flags and expiries come from the token response" do

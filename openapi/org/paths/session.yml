@@ -1,11 +1,11 @@
 # GET /api/v0/session on the org surface.
 #
 # `servers` is declared here rather than at the document root because only the Core paths have a
-# host that is both real and public and knowable from the repository. `jp.umaxica.org` is a literal
+# host that is both real and public and knowable from the repository. `www-jp.umaxica.org` is a literal
 # in config/environments/production.rb and is the canonical Core public host per
 # adr/core-canonical-public-host.md.
 servers:
-  - url: https://jp.umaxica.org
+  - url: https://www-jp.umaxica.org
     description: Canonical Core public host for the org (staff and organization) surface.
 get:
   summary: Current browser session summary

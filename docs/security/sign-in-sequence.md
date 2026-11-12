@@ -1,5 +1,10 @@
 # Sign-In Sequence
 
+> **Historical after the 2026-11-11 hard reset:** Local Auth and OP sign-in routes have been
+> removed. Edit remains an OIDC relying party for its external authority; the detailed local
+> ceremony sequences below describe the earlier implementation, not current routes. See `README.md`
+> for the live surface inventory.
+
 The canonical Sign In admission also receives completed App/Com registration. The rationale and
 failure-domain contract are documented in
 [Sign In First: Registration Handoff](sign-in-first-registration-handoff.md) and
@@ -237,10 +242,10 @@ access tokens, refresh tokens, JWKS authority, and downstream token issuance.
 
 ## Local sign-in phase admission
 
-Local app sign-in requests that use a DB-backed `SignInFlow` carry a server-generated,
-purpose-bound signed binding for the expected surface, flow public identifier, phase, and immutable
-flow generation. This binding is an admission check; it is not a replacement for the locked flow
-row, actor binding, expiry, provider correlation, or the existing session-issuance boundary.
+Local app sign-in requests that use a DB-backed `SignInFlow` carry a server-generated, purpose-bound
+signed binding for the expected surface, flow public identifier, phase, and immutable flow
+generation. This binding is an admission check; it is not a replacement for the locked flow row,
+actor binding, expiry, provider correlation, or the existing session-issuance boundary.
 
 Same-phase reload is allowed. A GET or HEAD with a missing, malformed, expired, cross-surface,
 cross-flow, or contradictory phase binding returns HTTP `409 Conflict` as plain text with the exact

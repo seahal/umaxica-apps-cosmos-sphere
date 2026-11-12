@@ -2,120 +2,21 @@
 # frozen_string_literal: true
 
 require "test_helper"
-# require "helpers/global_test_support"
 
 class CoreBffSurfaceSmokeTest < ActionDispatch::IntegrationTest
-  fixtures :clients, :client_token_kinds, :com_preferences,
-           :operators, :operator_token_kinds
-
-  SURFACES = [
-    {
-      host: ENV.fetch("PUBLIC_CORE_SERVICE_URL", Rails.configuration.x.boot_config.fetch(:hosts).core_service.host),
-      acme_host: Rails.configuration.x.boot_config.fetch(:hosts).acme_service.host,
-      token_refresh_path: "/api/v0/token/refresh",
-      jwt_issuer_id: "surface:CORE_APP",
-      resource_type: "client",
-      client_id: "core-app-jp",
-    },
-    {
-      host: ENV.fetch("PUBLIC_CORE_STAFF_URL", Rails.configuration.x.boot_config.fetch(:hosts).core_staff.host),
-      acme_host: Rails.configuration.x.boot_config.fetch(:hosts).acme_staff.host,
-      token_refresh_path: "/api/v0/token/refresh",
-      jwt_issuer_id: "surface:CORE_ORG",
-      resource_type: "operator",
-      client_id: "core-org-jp",
-    },
-  ].freeze
-
-  test "core BFF and logout routes are executable on every surface" do
-    SURFACES.each do |surface|
-      host = surface.fetch(:host)
+  test "Core callbacks reject missing browser state and logout completion rejects a forged notice" do
+    %w(PUBLIC_CORE_SERVICE_URL PUBLIC_CORE_STAFF_URL).each do |host_setting|
       browser = open_session
-      browser.host!(host)
+      browser.host!(ENV.fetch(host_setting))
       browser.https!
-
       browser.get("/oidc/callback")
 
-      # D-153: a callback without state lands on the interruption page.
       assert_equal 303, browser.response.status
+      assert_equal "/sign/interruption", URI.parse(browser.response.location).path
+      assert_nil browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE]
+      browser.get("/sign/out", params: { state: "forged-state", ri: "jp" })
 
-      resource_type = surface.fetch(:resource_type)
-      user, token = actor_and_token_for(resource_type)
-      authenticate_rp!(browser, surface, user, token, host)
-
-      browser.post("/sign/out", params: { ri: "jp" })
-
-      response = browser.response
-      handoff_rendered = response.status.between?(200, 299)
-
-      assert response.redirect? || handoff_rendered, "expected redirect or handoff success, got #{response.status}"
-      assert_includes response.body, 'id="sign-out-handoff-form"' if handoff_rendered
-
-      browser.post(surface.fetch(:token_refresh_path), headers: { "Accept" => "application/json" }, as: :json)
-
-      assert_equal 503, browser.response.status
-      assert_equal "urn:umaxica:problem:service-unavailable", browser.response.parsed_body.fetch("type")
-    end
-  end
-
-  private
-
-  def authenticate_rp!(browser, surface, resource, token, host)
-    if token.refresh_token_family_id.blank?
-      token.update!(refresh_token_family_id: SecureRandom.uuid)
-      token.rotate_refresh_token!
-    end
-    client = OidcClientRegistry.find!(surface.fetch(:client_id))
-    session_class, association =
-      case surface.fetch(:resource_type)
-      when "operator" then [OpOrgGrant, :operator_token]
-      else [OpAppGrant, :client_token]
-      end
-    rp_session = session_class.create!(
-      :authentication_epoch => 0,
-      association => token,
-      :oidc_client_id => client.client_id,
-      :oidc_scope => "openid profile",
-      :oidc_jti => SecureRandom.uuid,
-      :oidc_nonce => SecureRandom.hex(16),
-      :oidc_auth_time => 1.minute.ago,
-      :refresh_token_expires_at => 10.minutes.from_now,
-    )
-    access_token = AuthenticationTokenService.encode(
-      resource,
-      host: host,
-      resource_type: surface.fetch(:resource_type),
-      session_public_id: token.public_id,
-      oidc_sid: rp_session.public_id,
-      oidc_jti: rp_session.oidc_jti,
-      expires_at: 10.minutes.from_now,
-      scopes: %w(openid profile),
-      issuer: OidcIssuer.for_client(client),
-      audiences: [client.aud],
-      jwt_issuer_id: OidcIssuer.jwt_issuer_id_for_client(client),
-      subject: OidcSubject.for(resource, resource_type: surface.fetch(:resource_type)),
-      client_id: client.client_id,
-    )
-    browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] = access_token
-    browser.cookies[OidcRpBrowserCredentialContract::REFRESH_COOKIE] = rp_session.issue_refresh_token!
-    rp_session
-  end
-
-  def actor_and_token_for(resource_type)
-    case resource_type
-    when "operator"
-      staff = operators(:one)
-      token = OperatorToken.where(staff: staff).where(
-        "discard_at > ?",
-        Time.current,
-      ).order(created_at: :desc).first ||
-        OperatorToken.create!(authentication_epoch: 0, staff: staff, staff_token_kind_id: OperatorTokenKind::BROWSER_WEB)
-      [staff, token]
-    else
-      user = clients(:one)
-      token = ClientToken.where(user: user).where("discard_at > ?", Time.current).order(created_at: :desc).first ||
-        ClientToken.create!(authentication_epoch: 0, user: user, user_token_kind_id: ClientTokenKind::BROWSER_WEB)
-      [user, token]
+      assert_equal 404, browser.response.status
     end
   end
 end

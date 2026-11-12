@@ -1,5 +1,10 @@
 # Inertia History and Page Props
 
+> **Retired surface note (2026-11-10):** Auth, Base, Core, Palm, Tech, Visa, and Warp browser
+> surfaces and their Inertia pages have been removed from this repository. Edit and the retained
+> content surfaces render ERB. This document preserves the historical security decision and does not
+> describe current runtime behavior.
+
 This document records the security rules for what an Inertia page leaves in the browser: the history
 entries that hold page props, and the props themselves. `adr/inertia-rails-thin-adapter.md` makes
 history encryption mandatory and leaves history clearing and page-prop content to this document.

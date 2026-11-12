@@ -10,8 +10,6 @@ module Palm
         AUTHENTICATION_MODE = :open
         declare_authentication_mode! :open
 
-        skip_before_action :set_region, raise: false
-
         private
 
         def oidc_rp_default_landing_path

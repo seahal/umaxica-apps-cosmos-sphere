@@ -120,10 +120,10 @@ class ObservabilitySpanScrubberTest < ActiveSupport::TestCase
   end
 
   test "scrub preserves the explicitly allowed ActionMailer mailer attribute" do
-    span = MutableSpan.new("email.x_mailer" => "Email::App::OtpMailer")
+    span = MutableSpan.new("email.x_mailer" => "Framework::ExampleMailer")
 
     _ = ObservabilitySpanScrubber.scrub(span)
 
-    assert_equal "Email::App::OtpMailer", span.attributes["email.x_mailer"]
+    assert_equal "Framework::ExampleMailer", span.attributes["email.x_mailer"]
   end
 end

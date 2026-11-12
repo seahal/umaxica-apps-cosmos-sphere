@@ -19,8 +19,6 @@ module Jit
           @preference_app_legacy_key = OpenSSL::PKey::EC.generate("secp384r1")
           @preference_org_key = OpenSSL::PKey::EC.generate("secp384r1")
           @preference_org_legacy_key = OpenSSL::PKey::EC.generate("secp384r1")
-          @preference_com_key = OpenSSL::PKey::EC.generate("secp384r1")
-          @preference_com_legacy_key = OpenSSL::PKey::EC.generate("secp384r1")
           @surface_key = OpenSSL::PKey::EC.generate("secp384r1")
         end
 
@@ -39,105 +37,27 @@ module Jit
             assert_equal ["app"], issuers.fetch("preference_app").audiences
             assert_equal "pref-org-kid", issuers.fetch("preference_org").current_kid
             assert_equal ["org"], issuers.fetch("preference_org").audiences
-            assert_equal "pref-com-kid", issuers.fetch("preference_com").current_kid
-            assert_equal ["com"], issuers.fetch("preference_com").audiences
-            assert_equal "sign-app-kid", issuers.fetch("surface:AUTH_APP").current_kid
-            assert_predicate issuers.fetch("surface:AUTH_APP").jwks.fetch(:keys), :present?
+            assert_equal "jump-core-app-kid", issuers.fetch("surface:CORE_APP").current_kid
+            assert_predicate issuers.fetch("surface:CORE_APP").jwks.fetch(:keys), :present?
             assert_equal JitSecurityJwtRegistry::OIDC_CLIENT_NAMESPACES.size,
                          issuers.keys.grep(/\Aoidc_client:/).size
             assert JitSecurityJwtRegistry.public_key_for("auth", "auth-legacy-kid")
             assert JitSecurityJwtRegistry.public_key_for("preference_app", "pref-app-legacy-kid")
             assert JitSecurityJwtRegistry.public_key_for("preference_org", "pref-org-legacy-kid")
-            assert JitSecurityJwtRegistry.public_key_for("preference_com", "pref-com-legacy-kid")
           end
         end
 
-        test "com preference public keyset works without a private key" do
-          public_only_key = OpenSSL::PKey::EC.generate("secp384r1")
-          jwk = JitSecurityJwtRegistry.export_public_jwk(public_only_key, kid: "com-public-only")
+        test "loads configured Core OIDC client assertion issuer" do
           with_registry_inputs(
-            "PREFERENCE_COM_JWT_ACTIVE_KID" => "com-public-only",
-            "PREFERENCE_COM_JWT_PRIVATE_KEYSET" => nil,
-            "PREFERENCE_COM_JWT_PUBLIC_KEYSET" => JSON.generate(keys: [jwk]),
-            "PREFERENCE_COM_JWT_ISSUER" => "https://www.umaxica.com",
-            "PREFERENCE_COM_JWT_AUDIENCE" => "com",
-          ) do
-            issuer = JitSecurityJwtRegistry.reload!.fetch("preference_com")
-
-            assert_nil issuer.current_key.private_key
-            assert_predicate issuer.public_key_for("com-public-only"), :present?
-            snapshot = {
-              "theme" => "system",
-              "language" => "ja",
-              "timezone" => "Asia/Tokyo",
-              "currency" => "jpy",
-              "date_format" => "iso",
-              "time_format" => "24",
-              "motion" => "standard",
-              "density" => "standard",
-              "page_size" => "20",
-            }
-            now = Time.current
-            claims = {
-              "iss" => "https://www.umaxica.com",
-              "sub" => "row",
-              "aud" => "com",
-              "iat" => now.to_i,
-              "exp" => now.to_i + 400.days.to_i,
-              "jti" => "generation",
-              "preferences" => snapshot,
-            }
-            token = JWT.encode(claims, public_only_key, "ES384", { kid: "com-public-only", typ: "JWT" })
-
-            assert_predicate SecurityJwtPreferenceTokenCodec.decode(token, host: "www.umaxica.com"), :present?
-            assert_nil SecurityJwtPreferenceTokenCodec.encode(
-              snapshot, host: "www.umaxica.com", preference_type: "ComPreference", issued_at: now,
-                        public_id: "row", jti: "generation",
-            )
-          end
-        end
-
-        test "loads configured Base OIDC client assertion issuer" do
-          with_registry_inputs(
-            "OIDC_CLIENT_BASE_APP_ACTIVE_KID" => "oidc-base-app-kid",
-            "OIDC_CLIENT_BASE_APP_PRIVATE_KEY" => base64_der(@surface_key),
+            "OIDC_CLIENT_CORE_APP_JP_ACTIVE_KID" => "oidc-core-app-kid",
+            "OIDC_CLIENT_CORE_APP_JP_PRIVATE_KEY" => base64_der(@surface_key),
           ) do
             issuers = JitSecurityJwtRegistry.reload!
-            issuer = issuers.fetch("oidc_client:BASE_APP")
+            issuer = issuers.fetch("oidc_client:CORE_APP_JP")
 
-            assert_equal "oidc-base-app-kid", issuer.current_kid
-            assert_equal "oidc_client:base_app", issuer.issuer
+            assert_equal "oidc-core-app-kid", issuer.current_kid
+            assert_equal "oidc_client:core_app_jp", issuer.issuer
             assert_predicate issuer.jwks.fetch(:keys), :present?
-          end
-        end
-
-        test "old Side OIDC keys do not satisfy the Warp registry" do
-          with_registry_inputs(
-            "OIDC_CLIENT_SIDE_APP_ACTIVE_KID" => "side-app-kid",
-            "OIDC_CLIENT_SIDE_APP_PRIVATE_KEY" => base64_der(@surface_key),
-          ) do
-            with_env(
-              "OIDC_CLIENT_WARP_APP_JP_ACTIVE_KID" => nil,
-              "OIDC_CLIENT_WARP_APP_JP_PRIVATE_KEY" => nil,
-            ) do
-              error =
-                assert_raises(JitSecurityJwtRegistry::ConfigurationError) do
-                  JitSecurityJwtRegistry.reload!
-                end
-
-              assert_includes error.message, "OIDC_CLIENT_WARP_APP_JP_ACTIVE_KID"
-            end
-          end
-        end
-
-        test "namespace-less jwks includes auth active and grace public keys" do
-          with_registry_inputs do
-            JitSecurityJwtRegistry.reload!
-
-            kids = JitSecurityJwtJwksService.jwk_set.fetch(:keys).map { |jwk| jwk.fetch("kid") }
-
-            assert_includes kids, "auth-kid"
-            assert_includes kids, "auth-legacy-kid"
           end
         end
 
@@ -183,18 +103,18 @@ module Jit
         end
 
         test "rejects malformed public jwk json at registry load" do
-          with_registry_inputs("JWT_AUTH_APP_PUBLIC_KEYSET" => "not-json") do
+          with_registry_inputs("JWT_CORE_APP_PUBLIC_KEYSET" => "not-json") do
             error = assert_raises(JitSecurityJwtRegistry::ConfigurationError) { JitSecurityJwtRegistry.reload! }
 
-            assert_match(/surface:AUTH_APP public JWKS contains invalid JSON/, error.message)
+            assert_match(/surface:CORE_APP public JWKS contains invalid JSON/, error.message)
           end
         end
 
         test "rejects current public jwk that does not match current private key" do
           wrong_key = OpenSSL::PKey::EC.generate("secp384r1")
-          wrong_jwk = JitSecurityJwtRegistry.export_public_jwk(wrong_key, kid: "sign-app-kid")
+          wrong_jwk = JitSecurityJwtRegistry.export_public_jwk(wrong_key, kid: "jump-core-app-kid")
 
-          with_registry_inputs("JWT_AUTH_APP_PUBLIC_KEYSET" => JSON.generate([wrong_jwk])) do
+          with_registry_inputs("JWT_CORE_APP_PUBLIC_KEYSET" => JSON.generate([wrong_jwk])) do
             error = assert_raises(JitSecurityJwtRegistry::ConfigurationError) { JitSecurityJwtRegistry.reload! }
 
             assert_match(/active public JWK does not match active private key/, error.message)
@@ -202,11 +122,11 @@ module Jit
         end
 
         test "does not expose revoked kids in jwks and refuses their public keys" do
-          with_registry_inputs("JWT_AUTH_APP_REVOKED_KIDS" => "legacy-kid") do
+          with_registry_inputs("JWT_CORE_APP_REVOKED_KIDS" => "legacy-kid") do
             JitSecurityJwtRegistry.reload!
 
-            assert_nil JitSecurityJwtRegistry.public_key_for("surface:AUTH_APP", "legacy-kid")
-            kids = JitSecurityJwtRegistry.jwks_for("surface:AUTH_APP").fetch(:keys).map { |jwk| jwk.fetch("kid") }
+            assert_nil JitSecurityJwtRegistry.public_key_for("surface:CORE_APP", "legacy-kid")
+            kids = JitSecurityJwtRegistry.jwks_for("surface:CORE_APP").fetch(:keys).map { |jwk| jwk.fetch("kid") }
 
             assert_not_includes kids, "legacy-kid"
           end
@@ -217,6 +137,52 @@ module Jit
             error = assert_raises(JitSecurityJwtRegistry::ConfigurationError) { JitSecurityJwtRegistry.reload! }
 
             assert_match(/duplicate JWT kid/, error.message)
+          end
+        end
+
+        test "RP registry requires only its own OIDC client signing material" do
+          with_registry_inputs(
+            "OIDC_CLIENT_WARP_APP_JP_PRIVATE_KEY" => nil,
+            "OIDC_CLIENT_WARP_APP_JP_PUBLIC_KEYSET" => JSON.generate(
+              keys: [JitSecurityJwtRegistry.export_public_jwk(@surface_key, kid: "warp-app-kid")],
+            ),
+          ) do
+            RuntimeRole.stub(:current, "rp-core-app-jp") do
+              issuers = JitSecurityJwtRegistry.reload!
+
+              assert_equal "core-app-kid", issuers.fetch("oidc_client:CORE_APP_JP").current_kid
+              warp_key = issuers.fetch("oidc_client:WARP_APP_JP").keys.fetch("warp-app-kid")
+
+              assert_nil warp_key.private_key
+              assert_predicate warp_key.public_key, :present?
+            end
+          end
+
+          [
+            ["OIDC_CLIENT_CORE_APP_JP_ACTIVE_KID", nil, "OIDC_CLIENT_CORE_APP_JP_ACTIVE_KID"],
+            ["OIDC_CLIENT_CORE_APP_JP_PRIVATE_KEY", nil, "OIDC_CLIENT_CORE_APP_JP_PRIVATE_KEY"],
+          ].each do |name, value, missing_name|
+            with_registry_inputs(name => value) do
+              RuntimeRole.stub(:current, "rp-core-app-jp") do
+                error =
+                  assert_raises(JitSecurityJwtRegistry::ConfigurationError) do
+                    JitSecurityJwtRegistry.reload!
+                  end
+
+                assert_includes error.message, missing_name
+              end
+            end
+          end
+        end
+
+        test "allows duplicate default kids only when local policy explicitly enables them" do
+          with_registry_inputs(
+            "AUTH_JWT_ACTIVE_KID" => "default",
+            "PREFERENCE_APP_JWT_ACTIVE_KID" => "default",
+            "PREFERENCE_ORG_JWT_ACTIVE_KID" => "default",
+            "JWT_ALLOW_INSECURE_DEFAULT_KID" => "1",
+          ) do
+            assert_nothing_raised { JitSecurityJwtRegistry.reload! }
           end
         end
 
@@ -350,10 +316,12 @@ module Jit
         end
 
         test "a missing Jump issuer origin fails registry configuration" do
-          with_registry_inputs("PUBLIC_PALM_SERVICE_URL" => nil) do
-            error = assert_raises(JitSecurityJwtRegistry::ConfigurationError) { JitSecurityJwtRegistry.reload! }
+          Rails.env.stub(:local?, false) do
+            with_registry_inputs("PUBLIC_VISA_SERVICE_URL" => nil) do
+              error = assert_raises(JitSecurityJwtRegistry::ConfigurationError) { JitSecurityJwtRegistry.reload! }
 
-            assert_match(/PUBLIC_PALM_SERVICE_URL is required/, error.message)
+              assert_match(/PUBLIC_VISA_SERVICE_URL is required/, error.message)
+            end
           end
         end
 
@@ -361,7 +329,7 @@ module Jit
           with_registry_inputs do
             valid_records = JitSecurityJwtRegistry.reload!
 
-            with_env("JWT_AUTH_APP_PUBLIC_KEYSET" => "not-json") do
+            with_env("JWT_CORE_APP_PUBLIC_KEYSET" => "not-json") do
               assert_raises(JitSecurityJwtRegistry::ConfigurationError) { JitSecurityJwtRegistry.reload! }
             end
 
@@ -402,38 +370,23 @@ module Jit
         end
 
         def registry_input_env(extra_env)
-          legacy_jwk = JitSecurityJwtRegistry.export_public_jwk(
-            OpenSSL::PKey::EC.generate("secp384r1"),
-            kid: "legacy-kid",
-          )
           env = {
             "AUTH_JWT_ACTIVE_KID" => "auth-kid",
             "AUTH_JWT_ISSUER" => "auth-test-issuer",
             "PREFERENCE_APP_JWT_ACTIVE_KID" => "pref-app-kid",
             "PREFERENCE_ORG_JWT_ACTIVE_KID" => "pref-org-kid",
-            "PREFERENCE_COM_JWT_ACTIVE_KID" => "pref-com-kid",
-            "PREFERENCE_COM_JWT_ISSUER" => "https://www.umaxica.com",
-            "PREFERENCE_COM_JWT_AUDIENCE" => "com",
-            "JWT_AUTH_APP_ACTIVE_KID" => "sign-app-kid",
-            "JWT_AUTH_APP_PUBLIC_KEYSET" => JSON.generate([legacy_jwk]),
+            "OIDC_CLIENT_CORE_APP_JP_ACTIVE_KID" => "core-app-kid",
+            "OIDC_CLIENT_CORE_APP_JP_PRIVATE_KEY" => base64_der(@surface_key),
+            "OIDC_CLIENT_CORE_ORG_JP_ACTIVE_KID" => "core-org-kid",
+            "OIDC_CLIENT_CORE_ORG_JP_PRIVATE_KEY" => base64_der(@surface_key),
             "OIDC_CLIENT_WARP_APP_JP_ACTIVE_KID" => "warp-app-kid",
             "OIDC_CLIENT_WARP_APP_JP_PRIVATE_KEY" => base64_der(@surface_key),
-            "OIDC_CLIENT_WARP_COM_JP_ACTIVE_KID" => "warp-com-kid",
-            "OIDC_CLIENT_WARP_COM_JP_PRIVATE_KEY" => base64_der(@surface_key),
             "OIDC_CLIENT_WARP_ORG_JP_ACTIVE_KID" => "warp-org-kid",
             "OIDC_CLIENT_WARP_ORG_JP_PRIVATE_KEY" => base64_der(@surface_key),
-            "OIDC_CLIENT_TECH_ORG_WW_ACTIVE_KID" => "tech-org-kid",
-            "OIDC_CLIENT_TECH_ORG_WW_PRIVATE_KEY" => base64_der(@surface_key),
-            "OIDC_CLIENT_BASE_RP_APP_WW_ACTIVE_KID" => "base-rp-app-kid",
-            "OIDC_CLIENT_BASE_RP_APP_WW_PRIVATE_KEY" => base64_der(@surface_key),
-            "OIDC_CLIENT_BASE_RP_COM_WW_ACTIVE_KID" => "base-rp-com-kid",
-            "OIDC_CLIENT_BASE_RP_COM_WW_PRIVATE_KEY" => base64_der(@surface_key),
-            "OIDC_CLIENT_BASE_RP_ORG_WW_ACTIVE_KID" => "base-rp-org-kid",
-            "OIDC_CLIENT_BASE_RP_ORG_WW_PRIVATE_KEY" => base64_der(@surface_key),
+            "OIDC_CLIENT_PALM_APP_JP_ACTIVE_KID" => "palm-app-kid",
+            "OIDC_CLIENT_PALM_APP_JP_PRIVATE_KEY" => base64_der(@surface_key),
           }.merge(extra_env)
           JumpRtSurface::ISSUER_NAMESPACES.each do |namespace|
-            next if namespace == "AUTH_APP"
-
             env["JWT_#{namespace}_ACTIVE_KID"] = "jump-#{namespace.downcase.tr("_", "-")}-kid"
             env["JWT_#{namespace}_PRIVATE_KEY"] = base64_der(@surface_key)
           end
@@ -453,8 +406,6 @@ module Jit
                                  @preference_app_legacy_key,],
             "PREFERENCE_ORG" => ["pref-org-kid", "pref-org-legacy-kid", @preference_org_key,
                                  @preference_org_legacy_key,],
-            "PREFERENCE_COM" => ["pref-com-kid", "pref-com-legacy-kid", @preference_com_key,
-                                 @preference_com_legacy_key,],
           }
           preference_keysets.each do |prefix, (default_kid, legacy_kid, key, legacy_key)|
             active_kid = env.fetch("#{prefix}_JWT_ACTIVE_KID", default_kid)
@@ -483,15 +434,21 @@ module Jit
         end
 
         def registry_input_creds(env)
-          {
-            :AUTH_JWT_PRIVATE_KEYSET => JSON.generate(
+          credentials = {
+            AUTH_JWT_PRIVATE_KEYSET: JSON.generate(
               (env["AUTH_JWT_ACTIVE_KID"] || "auth-kid") => base64_der(@auth_key),
             ),
-            :AUTH_JWT_PUBLIC_KEYSET => JSON.generate(
+            AUTH_JWT_PUBLIC_KEYSET: JSON.generate(
               keys: [JitSecurityJwtRegistry.export_public_jwk(@auth_legacy_key, kid: "auth-legacy-kid")],
             ),
-            "JWT_AUTH_APP_PRIVATE_KEY" => base64_der(@surface_key),
           }
+          JitSecurityJwtRegistry::OIDC_CLIENT_NAMESPACES.each do |namespace|
+            %w(ACTIVE_KID PRIVATE_KEY).each do |suffix|
+              name = "OIDC_CLIENT_#{namespace}_#{suffix}"
+              credentials[name] = env[name]
+            end
+          end
+          credentials
         end
 
         def with_env(values)

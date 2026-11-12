@@ -33,58 +33,13 @@ module FeatureFlags
   REGISTRY =
     [
       Flag.new(
-        name: :outbound_sms_suspended, polarity: :suspension,
-        effect: "Stops SMS delivery through the SNS provider.",
-      ),
-      Flag.new(
-        name: :outbound_email_suspended, polarity: :suspension,
-        effect: "Stops all mail at the delivery interceptor, transactional and promotional.",
-      ),
-      Flag.new(
-        name: :outbound_promotional_email_suspended, polarity: :suspension,
-        effect: "Stops promotional mail only; transactional mail keeps delivering.",
-      ),
-      Flag.new(
         name: :retention_purge_suspended, polarity: :suspension,
         effect: "Stops the irreversible deletes and anonymization in RetentionPurgeJob.",
-      ),
-      Flag.new(
-        name: :sign_in_available_app, polarity: :availability,
-        effect: "Permits new sign-in ceremonies on the app surface.",
-      ),
-      Flag.new(
-        name: :sign_up_available_app, polarity: :availability,
-        effect: "Permits new sign-up ceremonies on the app surface.",
-      ),
-      Flag.new(
-        name: :sign_in_available_org, polarity: :availability,
-        effect: "Permits new sign-in ceremonies on the org surface.",
-      ),
-      Flag.new(
-        name: :sign_up_available_org, polarity: :availability,
-        effect: "Permits new sign-up ceremonies on the org surface.",
-      ),
-      Flag.new(
-        name: :turnstile_degraded_mode, polarity: :suspension,
-        effect: "Accepts requests that failed Turnstile verification while the provider is degraded.",
-      ),
-      Flag.new(
-        name: :social_ceremony_app_apple, polarity: :availability,
-        effect: "Permits the Apple ceremony on the app surface.",
-      ),
-      Flag.new(
-        name: :social_ceremony_app_google, polarity: :availability,
-        effect: "Permits the Google ceremony on the app surface.",
-      ),
-      Flag.new(
-        name: :social_ceremony_org_entra, polarity: :availability,
-        effect: "Permits the Entra ceremony on the org surface.",
       ),
       *FqdnAvailabilityRegistry::SLOT_NAMES.map do |slot|
         Flag.new(
           name: FqdnAvailabilityRegistry.flag_name_for(slot), polarity: :availability,
-          effect: "Serves requests for the #{slot} FQDN. Off or unset returns 503 before rate " \
-                  "limiting and before authentication. Health probes are unaffected.",
+          effect: "Controls availability for the #{slot} host group.",
         )
       end,
     ].index_by(&:name).freeze

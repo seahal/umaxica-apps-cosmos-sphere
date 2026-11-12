@@ -8,12 +8,12 @@ class WarpSsoStartContractTest < ActionDispatch::IntegrationTest
     "app" => {
       host: "PUBLIC_WARP_SERVICE_URL",
       client_id: "warp-app-jp",
-      issuer: "https://www-jp.umaxica.app",
+      issuer: "https://warp-jp.umaxica.app",
     },
     "org" => {
       host: "PUBLIC_WARP_STAFF_URL",
       client_id: "warp-org-jp",
-      issuer: "https://www-jp.umaxica.org",
+      issuer: "https://warp-jp.umaxica.org",
     },
   }.freeze
 

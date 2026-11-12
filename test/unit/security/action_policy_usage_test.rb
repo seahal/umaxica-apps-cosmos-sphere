@@ -7,213 +7,9 @@ require "test_helper"
 class ActionPolicyUsageTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  SURFACE_AUTHORIZATION_CONTEXTS = {
-    Auth::App::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-    Auth::Org::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-    Base::App::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-    Base::Org::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-    Core::App::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-    Core::Org::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-    Warp::App::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-    Warp::Org::ApplicationController => { actor: :current_actor, user: :current_policy_user },
-  }.freeze
-
   MUTATION_ACTIONS = %w(create update destroy).freeze
 
-  PRIVATE_MUTATION_AUTHORIZATION_EXCEPTIONS = [
-    # R5-WU12/14/15: these Base Self-RP mutations relay to their HTTPS domain owner, which applies
-    # the existing policy (authorize!) itself; the relay records that owner decision via
-    # AvatarRemoteResultPolicy / MembershipRemoteResultPolicy inside its relay helper.
-    "app/controllers/base/app/avatar_ownership_transfers_controller.rb#create",
-    "app/controllers/base/app/avatars_controller.rb#create",
-    "app/controllers/base/app/avatars_controller.rb#update",
-    "app/controllers/base/app/group_avatar_memberships_controller.rb#create",
-    "app/controllers/base/app/group_avatar_memberships_controller.rb#destroy",
-    "app/controllers/base/app/group_avatar_memberships_controller.rb#update",
-    "app/controllers/base/app/groups_controller.rb#create",
-    "app/controllers/base/app/groups_controller.rb#destroy",
-    "app/controllers/base/app/groups_controller.rb#update",
-    "app/controllers/base/app/organizations/memberships_controller.rb#create",
-    "app/controllers/base/app/organizations/memberships_controller.rb#destroy",
-    "app/controllers/base/app/organizations/memberships_controller.rb#update",
-    "app/controllers/base/org/avatar_ownership_transfers_controller.rb#create",
-    "app/controllers/base/org/avatars_controller.rb#destroy",
-    "app/controllers/base/org/avatars_controller.rb#update",
-    "app/controllers/base/org/iam/grants/revocations_controller.rb#create",
-    "app/controllers/base/org/iam/grants_controller.rb#create",
-    "app/controllers/base/org/support/clients/revocations_controller.rb#create",
-    "app/controllers/base/org/support/enforcement_cases/appeal_reviews_controller.rb#create",
-    "app/controllers/base/org/support/enforcement_cases/approvals_controller.rb#create",
-    "app/controllers/base/org/support/enforcement_cases/releases_controller.rb#create",
-    "app/controllers/base/org/support/enforcement_cases_controller.rb#create",
-    # Sign/settings ceremony endpoints are protected by ceremony state, provider ownership,
-    # WebAuthn/passkey challenge state, or recovery/removal sequence gates rather than a durable
-    # domain record policy at the controller action boundary.
-    "app/controllers/auth/app/settings/apples_controller.rb#create",
-    "app/controllers/auth/app/settings/apples_controller.rb#destroy",
-    "app/controllers/auth/app/settings/googles_controller.rb#create",
-    "app/controllers/auth/app/settings/googles_controller.rb#destroy",
-    "app/controllers/auth/app/settings/removals_controller.rb#create",
-
-    # Sign-in verification and cancellation ceremony endpoints are guarded by active flow,
-    # checkpoint, and verification state rather than standalone mutable resource records.
-    "app/controllers/auth/app/sign/in/checks_controller.rb#destroy",
-    "app/controllers/auth/app/sign/in/checks_controller.rb#update",
-    "app/controllers/auth/app/verification/emails_controller.rb#create",
-    "app/controllers/auth/app/verification/emails_controller.rb#update",
-    # Scoped verification endpoints authorize the admitted actor through their ceremony context;
-    # the mutation applies to ceremony state rather than a standalone resource record.
-    "app/controllers/auth/app/verification/passkeys_controller.rb#create",
-    "app/controllers/auth/app/verification/redeliveries_controller.rb#create",
-    "app/controllers/auth/app/verification/totps_controller.rb#create",
-    "app/controllers/auth/org/sign/in/checks_controller.rb#destroy",
-    "app/controllers/auth/org/sign/in/checks_controller.rb#update",
-
-    # Identity registration and credential ceremony endpoints are sequence-bound controllers.
-    # They create or complete pending identity artifacts scoped to the authenticated actor.
-    "app/controllers/base/app/identity/emails/redeliveries_controller.rb#create",
-    "app/controllers/base/app/identity/emails/registrations_controller.rb#create",
-    "app/controllers/base/app/identity/emails/registrations_controller.rb#update",
-    "app/controllers/base/app/identity/mfa/challenges_controller.rb#update",
-    "app/controllers/base/app/identity/telephones/registrations_controller.rb#create",
-    "app/controllers/base/app/identity/telephones/registrations_controller.rb#update",
-    "app/controllers/base/app/identity/telephones_controller.rb#create",
-    "app/controllers/base/org/identity/emails/registrations_controller.rb#create",
-    "app/controllers/base/org/identity/emails/registrations_controller.rb#update",
-    "app/controllers/base/org/identity/rotations_controller.rb#create",
-    "app/controllers/base/org/identity/telephones/registrations_controller.rb#create",
-    "app/controllers/base/org/identity/telephones/registrations_controller.rb#update",
-    "app/controllers/base/org/identity/telephones_controller.rb#create",
-
-    # Session and revocation endpoints scope queries through the current actor's sessions or
-    # support emergency revocation concern before mutating; keep these explicit until converted.
-    "app/controllers/base/app/identity/revocations/others_controller.rb#create",
-    "app/controllers/base/app/identity/revocations_controller.rb#create",
-    "app/controllers/base/app/identity/sessions_controller.rb#destroy",
-    "app/controllers/base/org/identity/revocations/others_controller.rb#create",
-    "app/controllers/base/org/identity/revocations_controller.rb#create",
-    "app/controllers/base/org/identity/sessions_controller.rb#destroy",
-
-    # Selector/switcher updates validate the requested account/organization/avatar combination
-    # through AcmeSelectableContext and persist only an already-authorized context selection.
-    "app/controllers/base/app/selectors_controller.rb#update",
-    "app/controllers/base/app/switchers_controller.rb#update",
-    "app/controllers/base/org/selectors_controller.rb#update",
-    "app/controllers/base/org/switchers_controller.rb#update",
-
-    # The Publishing CMS's 36 per-cell controllers each declare only their cell's identity
-    # (PUBLISHING_SURFACE, PUBLISHING_AUDIENCE, ENTRY_CLASS) and delegate every action to a
-    # shared concern (PublishingManagementEntriesActions,
-    # PublishingManagementPublicationsActions, PublishingManagementArchivesActions), so this
-    # scan's per-file literal match never sees the `authorize!` call the concern action makes
-    # (`PublishingManagementCell#authorize_publishing!`, which always calls `authorize!(...,
-    # with: PublishingEntryPolicy)`). Edit's `management_matrix_test.rb` holds that every one of
-    # the 36 controllers includes the concern that calls it.
-    "app/controllers/edit/org/publishing/docs/app/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/app/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/docs/app/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/app/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/docs/app/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/app/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/docs/com/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/com/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/docs/com/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/com/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/docs/com/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/com/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/docs/org/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/org/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/docs/org/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/org/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/docs/org/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/docs/org/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/help/app/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/app/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/help/app/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/app/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/help/app/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/app/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/help/com/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/com/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/help/com/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/com/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/help/com/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/com/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/help/org/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/org/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/help/org/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/org/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/help/org/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/help/org/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/info/app/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/app/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/info/app/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/app/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/info/app/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/app/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/info/com/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/com/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/info/com/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/com/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/info/com/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/com/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/info/org/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/org/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/info/org/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/org/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/info/org/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/info/org/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/news/app/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/app/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/news/app/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/app/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/news/app/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/app/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/news/com/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/com/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/news/com/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/com/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/news/com/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/com/entries/archives_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/news/org/entries_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/org/entries_controller.rb#update",
-    "app/controllers/edit/org/publishing/news/org/entries/publications_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/org/entries/publications_controller.rb#destroy",
-    "app/controllers/edit/org/publishing/news/org/entries/archives_controller.rb#create",
-    "app/controllers/edit/org/publishing/news/org/entries/archives_controller.rb#destroy",
-  ].freeze
-
-  test "authenticated surface controllers use Action Policy with explicit actor context" do
-    SURFACE_AUTHORIZATION_CONTEXTS.each do |controller_class, expected_context|
-      assert_includes controller_class.ancestors,
-                      ActionPolicy::Controller,
-                      "#{controller_class.name} must include ActionPolicy::Controller"
-      assert_equal(
-        expected_context,
-        controller_class.instance_variable_get(:@authorization_targets),
-        "#{controller_class.name} must configure Action Policy actor and compatibility user contexts",
-      )
-    end
-  end
-
-  test "authenticated surface controllers run access policy before actions" do
-    SURFACE_AUTHORIZATION_CONTEXTS.each_key do |controller_class|
-      before_filters =
-        controller_class._process_action_callbacks.filter_map do |callback|
-          callback.filter if callback.kind == :before
-        end
-
-      assert_includes before_filters,
-                      :enforce_access_policy!,
-                      "#{controller_class.name} must run access policy enforcement"
-      assert(
-        controller_class.const_defined?(:AUTHENTICATION_MODE, false) ||
-        controller_class.local_authentication_mode_rules.present?,
-        "#{controller_class.name} must declare an authentication mode",
-      )
-    end
-  end
-
+  PRIVATE_MUTATION_AUTHORIZATION_EXCEPTIONS = [].freeze
   test "application code does not use Pundit" do
     offenders = matching_lines(/\bPundit\b|\bpundit\b/, paths_under("app", "lib", "config"))
 
@@ -272,10 +68,22 @@ class ActionPolicyUsageTest < ActiveSupport::TestCase
   end
 
   def action_body(content, action)
+    lines = content.lines
     action_re = Regexp.escape(action)
-    match = content.match(
-      /^\s*def #{action_re}\b(?<body>[\s\S]*?)(?=^\s*def\s|^\s*private\b|^\s*protected\b|^\s*end\s*$)/,
-    )
-    match&.named_captures&.fetch("body")
+    start =
+      lines.index { |line| line.match?(/^(?<indent>[ \t]*)def #{action_re}(?=\s|\(|[!?=]|$)/) }
+    return unless start
+
+    indent = lines[start][/^[ \t]*/]
+    finish =
+      ((start + 1)...lines.length).find do |index|
+        line = lines[index]
+        next false unless line.start_with?(indent)
+
+        line.delete_prefix(indent).match?(/\A(?:def\s|private\b|protected\b|end\s*\z)/)
+      end
+    return unless finish
+
+    lines[(start + 1)...finish].join
   end
 end

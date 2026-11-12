@@ -3,6 +3,9 @@
 Status: Deferred; recorded at the user's request on 2026-10-22. No implementation change is
 authorized by this entry. Stored in `docs/backlog/` at the user's explicit request.
 
+> **Surface reset (2026-11-11):** The Auth controllers referenced below are retired and are not
+> current routes or implementation contracts.
+
 ## Current findings
 
 IdentityStepUpEmailCodeIssuer implements a 60-second credential-scoped issuance interval under
@@ -15,8 +18,8 @@ unthrottled.
 
 ## Follow-up when selected
 
-- Decide whether the existing interval is sufficient alongside destination, actor and durable
-  daily budgets, and how this event shares accounting with other outbound email purposes.
+- Decide whether the existing interval is sufficient alongside destination, actor and durable daily
+  budgets, and how this event shares accounting with other outbound email purposes.
 - Preserve credential binding, root authority checks and verification-failure budgets across resend.
 - Verify fresh transactions/browser changes cannot reset the interval, including concurrency,
   enqueue failure and immediately below/at/above the 60-second boundary.
@@ -24,15 +27,15 @@ unthrottled.
 ## Scope and verification context
 
 Development environment only. Cloudflare Tunnel is excluded. The user plans Amazon EKS with
-CloudFront and AWS WAF; the AWS rate-limiting mechanism is undecided. Planned edge controls are
-not current guarantees, and this entry does not select an AWS product or authorize external changes.
+CloudFront and AWS WAF; the AWS rate-limiting mechanism is undecided. Planned edge controls are not
+current guarantees, and this entry does not select an AWS product or authorize external changes.
 Development configuration selects `SMS_PROVIDER=test` in the checked-in environment file and SES
 SMTP for email; live provider settings and quotas were not inspected. Provider quotas must not be
 assumed to enforce application destination budgets.
 
 The source inspection was performed on 2026-10-22 at commit
-`febec3225cc9a0cfa53b9cbe817d20d366aba5a2`, including pre-existing uncommitted changes.
-A combined run of `test/services/sign/in/otp_resend_policy_test.rb`,
+`febec3225cc9a0cfa53b9cbe817d20d366aba5a2`, including pre-existing uncommitted changes. A combined
+run of `test/services/sign/in/otp_resend_policy_test.rb`,
 `test/controllers/auth/authentication_rate_limit_test.rb` and
 `test/operations/telephone_sign_up_otp_issuer_test.rb` stopped during test database preparation:
 `PG::DuplicateTable` for `publishing_media_files`. Test bodies did not run. Existing tests were

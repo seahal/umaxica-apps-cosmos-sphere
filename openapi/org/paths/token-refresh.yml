@@ -1,6 +1,6 @@
 # POST /api/v0/token/refresh on the org surface.
 servers:
-  - url: https://jp.umaxica.org
+  - url: https://www-jp.umaxica.org
     description: Canonical Core public host for the org (staff and organization) surface.
 post:
   summary: Rotate the browser credential pair

@@ -22,10 +22,6 @@ development:
     host_key: VALKEY_KVS_HOST
     port_key: VALKEY_KVS_PORT
     db: 5
-  performance:
-    host_key: VALKEY_DIAGNOSTIC_HOST
-    port_key: VALKEY_DIAGNOSTIC_PORT
-    db: 12
   coverband:
     host_key: VALKEY_DIAGNOSTIC_HOST
     port_key: VALKEY_DIAGNOSTIC_PORT

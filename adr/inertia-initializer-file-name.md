@@ -2,6 +2,9 @@
 
 Accepted: 2026-10-14
 
+Superseded on 2026-11-10 when the Inertia Rails dependency and initializer were removed with the
+retired frontend. This record remains historical.
+
 ## Context
 
 The Inertia Rails documentation shows its configuration in `config/initializers/inertia.rb`. This

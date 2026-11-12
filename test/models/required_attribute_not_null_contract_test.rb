@@ -16,11 +16,7 @@ class RequiredAttributeNotNullContractTest < ActiveSupport::TestCase
   # The parent nullifies these columns on deletion (dependent: :nullify or ON DELETE SET NULL), so
   # NOT NULL would block deleting the parent. Recorded in
   # plans/backlog/2026-10-20-required-belongs-to-nullified-on-parent-delete.md.
-  NULLIFIED_ON_PARENT_DELETE = {
-    "ClientProfile" => %w(user_id),
-    "Member" => %w(user_id),
-    "OperatorWorkspaceAccount" => %w(department_id),
-  }.freeze
+  NULLIFIED_ON_PARENT_DELETE = {}.freeze
 
   Rails.application.eager_load!
 

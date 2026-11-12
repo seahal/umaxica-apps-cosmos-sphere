@@ -5,7 +5,7 @@ require "test_helper"
 class PresentationLabelsTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  test "view-owned navigation names are translated without changing Inertia props" do
+  test "view-owned navigation names are translated without adding scripts" do
     I18n.with_locale(:ja) do
       html = ApplicationController.renderer.render(partial: "shared/ui/presentation_labels")
       document = Nokogiri::HTML.fragment(html)

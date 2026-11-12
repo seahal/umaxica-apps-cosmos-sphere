@@ -1,5 +1,9 @@
 # Avatar organization ownership acceptance
 
+> **Route status (2026-11-11):** Historical Base APP/ORG controller and test links below describe
+> removed routes. Avatar models, operations, and persistence remain for the next database review;
+> this checklist records the earlier transport acceptance and is not current route guidance.
+
 Authority: approved A00–A16 and D-1–D-11 strategic decisions. The existing
 [ownership spec](../../specs/avatar-organization-ownership/spec.md) retains historical findings and
 rejected options; its Binding-only Grants, residual idempotency gap and shared-DB cleanup proposals
@@ -23,10 +27,10 @@ D-3/D-4/D-10 exceptions; no new SQL/trigger permission is granted here. Follow t
   Avatar transaction, using `Avatar.created_at` as its initial boundary. The legacy period remains
   for the staged reader transition; retained data and direct test factories are not silently treated
   as migrated concrete ownership.
-- Check schema/associations/resolvers, app initial and org optional provisioning, existing
-  [transfer operation tests](../../test/operations/avatar_ownership_transfers_test.rb) and app/org
-  controller tests. New concrete-model/provisioning coverage is planned; legacy test names are not
-  proof.
+- Check schema/associations/resolvers, app initial and org optional provisioning, existing transfer
+  operation tests (former reference: ../../test/operations/avatar_ownership_transfers_test.rb) and
+  app/org controller tests. New concrete-model/provisioning coverage is planned; legacy test names
+  are not proof.
 
 The public concrete-owner regression in `test/models/avatar_test.rb` follows an Avatar's current
 Enterprise period to its actual organization, with no Persona/Agent Binding required. The primary
@@ -100,8 +104,8 @@ boundary while the remaining writer/cutover and cross-isolation acceptance stays
   terminology inventory check described in the
   [P7 evidence](../../evidence/2026-10-12-avatar-p7-concurrency-7K4M.md). These results prove
   deterministic period refusal and history preservation for this P7 slice, not the complete
-  ownership-acceptance race, transfer cutover or dump/restore acceptance. Start at the
-  [concurrency tests](../../test/operations/avatar_ownership_transfers_concurrency_test.rb),
+  ownership-acceptance race, transfer cutover or dump/restore acceptance. Start at the concurrency
+  tests (former reference: ../../test/operations/avatar_ownership_transfers_concurrency_test.rb),
   [concrete-period tests](../../test/models/avatar_concrete_ownership_period_test.rb) and
   [trigger tests](../../test/models/enforcement_triggers_test.rb). Approximately twenty draft
   triggers is not a required count. The same run's no-delete database/role preflight also verified
@@ -214,12 +218,13 @@ writer quiescence or the P12b marker.
   replay case or every client migration.
 - Check public transport and all four concurrent families, original caller inventory/exit
   conditions, key format partitions/length boundaries and authorized/unauthorized replay. Start at
-  [app controller tests](../../test/controllers/base/app/avatar_ownership_transfers_controller_test.rb)
-  and
-  [org controller tests](../../test/controllers/base/org/avatar_ownership_transfers_controller_test.rb).
-  HTTP tests now also refuse a reused key with a different target or from a different initiator
-  (APP) without changing the recorded reservation, and refuse keyless legacy requests after the
-  cutover marker (APP and ORG); see
+  app controller tests (former reference:
+  ../../test/controllers/base/app/avatar_ownership_transfers_controller_test.rb) and org controller
+  tests (former reference:
+  ../../test/controllers/base/org/avatar_ownership_transfers_controller_test.rb). HTTP tests now
+  also refuse a reused key with a different target or from a different initiator (APP) without
+  changing the recorded reservation, and refuse keyless legacy requests after the cutover marker
+  (APP and ORG); see
   [`evidence/2026-10-15-step17-step18-followups-M2T6.md`](../../evidence/2026-10-15-step17-step18-followups-M2T6.md).
   Client-transition coverage for existing keyless callers remains planned.
 

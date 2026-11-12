@@ -1,0 +1,130 @@
+diff --git a/lib/database_consistency/checkers/index_checkers/unique_index_checker.rb b/lib/database_consistency/checkers/index_checkers/unique_index_checker.rb
+index 45979c6..4d43a3b 100644
+--- a/lib/database_consistency/checkers/index_checkers/unique_index_checker.rb
++++ b/lib/database_consistency/checkers/index_checkers/unique_index_checker.rb
+@@ -27,21 +27,16 @@ module DatabaseConsistency
+       end
+ 
+       def valid?
+-        uniqueness_validators = model.validators.select { |validator| validator.kind == :uniqueness }
++        uniqueness_validators = model.validators.select { |validator| Helper.uniqueness_validator?(validator) }
+ 
+         uniqueness_validators.any? { |validator| validator_matches?(validator) }
+       end
+ 
+       def validator_matches?(validator)
+         validator.attributes.any? do |attribute|
+-          sorted_index_columns == Helper.sorted_uniqueness_validator_columns(attribute, validator, model) &&
+-            Helper.conditions_match_index?(model, attribute, validator, index.where)
++          Helper.unique_index_matches_validator?(model, index, attribute, validator)
+         end
+       end
+-
+-      def sorted_index_columns
+-        @sorted_index_columns ||= Helper.extract_index_columns(index.columns).sort
+-      end
+     end
+   end
+ end
+diff --git a/lib/database_consistency/checkers/validator_checkers/missing_unique_index_checker.rb b/lib/database_consistency/checkers/validator_checkers/missing_unique_index_checker.rb
+index 0fe7c76..76f8fc1 100644
+--- a/lib/database_consistency/checkers/validator_checkers/missing_unique_index_checker.rb
++++ b/lib/database_consistency/checkers/validator_checkers/missing_unique_index_checker.rb
+@@ -19,7 +19,7 @@ module DatabaseConsistency
+       # We skip check when:
+       #  - validator is not a uniqueness validator
+       def preconditions
+-        validator.kind == :uniqueness
++        Helper.uniqueness_validator?(validator)
+       end
+ 
+       # Table of possible statuses
+@@ -52,12 +52,12 @@ module DatabaseConsistency
+       end
+ 
+       def index_matches?(index)
+-        index.unique &&
+-          Helper.extract_index_columns(index.columns).sort == sorted_uniqueness_validator_columns &&
+-          Helper.conditions_match_index?(model, attribute, validator, index.where)
++        Helper.unique_index_matches_validator?(model, index, attribute, validator)
+       end
+ 
+       def primary_key_covers_validation?
++        return false if validator.kind == :jsonb_keys_uniqueness
++
+         primary_key = model.connection_pool.with_connection { |conn| conn.primary_key(model.table_name) }
+ 
+         return false if primary_key.blank?
+diff --git a/lib/database_consistency/helper.rb b/lib/database_consistency/helper.rb
+index ac7fa94..6c2372f 100644
+--- a/lib/database_consistency/helper.rb
++++ b/lib/database_consistency/helper.rb
+@@ -102,10 +102,68 @@ module DatabaseConsistency
+       uniqueness_validator_columns(attribute, validator, model).sort
+     end
+ 
++    def uniqueness_validator?(validator)
++      %i[uniqueness jsonb_keys_uniqueness].include?(validator.kind)
++    end
++
++    def unique_index_matches_validator?(model, index, attribute, validator)
++      return false unless index.unique
++
++      case validator.kind
++      when :jsonb_keys_uniqueness
++        jsonb_keys_index_matches_validator?(model, index, attribute, validator)
++      when :uniqueness
++        extract_index_columns(index.columns).sort == sorted_uniqueness_validator_columns(attribute, validator, model) &&
++          conditions_match_index?(model, attribute, validator, index.where)
++      else
++        false
++      end
++    end
++
+     def uniqueness_validator_columns(attribute, validator, model)
++      if validator.kind == :jsonb_keys_uniqueness
++        return validator.options.fetch(:keys).map { |key| "#{attribute}->>'#{key}'" }
++      end
++
+       ([wrapped_attribute_name(attribute, validator, model)] + scope_columns(validator, model)).map(&:to_s)
+     end
+ 
++    # Deliberately bounded to JSONB text extraction. Other expression functions,
++    # operators, casts and literal shapes remain unmatched rather than ignored.
++    JSONB_TEXT_KEY_EXPRESSION = /\A
++      (?<column>"[A-Za-z_][A-Za-z0-9_]*"|[a-z_][a-z0-9_]*)\s*->>\s*
++      '(?<key>[a-z_][a-z0-9_]*)'(?:\s*::\s*text)?
++    \z/x.freeze
++
++    def extract_jsonb_index_keys(columns)
++      return nil unless columns.is_a?(String)
++
++      columns.split(',').map do |expression|
++        match = JSONB_TEXT_KEY_EXPRESSION.match(Parentheses.strip_outer(expression))
++        return nil unless match
++
++        [match[:column].delete('"'), match[:key]]
++      end
++    end
++
++    def jsonb_keys_index_matches_validator?(model, index, attribute, validator)
++      actual = extract_jsonb_index_keys(index.columns)
++      expected = validator.options.fetch(:keys).map { |key| [attribute.to_s, key] }
++      return false unless actual && actual.sort == expected.sort
++
++      jsonb_keys_predicate_matches?(model, validator, index.where)
++    end
++
++    def jsonb_keys_predicate_matches?(model, validator, index_where)
++      sql = model.unscoped.where(validator.predicate_for(model)).to_sql
++      expected = sql.split(/\bWHERE\b/i, 2).last
++      return expected.nil? && index_where.blank? if expected.nil? || index_where.blank?
++
++      expected = expected.gsub("#{model.quoted_table_name}.", '')
++      # Preserve literal case; a partial predicate on 'APP' is not one on 'app'.
++      normalize_condition_sql(expected) == normalize_condition_sql(index_where)
++    end
++
+     def scope_columns(validator, model)
+       Array.wrap(validator.options[:scope]).map do |scope_item|
+         foreign_key_or_attribute(model, scope_item)

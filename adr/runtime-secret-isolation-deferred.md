@@ -3,9 +3,9 @@
 ## Status
 
 Accepted (2026-10-18); **amended 2026-10-23** (one credentials set in every environment, AWS KMS
-direction; see the last section). User decision in conversation on the same day. This is a scope decision: the
-problem is acknowledged and will be solved in a later cycle; this cycle implements no further part
-of it. It changes no code, credential, database login or deployment.
+direction; see the last section). User decision in conversation on the same day. This is a scope
+decision: the problem is acknowledged and will be solved in a later cycle; this cycle implements no
+further part of it. It changes no code, credential, database login or deployment.
 
 Follow-up plan: `plans/backlog/2026-10-18-production-runtime-secret-isolation.md`.
 
@@ -101,8 +101,8 @@ Owner decisions of the 2026-10 authentication cycle (D-15, D-17, D-19, D-20). Th
 3 above and the production direction of the follow-up plan.
 
 - **One credentials set per Rails environment, production included.** Development, test and
-  production each use exactly one `config/credentials/<env>.yml.enc` with its key, shared unchanged by
-  every process, role and surface. No per-role, per-surface or per-cell credentials bundle or
+  production each use exactly one `config/credentials/<env>.yml.enc` with its key, shared unchanged
+  by every process, role and surface. No per-role, per-surface or per-cell credentials bundle or
   secret-store split is planned. Reason given: per-role credentials caused a regression earlier.
 - **One process, accepted consequence.** One Puma serves every FQDN (D-19); the process-level OP/RP
   separation is withdrawn (D-20). An RP compromise is therefore equivalent to an OP compromise;
@@ -117,3 +117,10 @@ Owner decisions of the 2026-10 authentication cycle (D-15, D-17, D-19, D-20). Th
   pod).
 - Known operational gap, tracked separately: production credential key names do not match the code
   (`plans/backlog/2026-10-21-production-credentials-key-name-mismatch.md`).
+
+## Amendment (2026-11-09): PS256 replaces the ES384 key specification
+
+`adr/cosmos-jwt-ps256-and-op-signing-in-aws-kms.md` replaces the KMS key specification above
+(`ECC_NIST_P384`, `ECDSA_SHA_384`) with `RSA_3072` and `RSASSA_PSS_SHA_256` (JWT `alg` PS256). The
+rest of the 2026-10-23 direction (private key never leaves KMS, `kms:Sign` only for the OP workload,
+no signing-capable AWS credentials in Rails credentials) stands.

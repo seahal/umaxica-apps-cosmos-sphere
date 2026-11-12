@@ -3,71 +3,30 @@
 
 require "test_helper"
 
-# One request per canonical layout, checking that the layout actually reaches the
-# browser with the brand site title. The full contract (root vs non-root shape,
-# localization, the route sweep) lives in HtmlTitleContractTest.
 class LayoutRenderedTitleSmokeTest < ActionDispatch::IntegrationTest
   BRAND = ENV.fetch("BRAND_NAME").upcase
 
-  test "canonical layouts render the expected brand site title" do
-    # Auth layouts are not here: Auth pages open only from a Base-issued admission (E01), and
-    # HtmlTitleContractTest enters them that way and checks their titles.
+  test "Sphere entry pages render their surface title" do
+    hosts = Rails.configuration.x.boot_config.fetch(:hosts)
     cases = [
-      {
-        host: ENV.fetch("PUBLIC_BASE_SERVICE_URL", "base.app.localhost"),
-        path: -> { base_app_root_path(ri: "jp") },
-        tld: "APP",
-      },
-      {
-        host: ENV.fetch("PUBLIC_BASE_CORPORATE_URL", "base.com.localhost"),
-        path: -> { base_com_root_path(ri: "jp") },
-        tld: "COM",
-      },
-      {
-        host: ENV.fetch("PUBLIC_BASE_STAFF_URL", "base.org.localhost"),
-        path: -> { base_org_root_path(ri: "jp") },
-        tld: "ORG",
-      },
-      {
-        host: ENV.fetch("PUBLIC_CORE_SERVICE_URL", "core.app.localhost"),
-        path: -> { new_core_app_sign_out_path(ri: "jp") },
-        tld: "APP",
-      },
-      {
-        host: ENV.fetch("PUBLIC_CORE_STAFF_URL", "core.org.localhost"),
-        path: -> { new_core_org_sign_out_path(ri: "jp") },
-        tld: "ORG",
-      },
-      {
-        host: ENV.fetch("PUBLIC_WARP_SERVICE_URL", "warp.app.localhost"),
-        path: -> { new_warp_app_sign_out_path(ri: "jp") },
-        tld: "APP",
-      },
-      {
-        host: ENV.fetch("PUBLIC_WARP_STAFF_URL", "warp.org.localhost"),
-        path: -> { new_warp_org_sign_out_path(ri: "jp") },
-        tld: "ORG",
-      },
-      {
-        host: ENV.fetch("PUBLIC_PALM_SERVICE_URL", "palm.app.localhost"),
-        path: -> { palm_app_sign_out_path(ri: "jp") },
-        tld: "APP",
-      },
+      { host: hosts.core_service.host, path: "/", tld: "APP" },
+      { host: hosts.core_staff.host, path: "/", tld: "ORG" },
+      { host: hosts.warp_service.host, path: "/", tld: "APP" },
+      { host: hosts.warp_staff.host, path: "/", tld: "ORG" },
+      { host: hosts.palm_service.host, path: "/", tld: "APP" },
     ]
 
     cases.each do |entry|
       host! entry.fetch(:host)
-      get instance_exec(&entry.fetch(:path))
+      get entry.fetch(:path)
 
       if response.redirect?
-        location = URI.parse(response.location)
-
-        assert_predicate location.host, :present?
-      elsif response.not_found?
-        assert_response :not_found
+        assert_predicate URI.parse(response.location).host, :present?
       else
         assert_response :success
-        assert_select "title", /#{Regexp.escape("#{BRAND} (#{entry.fetch(:tld)})")}\z/
+        expected_title = "#{BRAND} (#{entry.fetch(:tld)})"
+
+        assert_select "title", /#{Regexp.escape(expected_title)}\z/
       end
     end
   end

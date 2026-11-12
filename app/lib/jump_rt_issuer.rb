@@ -76,8 +76,8 @@ class JumpRtIssuer
 
   def normalize_url(value)
     raw = value.to_s
-    return nil if raw.blank?
     return nil unless raw.valid_encoding?
+    return nil if raw.blank?
     return nil if raw.match?(/[\x00-\x1F\x7F]/)
 
     # URL APIs percent-encode Unicode path and query bytes during serialization. URI.parse accepts

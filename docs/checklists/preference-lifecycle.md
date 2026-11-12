@@ -1,5 +1,11 @@
 # Preference lifecycle
 
+> **Current surface amendment (2026-11-10):** Base and Visa preference-write routes are retired.
+> Edit currently reads its account-local preference state for presentation and request context; it
+> has no Preference management routes. The requirements below preserve the former writer contract as
+> history, not as active route acceptance. Preference models and retention records remain for the
+> next removal step.
+
 Use this checklist when changing anonymous or account-local Preference state on APP, ORG or COM. It
 records required behavior; passing items require current-session test evidence.
 

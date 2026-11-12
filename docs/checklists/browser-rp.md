@@ -1,7 +1,10 @@
 # Browser RP surfaces
 
-Applies to the Palm and Tech Browser RPs and to retired surfaces. Sign-out of every Browser RP is in
-[sign-out](sign-out.md). These are durable requirements, not current verification results.
+> **Historical after the 2026-11-11 hard reset:** Palm and Tech browser routes have been removed.
+> The checklist below records their former acceptance requirements and is not a current release
+> gate. The retained Edit relying-party route contract is documented in `README.md`.
+
+Sign-out history is in [sign-out](sign-out.md).
 
 ## Palm
 

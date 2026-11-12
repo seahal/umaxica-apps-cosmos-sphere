@@ -98,7 +98,7 @@ module HealthCheckRendering
   end
 
   # The routed surface that answered, as "<realm>/<surface>". `controller_path` is the path Rails
-  # resolved for the request (for example "core/app/health/livenesses"), so this follows whichever
+  # resolved for the request (for example "docs/app/health/livenesses"), so this follows whichever
   # `constraints(host:)` block matched instead of restating it.
   def health_namespace
     segments = controller_path.split("/")

@@ -56,4 +56,13 @@ class OidcStateJwtTest < ActiveSupport::TestCase
 
     assert_not_predicate OidcStateJwt.verify(client_id: CLIENT_ID, token: state), :valid?
   end
+  test "Sphere cannot sign an RP assertion for a cell owned by another service" do
+    %w(BASE_RP_APP_WW BASE_RP_ORG_WW TECH_ORG_WW EDIT_ORG_WW).each do |namespace|
+      assert_raises(JitSecurityJwtRegistry::ConfigurationError, namespace) do
+        JitSecurityJwtKeyring.encode(
+          { "sub" => "foreign-rp" }, typ: "JWT", issuer_id: "oidc_client:#{namespace}",
+        )
+      end
+    end
+  end
 end

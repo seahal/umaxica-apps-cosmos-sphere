@@ -23,8 +23,9 @@ What exists:
 - Selection and switcher flows already carry `account_public_id`, `organization_public_id`,
   `organization_unit_public_id`, and optional `avatar_public_id` in
   [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb),
-  app/services/acme_selector_authority.rb (historical path: `app/services/acme_selector_authority.rb`), and
-  app/services/acme_switcher_authority.rb (historical path: `app/services/acme_switcher_authority.rb`).
+  app/services/acme_selector_authority.rb (historical path:
+  `app/services/acme_selector_authority.rb`), and app/services/acme_switcher_authority.rb
+  (historical path: `app/services/acme_switcher_authority.rb`).
 
 What does not exist:
 
@@ -37,7 +38,8 @@ What does not exist:
 - No generic `Group` model class was found in the inspected model inventory; the current hierarchy
   uses `Enterprise`, `Bureau`, and `Company` plus their unit tables in
   [app/models/enterprise.rb](../../app/models/enterprise.rb),
-  [app/models/bureau.rb](../../app/models/bureau.rb), [app/models/company.rb](../../app/models/company.rb),
+  [app/models/bureau.rb](../../app/models/bureau.rb),
+  [app/models/company.rb](../../app/models/company.rb),
   [app/models/enterprise_unit.rb](../../app/models/enterprise_unit.rb),
   [app/models/bureau_unit.rb](../../app/models/bureau_unit.rb), and
   [app/models/company_unit.rb](../../app/models/company_unit.rb).
@@ -53,8 +55,8 @@ What is ambiguous:
   alone in [app/models/avatar_assignment.rb](../../app/models/avatar_assignment.rb) and
   [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb).
 - `Avatar` currently links to `member` through `client_id`, not to `Persona`, `Agent`, or
-  `Individual`, in [app/models/avatar.rb](../../app/models/avatar.rb). That is structurally important and
-  not just naming drift.
+  `Individual`, in [app/models/avatar.rb](../../app/models/avatar.rb). That is structurally
+  important and not just naming drift.
 - `representing_organization_id` exists on `Avatar`, but the repository evidence does not explain
   whether it is posting authority, representative authority, or simply stored projection state in
   [app/models/avatar.rb](../../app/models/avatar.rb).
@@ -63,15 +65,17 @@ What contradicts or only partially matches the confirmed target:
 
 - The confirmed target says `Organization -> Account -> Avatar`, but the current selection/bootstrap
   graph is `principal -> identity -> account -> collective -> unit -> membership -> avatar` in
-  app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)
-  and [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb).
+  app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`) and
+  [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb).
 - The repository currently represents `Account` as `Persona`, `Agent`, and `Individual`, each
-  attached to a surface-specific identity, not to `Organization` directly, in
-  app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and
+  attached to a surface-specific identity, not to `Organization` directly, in app/models/persona.rb
+  (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and
   [app/models/individual.rb](../../app/models/individual.rb).
 - `Avatar` is currently created with `client_id` and `owner_organization_id` in
-  app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`),
-  so the current chain is not DB-enforced as `Organization -> Account -> Avatar`.
+  app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`), so the current chain is not DB-enforced as
+  `Organization -> Account -> Avatar`.
 
 Canonical actor status:
 
@@ -82,27 +86,31 @@ Canonical actor status:
 Organization -> Account -> Avatar status:
 
 - The target chain is only partially represented today. `Account -> Identity` is DB-enforced in
-  app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and
-  [app/models/individual.rb](../../app/models/individual.rb), while `Avatar -> Member` is present through
-  `client_id` in [app/models/avatar.rb](../../app/models/avatar.rb) and `Avatar -> Organization` is
-  projected through string columns rather than foreign keys in
+  app/models/persona.rb (historical path: `app/models/persona.rb`),
+  [app/models/agent.rb](../../app/models/agent.rb), and
+  [app/models/individual.rb](../../app/models/individual.rb), while `Avatar -> Member` is present
+  through `client_id` in [app/models/avatar.rb](../../app/models/avatar.rb) and
+  `Avatar -> Organization` is projected through string columns rather than foreign keys in
   [app/models/avatar.rb](../../app/models/avatar.rb) and
-  app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`).
+  app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`).
 
 Top structural risks:
 
 - Missing DB-enforced `Account -> Avatar` chain, because `Avatar` still points at `member` and
   `owner_organization_id` rather than at a surface account class in
   [app/models/avatar.rb](../../app/models/avatar.rb).
-- `Avatar -> Member / Client` path is confirmed in [app/models/avatar.rb](../../app/models/avatar.rb) and
+- `Avatar -> Member / Client` path is confirmed in
+  [app/models/avatar.rb](../../app/models/avatar.rb) and
   [app/models/member.rb](../../app/models/member.rb), which may conflict with the target
   `Organization -> Account -> Avatar` path.
 - `Persona` / `Agent` / `Individual` are currently the account layer, while `Client` / `Operator` /
-  `Visitor` are principal layers; that split is explicit in
-  app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb),
+  `Visitor` are principal layers; that split is explicit in app/models/persona.rb (historical path:
+  `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb),
   [app/models/individual.rb](../../app/models/individual.rb),
-  [app/models/client.rb](../../app/models/client.rb), [app/models/operator.rb](../../app/models/operator.rb),
-  and [app/models/visitor.rb](../../app/models/visitor.rb).
+  [app/models/client.rb](../../app/models/client.rb),
+  [app/models/operator.rb](../../app/models/operator.rb), and
+  [app/models/visitor.rb](../../app/models/visitor.rb).
 - `actor_id` ambiguity remains unresolved in `Chronicle` and related audit tables because the column
   is polymorphic in [app/models/chronicle.rb](../../app/models/chronicle.rb).
 - `AvatarAssignment` versus `AvatarMembership` is not yet clean enough to safely add `ClientGroup`,
@@ -122,30 +130,30 @@ Top structural risks:
 
 ## Confirmed Design Decisions
 
-| Decision                                                                                                                 | Repository status                | Evidence                                                                                                                                                                                                                                                                                                                                  | Gap                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Canonical SNS actor is Avatar                                                                                            | matches                          | [app/models/avatar.rb](../../app/models/avatar.rb); Avatar owns follows, blocks, mutes, assignments, moniker history, and active handle                                                                                                                                                                                                         | None for the current SNS actor layer                                     |
-| Posts, public profiles, mentions, follows, blocks, mutes, and ordinary SNS interaction should initially center on Avatar | partially matches                | Follows/blocks/mutes are Avatar-to-Avatar in [app/models/avatar_follow.rb](../../app/models/avatar_follow.rb), [app/models/avatar_block.rb](../../app/models/avatar_block.rb), [app/models/avatar_mute.rb](../../app/models/avatar_mute.rb)                                                                                                                 | No Post model or mention model is present                                |
-| Account must belong to Organization                                                                                      | partially matches                | Account/collective selection uses [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb) and bootstrap creates membership in app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)                                                                           | No direct DB-enforced `Account -> Organization` foreign key was found    |
-| Organization-less personal Account is not allowed                                                                        | partially matches                | Bootstrap always creates a collective and membership in app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)                                                                                                                                                                            | This is service-enforced, not clearly schema-enforced                    |
-| Avatar belongs under Account                                                                                             | contradicts                      | `Avatar` belongs to `member` via `client_id` in [app/models/avatar.rb](../../app/models/avatar.rb)                                                                                                                                                                                                                                              | Current FK path is Avatar -> Member/Client, not Avatar -> Account        |
-| Intended switcher UX is hierarchical Organization -> Account -> Avatar                                                   | partially matches                | `AcmeSelectableContext` and `AcmeSwitcherAuthority` carry all three IDs in [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb)                                                                                                                                                                             | Current selection is persisted as flat IDs on the session token          |
-| Group is a container/collection of Avatars                                                                               | not represented yet              | No Group model file was found in the inspected model inventory                                                                                                                                                                                                                                                                            | Must be modeled explicitly                                               |
-| Group is not a posting actor for now                                                                                     | not represented yet              | No Group model or posting model exists in the inspected files                                                                                                                                                                                                                                                                             | Must be kept separate from posting authority                             |
-| Group should eventually have public_id, display/moniker, membership/access control, auditability                         | partially matches                | `public_id` and `moniker` patterns already exist in [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), and [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb)                                                                                                                    | No Group model, no group audit table                                     |
-| Group model names should be surface-specific                                                                             | not represented yet              | No `ClientGroup`, `VisitorGroup`, or `OperatorGroup` files exist                                                                                                                                                                                                                                                                          | Naming decision remains open                                             |
-| `@handle` initially resolves only to Avatar                                                                              | partially matches                | Avatar owns `Handle` and `HandleAssignment` in [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), and [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb)                                                                                                                         | No mention route/parser evidence was found for a public `@handle` lookup |
-| Do not introduce `@@group` yet                                                                                           | not represented yet              | No group mention machinery exists in the inspected files                                                                                                                                                                                                                                                                                  | Future mention syntax remains unset                                      |
-| `id`, `public_id`, `handle`, and `display/moniker` are separate concepts                                                 | partially matches                | `id` is the PK in [app/models/avatar.rb](../../app/models/avatar.rb); `public_id` appears separately; `handle` is on `Handle`; `moniker` is on `Avatar` and history tables                                                                                                                                                                      | Vocabulary is split across multiple models                               |
-| `id` is the internal database primary key and must not be treated as public                                              | matches                          | Primary keys are standard `id` columns in the schema comments, while public lookup uses `public_id` in [app/models/avatar.rb](../../app/models/avatar.rb), app/models/persona.rb (historical path: `app/models/persona.rb`), and [app/models/enterprise.rb](../../app/models/enterprise.rb)                                                                             | None                                                                     |
+| Decision                                                                                                                 | Repository status                | Evidence                                                                                                                                                                                                                                                                                                                                                                                  | Gap                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Canonical SNS actor is Avatar                                                                                            | matches                          | [app/models/avatar.rb](../../app/models/avatar.rb); Avatar owns follows, blocks, mutes, assignments, moniker history, and active handle                                                                                                                                                                                                                                                   | None for the current SNS actor layer                                     |
+| Posts, public profiles, mentions, follows, blocks, mutes, and ordinary SNS interaction should initially center on Avatar | partially matches                | Follows/blocks/mutes are Avatar-to-Avatar in [app/models/avatar_follow.rb](../../app/models/avatar_follow.rb), [app/models/avatar_block.rb](../../app/models/avatar_block.rb), [app/models/avatar_mute.rb](../../app/models/avatar_mute.rb)                                                                                                                                               | No Post model or mention model is present                                |
+| Account must belong to Organization                                                                                      | partially matches                | Account/collective selection uses [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb) and bootstrap creates membership in app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)                                                                                                   | No direct DB-enforced `Account -> Organization` foreign key was found    |
+| Organization-less personal Account is not allowed                                                                        | partially matches                | Bootstrap always creates a collective and membership in app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)                                                                                                                                                                                                          | This is service-enforced, not clearly schema-enforced                    |
+| Avatar belongs under Account                                                                                             | contradicts                      | `Avatar` belongs to `member` via `client_id` in [app/models/avatar.rb](../../app/models/avatar.rb)                                                                                                                                                                                                                                                                                        | Current FK path is Avatar -> Member/Client, not Avatar -> Account        |
+| Intended switcher UX is hierarchical Organization -> Account -> Avatar                                                   | partially matches                | `AcmeSelectableContext` and `AcmeSwitcherAuthority` carry all three IDs in [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb)                                                                                                                                                                                                                       | Current selection is persisted as flat IDs on the session token          |
+| Group is a container/collection of Avatars                                                                               | not represented yet              | No Group model file was found in the inspected model inventory                                                                                                                                                                                                                                                                                                                            | Must be modeled explicitly                                               |
+| Group is not a posting actor for now                                                                                     | not represented yet              | No Group model or posting model exists in the inspected files                                                                                                                                                                                                                                                                                                                             | Must be kept separate from posting authority                             |
+| Group should eventually have public_id, display/moniker, membership/access control, auditability                         | partially matches                | `public_id` and `moniker` patterns already exist in [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), and [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb)                                                                                                                                                  | No Group model, no group audit table                                     |
+| Group model names should be surface-specific                                                                             | not represented yet              | No `ClientGroup`, `VisitorGroup`, or `OperatorGroup` files exist                                                                                                                                                                                                                                                                                                                          | Naming decision remains open                                             |
+| `@handle` initially resolves only to Avatar                                                                              | partially matches                | Avatar owns `Handle` and `HandleAssignment` in [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), and [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb)                                                                                                                                                       | No mention route/parser evidence was found for a public `@handle` lookup |
+| Do not introduce `@@group` yet                                                                                           | not represented yet              | No group mention machinery exists in the inspected files                                                                                                                                                                                                                                                                                                                                  | Future mention syntax remains unset                                      |
+| `id`, `public_id`, `handle`, and `display/moniker` are separate concepts                                                 | partially matches                | `id` is the PK in [app/models/avatar.rb](../../app/models/avatar.rb); `public_id` appears separately; `handle` is on `Handle`; `moniker` is on `Avatar` and history tables                                                                                                                                                                                                                | Vocabulary is split across multiple models                               |
+| `id` is the internal database primary key and must not be treated as public                                              | matches                          | Primary keys are standard `id` columns in the schema comments, while public lookup uses `public_id` in [app/models/avatar.rb](../../app/models/avatar.rb), app/models/persona.rb (historical path: `app/models/persona.rb`), and [app/models/enterprise.rb](../../app/models/enterprise.rb)                                                                                               | None                                                                     |
 | `public_id` is a stable external reference                                                                               | matches                          | `public_id` is unique on [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), app/models/persona.rb (historical path: `app/models/persona.rb`), and the surface controllers resolve by `params[:id]` in app/controllers/acme/app/organizations_controller.rb (historical path: `app/controllers/acme/app/organizations_controller.rb`) | None                                                                     |
-| `handle` is Avatar’s @name-style identifier                                                                              | matches                          | `Handle` and `HandleAssignment` are Avatar-scoped in [app/models/handle.rb](../../app/models/handle.rb) and [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb)                                                                                                                                                                  | None                                                                     |
-| `display` is the product/design term and `moniker` is the current implementation term                                    | partially matches                | `moniker` is the implemented field in [app/models/avatar.rb](../../app/models/avatar.rb), app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and [app/models/individual.rb](../../app/models/individual.rb)                                                                                                  | No separate `display` column or model exists                             |
-| Posting authority and representative authority are separate concepts                                                     | repository evidence insufficient | `representing_organization_id` exists on Avatar in [app/models/avatar.rb](../../app/models/avatar.rb), but its semantics are not explained in code                                                                                                                                                                                              | Must be decided before implementation                                    |
-| Permission inheritance may be allowed later, but should not be implemented initially                                     | not represented yet              | Current Avatar RBAC is flat role/permission tables in [app/models/avatar_role.rb](../../app/models/avatar_role.rb), [app/models/avatar_permission.rb](../../app/models/avatar_permission.rb), and [app/models/avatar_role_permission.rb](../../app/models/avatar_role_permission.rb)                                                                        | No inheritance logic exists                                              |
-| Avatar handle changes should have 24-hour cooldown and immutable history                                                 | partially matches                | `Handle.cooldown_until` and `HandleAssignment.valid_from/valid_to` exist in [app/models/handle.rb](../../app/models/handle.rb) and [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb)                                                                                                                                           | No explicit 24-hour rule is implemented in code shown here               |
-| Avatar display/moniker changes should also have 24-hour cooldown and immutable history                                   | partially matches                | `AvatarMoniker.valid_from/valid_to` exist in [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb)                                                                                                                                                                                                                                 | No cooldown column or cooldown policy is present                         |
-| Last admin/owner removal, demotion, or revocation should be prohibited                                                   | partially matches                | Avatar has owner/admin role tables in [app/models/avatar.rb](../../app/models/avatar.rb), and membership tables enforce one active primary in [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb)                                                                                                                                | No explicit last-admin/owner invariant was found in the inspected code   |
+| `handle` is Avatar’s @name-style identifier                                                                              | matches                          | `Handle` and `HandleAssignment` are Avatar-scoped in [app/models/handle.rb](../../app/models/handle.rb) and [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb)                                                                                                                                                                                                      | None                                                                     |
+| `display` is the product/design term and `moniker` is the current implementation term                                    | partially matches                | `moniker` is the implemented field in [app/models/avatar.rb](../../app/models/avatar.rb), app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and [app/models/individual.rb](../../app/models/individual.rb)                                                                                                              | No separate `display` column or model exists                             |
+| Posting authority and representative authority are separate concepts                                                     | repository evidence insufficient | `representing_organization_id` exists on Avatar in [app/models/avatar.rb](../../app/models/avatar.rb), but its semantics are not explained in code                                                                                                                                                                                                                                        | Must be decided before implementation                                    |
+| Permission inheritance may be allowed later, but should not be implemented initially                                     | not represented yet              | Current Avatar RBAC is flat role/permission tables in [app/models/avatar_role.rb](../../app/models/avatar_role.rb), [app/models/avatar_permission.rb](../../app/models/avatar_permission.rb), and [app/models/avatar_role_permission.rb](../../app/models/avatar_role_permission.rb)                                                                                                      | No inheritance logic exists                                              |
+| Avatar handle changes should have 24-hour cooldown and immutable history                                                 | partially matches                | `Handle.cooldown_until` and `HandleAssignment.valid_from/valid_to` exist in [app/models/handle.rb](../../app/models/handle.rb) and [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb)                                                                                                                                                                               | No explicit 24-hour rule is implemented in code shown here               |
+| Avatar display/moniker changes should also have 24-hour cooldown and immutable history                                   | partially matches                | `AvatarMoniker.valid_from/valid_to` exist in [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb)                                                                                                                                                                                                                                                                           | No cooldown column or cooldown policy is present                         |
+| Last admin/owner removal, demotion, or revocation should be prohibited                                                   | partially matches                | Avatar has owner/admin role tables in [app/models/avatar.rb](../../app/models/avatar.rb), and membership tables enforce one active primary in [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb)                                                                                                                                                                    | No explicit last-admin/owner invariant was found in the inspected code   |
 
 ## Evidence Map
 
@@ -158,12 +166,12 @@ Top structural risks:
   `cooldown_until`, and `is_system` state.
 - [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb): records temporal handle
   history with `valid_from`/`valid_to` and `assigned_by_actor_id`.
-- [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb): records temporal moniker history
-  with `valid_from`/`valid_to` and `set_by_actor_id`.
-- [app/models/avatar_assignment.rb](../../app/models/avatar_assignment.rb): role-based Avatar RBAC with
-  owner/affiliation/administrator/editor/reviewer/viewer.
-- [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb): temporal membership records
-  with `valid_from`/`valid_to`, `actor_id`, `granted_by_actor_id`, and `role_id`.
+- [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb): records temporal moniker
+  history with `valid_from`/`valid_to` and `set_by_actor_id`.
+- [app/models/avatar_assignment.rb](../../app/models/avatar_assignment.rb): role-based Avatar RBAC
+  with owner/affiliation/administrator/editor/reviewer/viewer.
+- [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb): temporal membership
+  records with `valid_from`/`valid_to`, `actor_id`, `granted_by_actor_id`, and `role_id`.
 - [app/models/avatar_role.rb](../../app/models/avatar_role.rb),
   [app/models/avatar_permission.rb](../../app/models/avatar_permission.rb),
   [app/models/avatar_role_permission.rb](../../app/models/avatar_role_permission.rb): Avatar
@@ -171,20 +179,23 @@ Top structural risks:
 - [app/models/avatar_follow.rb](../../app/models/avatar_follow.rb),
   [app/models/avatar_block.rb](../../app/models/avatar_block.rb),
   [app/models/avatar_mute.rb](../../app/models/avatar_mute.rb): Avatar-to-Avatar social relations.
-- [app/models/client.rb](../../app/models/client.rb), [app/models/operator.rb](../../app/models/operator.rb),
+- [app/models/client.rb](../../app/models/client.rb),
+  [app/models/operator.rb](../../app/models/operator.rb),
   [app/models/visitor.rb](../../app/models/visitor.rb): current authenticated principals.
-- app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb),
+- app/models/persona.rb (historical path: `app/models/persona.rb`),
+  [app/models/agent.rb](../../app/models/agent.rb),
   [app/models/individual.rb](../../app/models/individual.rb): current account-like models.
 - [app/models/enterprise.rb](../../app/models/enterprise.rb),
-  [app/models/bureau.rb](../../app/models/bureau.rb), [app/models/company.rb](../../app/models/company.rb):
-  current organization-like models.
+  [app/models/bureau.rb](../../app/models/bureau.rb),
+  [app/models/company.rb](../../app/models/company.rb): current organization-like models.
 - [app/models/enterprise_unit.rb](../../app/models/enterprise_unit.rb),
   [app/models/bureau_unit.rb](../../app/models/bureau_unit.rb),
-  [app/models/company_unit.rb](../../app/models/company_unit.rb): current unit/child-container models.
+  [app/models/company_unit.rb](../../app/models/company_unit.rb): current unit/child-container
+  models.
 - [app/models/member.rb](../../app/models/member.rb),
   [app/models/client_member.rb](../../app/models/client_member.rb),
-  [app/models/client_account.rb](../../app/models/client_account.rb): the current Avatar/Member and RP
-  account path on the app surface.
+  [app/models/client_account.rb](../../app/models/client_account.rb): the current Avatar/Member and
+  RP account path on the app surface.
 - [app/models/chronicle.rb](../../app/models/chronicle.rb): audit model with polymorphic `actor` and
   `subject`.
 
@@ -192,19 +203,20 @@ Top structural risks:
 
 - [app/models/avatar.rb](../../app/models/avatar.rb): schema comment shows `client_id`,
   `owner_organization_id`, `representing_organization_id`, `active_handle_id`, and `public_id`.
-- [app/models/handle.rb](../../app/models/handle.rb): schema comment shows `cooldown_until`, `handle`,
-  `is_system`, and `public_id`.
+- [app/models/handle.rb](../../app/models/handle.rb): schema comment shows `cooldown_until`,
+  `handle`, `is_system`, and `public_id`.
 - [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb): schema comment shows
   `valid_from`, `valid_to`, `assigned_by_actor_id`, `avatar_id`, and `handle_id`.
-- [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb): schema comment shows `moniker`,
-  `valid_from`, `valid_to`, and `set_by_actor_id`.
+- [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb): schema comment shows
+  `moniker`, `valid_from`, `valid_to`, and `set_by_actor_id`.
 - [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb): schema comment shows
   `actor_id`, `avatar_id`, `granted_by_actor_id`, `role_id`, `valid_from`, and `valid_to`.
 - [app/models/avatar_assignment.rb](../../app/models/avatar_assignment.rb): schema comment shows
   `avatar_id`, `user_id`, and `role`.
-- app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb),
-  [app/models/individual.rb](../../app/models/individual.rb): schema comments show 1:1 identity FKs and
-  unique indexes on `client_identity_id`, `operator_identity_id`, and `visitor_identity_id`.
+- app/models/persona.rb (historical path: `app/models/persona.rb`),
+  [app/models/agent.rb](../../app/models/agent.rb),
+  [app/models/individual.rb](../../app/models/individual.rb): schema comments show 1:1 identity FKs
+  and unique indexes on `client_identity_id`, `operator_identity_id`, and `visitor_identity_id`.
 - [app/models/client_account.rb](../../app/models/client_account.rb),
   [app/models/operator_account.rb](../../app/models/operator_account.rb),
   [app/models/visitor_account.rb](../../app/models/visitor_account.rb): schema comments show one RP
@@ -212,23 +224,29 @@ Top structural risks:
 
 ### Controllers / Routes
 
-- config/routes/acme.rb (historical path: `config/routes/acme.rb`): defines selector, switcher, accounts,
-  organizations, memberships, and avatars routes for app/com/org.
-- app/controllers/acme/app/selectors_controller.rb (historical path: `app/controllers/acme/app/selectors_controller.rb`):
-  accepts `account_public_id`, `organization_public_id`, `organization_unit_public_id`,
-  `collective_public_id`, `collective_unit_public_id`, and `avatar_public_id`.
-- app/controllers/acme/app/switchers_controller.rb (historical path: `app/controllers/acme/app/switchers_controller.rb`):
-  switcher changes already-selected account/organization/avatar context.
-- app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`):
-  uses `params[:id]` as Avatar `public_id` through `find_avatar!`.
-- app/controllers/acme/app/organizations_controller.rb (historical path: `app/controllers/acme/app/organizations_controller.rb`):
-  resolves organizations by `public_id`.
-- app/controllers/acme/com/selectors_controller.rb (historical path: `app/controllers/acme/com/selectors_controller.rb`),
-  app/controllers/acme/org/selectors_controller.rb (historical path: `app/controllers/acme/org/selectors_controller.rb`):
-  same selector pattern on com/org.
-- app/controllers/acme/com/switchers_controller.rb (historical path: `app/controllers/acme/com/switchers_controller.rb`),
-  app/controllers/acme/org/switchers_controller.rb (historical path: `app/controllers/acme/org/switchers_controller.rb`):
-  switcher exists on all surfaces, but com/org are still stubbed.
+- config/routes/acme.rb (historical path: `config/routes/acme.rb`): defines selector, switcher,
+  accounts, organizations, memberships, and avatars routes for app/com/org.
+- app/controllers/acme/app/selectors_controller.rb (historical path:
+  `app/controllers/acme/app/selectors_controller.rb`): accepts `account_public_id`,
+  `organization_public_id`, `organization_unit_public_id`, `collective_public_id`,
+  `collective_unit_public_id`, and `avatar_public_id`.
+- app/controllers/acme/app/switchers_controller.rb (historical path:
+  `app/controllers/acme/app/switchers_controller.rb`): switcher changes already-selected
+  account/organization/avatar context.
+- app/controllers/acme/app/avatars_controller.rb (historical path:
+  `app/controllers/acme/app/avatars_controller.rb`): uses `params[:id]` as Avatar `public_id`
+  through `find_avatar!`.
+- app/controllers/acme/app/organizations_controller.rb (historical path:
+  `app/controllers/acme/app/organizations_controller.rb`): resolves organizations by `public_id`.
+- app/controllers/acme/com/selectors_controller.rb (historical path:
+  `app/controllers/acme/com/selectors_controller.rb`),
+  app/controllers/acme/org/selectors_controller.rb (historical path:
+  `app/controllers/acme/org/selectors_controller.rb`): same selector pattern on com/org.
+- app/controllers/acme/com/switchers_controller.rb (historical path:
+  `app/controllers/acme/com/switchers_controller.rb`),
+  app/controllers/acme/org/switchers_controller.rb (historical path:
+  `app/controllers/acme/org/switchers_controller.rb`): switcher exists on all surfaces, but com/org
+  are still stubbed.
 
 ### Policies / Services
 
@@ -237,15 +255,16 @@ Top structural risks:
   [app/policies/avatar_membership_policy.rb](../../app/policies/avatar_membership_policy.rb),
   [app/policies/avatar_follow_policy.rb](../../app/policies/avatar_follow_policy.rb),
   [app/policies/avatar_block_policy.rb](../../app/policies/avatar_block_policy.rb),
-  [app/policies/avatar_mute_policy.rb](../../app/policies/avatar_mute_policy.rb): currently empty policy
-  shells.
-- app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`):
-  bootstrap graph creation for account, collective, membership, and avatar.
-- [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb): canonical
-  selectable context read model.
-- app/services/acme_selector_authority.rb (historical path: `app/services/acme_selector_authority.rb`),
-  app/services/acme_switcher_authority.rb (historical path: `app/services/acme_switcher_authority.rb`):
-  selector/switcher write and read surfaces.
+  [app/policies/avatar_mute_policy.rb](../../app/policies/avatar_mute_policy.rb): currently empty
+  policy shells.
+- app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`): bootstrap graph creation for account,
+  collective, membership, and avatar.
+- [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb):
+  canonical selectable context read model.
+- app/services/acme_selector_authority.rb (historical path:
+  `app/services/acme_selector_authority.rb`), app/services/acme_switcher_authority.rb (historical
+  path: `app/services/acme_switcher_authority.rb`): selector/switcher write and read surfaces.
 - [app/services/acme_selector_surface_config.rb](../../app/services/acme_selector_surface_config.rb):
   surface-specific account/collective/member mapping for app/com/org.
 
@@ -253,22 +272,29 @@ Top structural risks:
 
 - [test/models/avatar_test.rb](../../test/models/avatar_test.rb): proves Avatar social and role
   associations.
-- [test/models/handle_test.rb](../../test/models/handle_test.rb): proves handle presence, uniqueness,
-  `cooldown_until`, and active-avatar restriction.
-- [test/models/handle_assignment_test.rb](../../test/models/handle_assignment_test.rb): proves temporal
-  handle history and one active assignment per avatar/handle.
-- [test/models/avatar_moniker_test.rb](../../test/models/avatar_moniker_test.rb): proves moniker model
-  validation exists.
-- test/controllers/acme/app/selector_controller_test.rb (historical path: `test/controllers/acme/app/selector_controller_test.rb`),
-  test/controllers/acme/app/switchers_controller_test.rb (historical path: `test/controllers/acme/app/switchers_controller_test.rb`),
-  test/controllers/acme/app/avatars_controller_test.rb (historical path: `test/controllers/acme/app/avatars_controller_test.rb`),
-  test/controllers/acme/app/organizations_controller_test.rb (historical path: `test/controllers/acme/app/organizations_controller_test.rb`):
-  prove selector/switcher/routes use public IDs and selected session state.
-- test/controllers/acme/org/selector_controller_test.rb (historical path: `test/controllers/acme/org/selector_controller_test.rb`),
-  test/controllers/acme/org/switcher_controller_test.rb (historical path: `test/controllers/acme/org/switcher_controller_test.rb`),
-  test/controllers/acme/org/avatars_controller_test.rb (historical path: `test/controllers/acme/org/avatars_controller_test.rb`),
-  test/controllers/acme/org/organizations_controller_test.rb (historical path: `test/controllers/acme/org/organizations_controller_test.rb`):
-  show the org-surface analogue.
+- [test/models/handle_test.rb](../../test/models/handle_test.rb): proves handle presence,
+  uniqueness, `cooldown_until`, and active-avatar restriction.
+- [test/models/handle_assignment_test.rb](../../test/models/handle_assignment_test.rb): proves
+  temporal handle history and one active assignment per avatar/handle.
+- [test/models/avatar_moniker_test.rb](../../test/models/avatar_moniker_test.rb): proves moniker
+  model validation exists.
+- test/controllers/acme/app/selector_controller_test.rb (historical path:
+  `test/controllers/acme/app/selector_controller_test.rb`),
+  test/controllers/acme/app/switchers_controller_test.rb (historical path:
+  `test/controllers/acme/app/switchers_controller_test.rb`),
+  test/controllers/acme/app/avatars_controller_test.rb (historical path:
+  `test/controllers/acme/app/avatars_controller_test.rb`),
+  test/controllers/acme/app/organizations_controller_test.rb (historical path:
+  `test/controllers/acme/app/organizations_controller_test.rb`): prove selector/switcher/routes use
+  public IDs and selected session state.
+- test/controllers/acme/org/selector_controller_test.rb (historical path:
+  `test/controllers/acme/org/selector_controller_test.rb`),
+  test/controllers/acme/org/switcher_controller_test.rb (historical path:
+  `test/controllers/acme/org/switcher_controller_test.rb`),
+  test/controllers/acme/org/avatars_controller_test.rb (historical path:
+  `test/controllers/acme/org/avatars_controller_test.rb`),
+  test/controllers/acme/org/organizations_controller_test.rb (historical path:
+  `test/controllers/acme/org/organizations_controller_test.rb`): show the org-surface analogue.
 - [test/services/acme/selector_bootstrap_authority_test.rb](../../test/services/acme/selector_bootstrap_authority_test.rb):
   likely the best test source for the current bootstrap graph shape.
 
@@ -276,12 +302,12 @@ Top structural risks:
 
 - [docs/architecture/actor-naming.md](../../docs/architecture/actor-naming.md): documents
   Client/Operator/Visitor as runtime actors.
-- [docs/architecture/current_context.md](../../docs/architecture/current_context.md): documents `Actor` as
-  the request-local context facade.
-- [docs/architecture/database-boundaries.md](../../docs/architecture/database-boundaries.md): documents
-  surface database naming and the `avatar` boundary.
-- [docs/identity/authority-boundary.md](../../docs/identity/authority-boundary.md): historical authority
-  boundary context.
+- [docs/architecture/current_context.md](../../docs/architecture/current_context.md): documents
+  `Actor` as the request-local context facade.
+- [docs/architecture/database-boundaries.md](../../docs/architecture/database-boundaries.md):
+  documents surface database naming and the `avatar` boundary.
+- [docs/identity/authority-boundary.md](../../docs/identity/authority-boundary.md): historical
+  authority boundary context.
 - [adr/acme-account-organization-bootstrap-boundary.md](../../adr/acme-account-organization-bootstrap-boundary.md):
   accepted bootstrap boundary for account/organization/title/quota direction.
 - [adr/collective-hierarchy-model.md](../../adr/collective-hierarchy-model.md): accepted recursive
@@ -293,10 +319,10 @@ Top structural risks:
 
 ### Frontend / Switcher Code
 
-- app/views/acme/shared/dashboards/show.html.erb (historical path: `app/views/acme/shared/dashboards/show.html.erb`):
-  surfaces selector and switcher links.
-- app/views/acme/app/switchers/show.html.erb (historical path: `app/views/acme/app/switchers/show.html.erb`): shows
-  current selection and candidate lists.
+- app/views/acme/shared/dashboards/show.html.erb (historical path:
+  `app/views/acme/shared/dashboards/show.html.erb`): surfaces selector and switcher links.
+- app/views/acme/app/switchers/show.html.erb (historical path:
+  `app/views/acme/app/switchers/show.html.erb`): shows current selection and candidate lists.
 
 ## Current Model Inventory
 
@@ -438,7 +464,8 @@ Top structural risks:
 - Public identifier: `public_id`
 - Important columns: `name`
 - Associations: `has_many :company_units`, `has_many :individual_memberships`
-- Relevant tests: [test/models/company_root_units_test.rb](../../test/models/company_root_units_test.rb),
+- Relevant tests:
+  [test/models/company_root_units_test.rb](../../test/models/company_root_units_test.rb),
   [test/models/individual_company_model_layer_test.rb](../../test/models/individual_company_model_layer_test.rb)
 
 ### EnterpriseUnit / BureauUnit / CompanyUnit
@@ -454,10 +481,10 @@ Top structural risks:
 
 - `Member` in [app/models/member.rb](../../app/models/member.rb) is the current Avatar-side
   membership/rooting model on the app surface.
-- `ClientMember` in [app/models/client_member.rb](../../app/models/client_member.rb) joins `Client` to
-  `Member`.
-- `ClientAccount` in [app/models/client_account.rb](../../app/models/client_account.rb) is the RP account
-  row for `Client`.
+- `ClientMember` in [app/models/client_member.rb](../../app/models/client_member.rb) joins `Client`
+  to `Member`.
+- `ClientAccount` in [app/models/client_account.rb](../../app/models/client_account.rb) is the RP
+  account row for `Client`.
 - Relevant tests: [test/models/member_test.rb](../../test/models/member_test.rb)
 
 ### Avatar
@@ -476,7 +503,8 @@ Top structural risks:
   `has_many :avatar_assignments`, `has_many :outgoing_follows`, `has_many :incoming_follows`,
   `has_many :outgoing_blocks`, `has_many :outgoing_mutes`
 - Validations: `public_id` uniqueness, `capability_id` numeric > 0, `moniker` presence
-- Callbacks: Avatar creation-with-owner transaction in `create_with_owner`
+- Creation: `AvatarProvisioning::Create` writes the Avatar graph transactionally; the removed
+  `Avatar.create_with_owner` compatibility method has no replacement wrapper.
 - Relevant tests: [test/models/avatar_test.rb](../../test/models/avatar_test.rb)
 
 ### Handle
@@ -505,7 +533,8 @@ Top structural risks:
   `handle_assignment_status_id`
 - Associations: `belongs_to :handle`, `belongs_to :avatar`, `belongs_to :assigned_by_actor`
 - Validations: one current assignment per handle and per avatar, `valid_from` presence
-- Relevant tests: [test/models/handle_assignment_test.rb](../../test/models/handle_assignment_test.rb)
+- Relevant tests:
+  [test/models/handle_assignment_test.rb](../../test/models/handle_assignment_test.rb)
 
 ### AvatarMoniker
 
@@ -548,7 +577,8 @@ Top structural risks:
   `belongs_to :avatar_role`
 - Validations: current uniqueness by `avatar_id` and `actor_id`, `actor_id` presence, `valid_from`
   presence
-- Relevant tests: [test/models/avatar_membership_test.rb](../../test/models/avatar_membership_test.rb)
+- Relevant tests:
+  [test/models/avatar_membership_test.rb](../../test/models/avatar_membership_test.rb)
 
 ### AvatarRole / AvatarPermission / AvatarRolePermission
 
@@ -616,7 +646,8 @@ Group -x-> Avatar
 
 These are represented only indirectly or by service-level projection today in
 [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb) and
-app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`).
+app/services/acme_selector_bootstrap_authority.rb (historical path:
+`app/services/acme_selector_bootstrap_authority.rb`).
 
 ### Confirmed Target Graph
 
@@ -641,9 +672,8 @@ Current status against target:
 ### Identity <-> Organization
 
 - Current connection: indirect through selector/bootstrap and membership records.
-- Evidence:
-  app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)
-  creates a collective and membership;
+- Evidence: app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`) creates a collective and membership;
   [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb) resolves
   candidates through account memberships.
 - Kind: membership/access projection.
@@ -750,22 +780,22 @@ Current status against target:
 
 ## Authority / Access-Control Matrix
 
-| Authority                   | Organization | Account     | Avatar      | Group-like  | Evidence                                                                                                                                                                | Gap                                 |
-| --------------------------- | ------------ | ----------- | ----------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Authority                   | Organization | Account     | Avatar      | Group-like  | Evidence                                                                                                                                                                            | Gap                                 |
+| --------------------------- | ------------ | ----------- | ----------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | admin/manage                | partial      | partial     | partial     | no evidence | Avatar RBAC tables in [app/models/avatar_role.rb](../../app/models/avatar_role.rb) and role assignments in [app/models/avatar_assignment.rb](../../app/models/avatar_assignment.rb) | Group authority not defined         |
-| operate/use                 | partial      | partial     | partial     | no evidence | current membership and selection flows in [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb)                                            | No group layer                      |
-| read                        | partial      | partial     | partial     | no evidence | selectors/switchers/controllers in config/routes/acme.rb (historical path: `config/routes/acme.rb`)                                                                                       | No explicit read matrix             |
-| write                       | partial      | partial     | partial     | no evidence | controller write paths in app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`) and selector/switcher authorities            | No group write policy               |
-| visible/view-only           | partial      | partial     | partial     | no evidence | public lookups by `public_id` in controllers                                                                                                                            | No group visibility model           |
-| representative              | unclear      | unclear     | partial     | no evidence | `representing_organization_id` on Avatar in [app/models/avatar.rb](../../app/models/avatar.rb)                                                                                | Semantics unresolved                |
-| posting                     | no evidence  | no evidence | no evidence | no evidence | No Post model exists                                                                                                                                                    | Must be designed                    |
-| invite                      | partial      | partial     | partial     | no evidence | membership models and invitations in `organization_invitation`                                                                                                          | Group invitation not present        |
-| delegate/grant              | partial      | partial     | partial     | no evidence | `granted_by_actor_id` in [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb)                                                                             | Meaning of actor is ambiguous       |
-| ownership                   | partial      | partial     | partial     | no evidence | `AvatarAssignment` owner role and `AvatarOwnershipPeriod`                                                                                                               | Need explicit invariant             |
-| creator/founder             | no evidence  | no evidence | no evidence | no evidence | not represented in inspected files                                                                                                                                      | Must be decided                     |
-| revocation                  | partial      | partial     | partial     | no evidence | revocation columns in membership models and block/mute expiry columns                                                                                                   | No last-owner safety rule found     |
-| audit/history visibility    | partial      | partial     | partial     | no evidence | temporal rows and Chronicle in [app/models/chronicle.rb](../../app/models/chronicle.rb)                                                                                       | Actor identity is ambiguous         |
-| last-admin/owner protection | partial      | partial     | partial     | no evidence | owner role exists in Avatar RBAC and primary membership uniqueness exists in collective memberships                                                                     | Explicit last-admin guard not found |
+| operate/use                 | partial      | partial     | partial     | no evidence | current membership and selection flows in [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb)                                                  | No group layer                      |
+| read                        | partial      | partial     | partial     | no evidence | selectors/switchers/controllers in config/routes/acme.rb (historical path: `config/routes/acme.rb`)                                                                                 | No explicit read matrix             |
+| write                       | partial      | partial     | partial     | no evidence | controller write paths in app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`) and selector/switcher authorities      | No group write policy               |
+| visible/view-only           | partial      | partial     | partial     | no evidence | public lookups by `public_id` in controllers                                                                                                                                        | No group visibility model           |
+| representative              | unclear      | unclear     | partial     | no evidence | `representing_organization_id` on Avatar in [app/models/avatar.rb](../../app/models/avatar.rb)                                                                                      | Semantics unresolved                |
+| posting                     | no evidence  | no evidence | no evidence | no evidence | No Post model exists                                                                                                                                                                | Must be designed                    |
+| invite                      | partial      | partial     | partial     | no evidence | membership models and invitations in `organization_invitation`                                                                                                                      | Group invitation not present        |
+| delegate/grant              | partial      | partial     | partial     | no evidence | `granted_by_actor_id` in [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb)                                                                                   | Meaning of actor is ambiguous       |
+| ownership                   | partial      | partial     | partial     | no evidence | `AvatarAssignment` owner role and `AvatarOwnershipPeriod`                                                                                                                           | Need explicit invariant             |
+| creator/founder             | no evidence  | no evidence | no evidence | no evidence | not represented in inspected files                                                                                                                                                  | Must be decided                     |
+| revocation                  | partial      | partial     | partial     | no evidence | revocation columns in membership models and block/mute expiry columns                                                                                                               | No last-owner safety rule found     |
+| audit/history visibility    | partial      | partial     | partial     | no evidence | temporal rows and Chronicle in [app/models/chronicle.rb](../../app/models/chronicle.rb)                                                                                             | Actor identity is ambiguous         |
+| last-admin/owner protection | partial      | partial     | partial     | no evidence | owner role exists in Avatar RBAC and primary membership uniqueness exists in collective memberships                                                                                 | Explicit last-admin guard not found |
 
 ### Posting authority vs representative authority
 
@@ -774,7 +804,8 @@ Current status against target:
   policy for it.
 - Does code conflate them? It may. The current Avatar creation path sets both
   `owner_organization_id` and `representing_organization_id` to the same collective in
-  app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`).
+  app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`).
 - Is `representing_organization_id` present? Yes, as a string column on Avatar in
   [app/models/avatar.rb](../../app/models/avatar.rb).
 - What does it mean? Repository evidence is insufficient.
@@ -786,8 +817,9 @@ Current status against target:
 
 - Intended UX from the code today is selector first, switcher second. `AcmeSelectorAuthority`
   prepares or selects the first context, and `AcmeSwitcherAuthority` changes already-selected
-  context in app/services/acme_selector_authority.rb (historical path: `app/services/acme_selector_authority.rb`) and
-  app/services/acme_switcher_authority.rb (historical path: `app/services/acme_switcher_authority.rb`).
+  context in app/services/acme_selector_authority.rb (historical path:
+  `app/services/acme_selector_authority.rb`) and app/services/acme_switcher_authority.rb (historical
+  path: `app/services/acme_switcher_authority.rb`).
 - Current context storage uses public IDs, not internal IDs, in `selected_account_public_id`,
   `selected_collective_public_id`, `selected_collective_unit_public_id`, and
   `selected_avatar_public_id` in
@@ -795,8 +827,8 @@ Current status against target:
   [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb), and
   [app/controllers/concerns/actor_support.rb](../../app/controllers/concerns/actor_support.rb).
 - Route hierarchy does not fully reflect the confirmed target hierarchy; it reflects current
-  surface-local selector/switcher and CRUD scaffolding in
-  config/routes/acme.rb (historical path: `config/routes/acme.rb`).
+  surface-local selector/switcher and CRUD scaffolding in config/routes/acme.rb (historical path:
+  `config/routes/acme.rb`).
 - Switcher is hierarchical in data shape but flat in persistence: one session token receives
   selected IDs in
   [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb).
@@ -805,8 +837,8 @@ Current status against target:
 - Can a user switch to Account without Organization? Not through the candidate model in
   [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb).
 - Can a user switch to Avatar without Account? Not through the candidate model in
-  [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb), because avatar
-  candidates are built from account memberships.
+  [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb), because
+  avatar candidates are built from account memberships.
 - What happens if access is revoked mid-session? The inspected selector/switcher code does a live
   authorization check against current records in
   [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb).
@@ -817,79 +849,85 @@ Current status against target:
   `candidate_still_authorized?` re-checks availability in
   [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb).
 - Are invalid switching cases tested? Yes, selector and switcher controller tests cover invalid
-  selection/switch paths in
-  test/controllers/acme/app/selector_controller_test.rb (historical path: `test/controllers/acme/app/selector_controller_test.rb`)
-  and
-  test/controllers/acme/app/switchers_controller_test.rb (historical path: `test/controllers/acme/app/switchers_controller_test.rb`).
+  selection/switch paths in test/controllers/acme/app/selector_controller_test.rb (historical path:
+  `test/controllers/acme/app/selector_controller_test.rb`) and
+  test/controllers/acme/app/switchers_controller_test.rb (historical path:
+  `test/controllers/acme/app/switchers_controller_test.rb`).
 
 ## Route / Controller Inventory
 
 ### Organizations
 
-- App route: `resources :organizations` in config/routes/acme.rb (historical path: `config/routes/acme.rb`)
-- App controller:
-  app/controllers/acme/app/organizations_controller.rb (historical path: `app/controllers/acme/app/organizations_controller.rb`)
+- App route: `resources :organizations` in config/routes/acme.rb (historical path:
+  `config/routes/acme.rb`)
+- App controller: app/controllers/acme/app/organizations_controller.rb (historical path:
+  `app/controllers/acme/app/organizations_controller.rb`)
 - Params: `params[:id]` resolved to `public_id`
 - Auth: `authenticate_client!`
 - Lookup method: `Enterprise.find_by!(public_id: params.expect(:id))`
 - Surface: HTML and redirect behavior
 
-- Com route: `resources :organizations` in config/routes/acme.rb (historical path: `config/routes/acme.rb`)
-- Com controller:
-  app/controllers/acme/com/organizations_controller.rb (historical path: `app/controllers/acme/com/organizations_controller.rb`)
+- Com route: `resources :organizations` in config/routes/acme.rb (historical path:
+  `config/routes/acme.rb`)
+- Com controller: app/controllers/acme/com/organizations_controller.rb (historical path:
+  `app/controllers/acme/com/organizations_controller.rb`)
 - Params: `params[:id]` resolved to `public_id`
 - Auth: `authenticate_visitor!`
 - Lookup method: `Company.find_by!(public_id: params.expect(:id))`
 
-- Org route: `resources :organizations` in config/routes/acme.rb (historical path: `config/routes/acme.rb`)
-- Org controller:
-  app/controllers/acme/org/organizations_controller.rb (historical path: `app/controllers/acme/org/organizations_controller.rb`)
+- Org route: `resources :organizations` in config/routes/acme.rb (historical path:
+  `config/routes/acme.rb`)
+- Org controller: app/controllers/acme/org/organizations_controller.rb (historical path:
+  `app/controllers/acme/org/organizations_controller.rb`)
 - Params: `params[:id]` resolved to `public_id`
 - Auth: `authenticate_operator!`
 - Lookup method: `Bureau.find_by!(public_id: params.expect(:id))`
 
 ### Accounts
 
-- App controller:
-  app/controllers/acme/app/accounts_controller.rb (historical path: `app/controllers/acme/app/accounts_controller.rb`)
-- Com controller:
-  app/controllers/acme/com/accounts_controller.rb (historical path: `app/controllers/acme/com/accounts_controller.rb`)
-- Org controller:
-  app/controllers/acme/org/accounts_controller.rb (historical path: `app/controllers/acme/org/accounts_controller.rb`)
-- Route pattern: `resources :accounts` in config/routes/acme.rb (historical path: `config/routes/acme.rb`)
+- App controller: app/controllers/acme/app/accounts_controller.rb (historical path:
+  `app/controllers/acme/app/accounts_controller.rb`)
+- Com controller: app/controllers/acme/com/accounts_controller.rb (historical path:
+  `app/controllers/acme/com/accounts_controller.rb`)
+- Org controller: app/controllers/acme/org/accounts_controller.rb (historical path:
+  `app/controllers/acme/org/accounts_controller.rb`)
+- Route pattern: `resources :accounts` in config/routes/acme.rb (historical path:
+  `config/routes/acme.rb`)
 - Current behavior: index only in the controller bodies inspected here; the richer account CRUD
   lives in the account-specific controllers not shown in this excerpt.
 
 ### Avatars
 
-- App route: `resources :avatars` in config/routes/acme.rb (historical path: `config/routes/acme.rb`)
-- App controller:
-  app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`)
+- App route: `resources :avatars` in config/routes/acme.rb (historical path:
+  `config/routes/acme.rb`)
+- App controller: app/controllers/acme/app/avatars_controller.rb (historical path:
+  `app/controllers/acme/app/avatars_controller.rb`)
 - Params: `params[:id]` treated as Avatar `public_id` in `find_avatar!`
 - Auth: `authenticate_client!`
 - Surface: HTML and redirect behavior
 
-- Org route: `resources :avatars` in config/routes/acme.rb (historical path: `config/routes/acme.rb`)
-- Org controller:
-  app/controllers/acme/org/avatars_controller.rb (historical path: `app/controllers/acme/org/avatars_controller.rb`)
+- Org route: `resources :avatars` in config/routes/acme.rb (historical path:
+  `config/routes/acme.rb`)
+- Org controller: app/controllers/acme/org/avatars_controller.rb (historical path:
+  `app/controllers/acme/org/avatars_controller.rb`)
 - Params: controller uses the current selected avatar context rather than a direct lookup in the
   excerpt shown
 - Auth: `authenticate_operator!`
 
 ### Selector / Switcher / Current Context
 
-- App selector:
-  app/controllers/acme/app/selectors_controller.rb (historical path: `app/controllers/acme/app/selectors_controller.rb`)
-- App switcher:
-  app/controllers/acme/app/switchers_controller.rb (historical path: `app/controllers/acme/app/switchers_controller.rb`)
-- Com selector:
-  app/controllers/acme/com/selectors_controller.rb (historical path: `app/controllers/acme/com/selectors_controller.rb`)
-- Com switcher:
-  app/controllers/acme/com/switchers_controller.rb (historical path: `app/controllers/acme/com/switchers_controller.rb`)
-- Org selector:
-  app/controllers/acme/org/selectors_controller.rb (historical path: `app/controllers/acme/org/selectors_controller.rb`)
-- Org switcher:
-  app/controllers/acme/org/switchers_controller.rb (historical path: `app/controllers/acme/org/switchers_controller.rb`)
+- App selector: app/controllers/acme/app/selectors_controller.rb (historical path:
+  `app/controllers/acme/app/selectors_controller.rb`)
+- App switcher: app/controllers/acme/app/switchers_controller.rb (historical path:
+  `app/controllers/acme/app/switchers_controller.rb`)
+- Com selector: app/controllers/acme/com/selectors_controller.rb (historical path:
+  `app/controllers/acme/com/selectors_controller.rb`)
+- Com switcher: app/controllers/acme/com/switchers_controller.rb (historical path:
+  `app/controllers/acme/com/switchers_controller.rb`)
+- Org selector: app/controllers/acme/org/selectors_controller.rb (historical path:
+  `app/controllers/acme/org/selectors_controller.rb`)
+- Org switcher: app/controllers/acme/org/switchers_controller.rb (historical path:
+  `app/controllers/acme/org/switchers_controller.rb`)
 - Current context storage:
   [app/controllers/concerns/actor_support.rb](../../app/controllers/concerns/actor_support.rb) and
   [app/models/concerns/selected_actor_context.rb](../../app/models/concerns/selected_actor_context.rb)
@@ -904,12 +942,12 @@ Current status against target:
 
 ## Public Identifier / Handle / Display / Moniker Inventory
 
-| Resource                                            | Internal ID | public_id | handle           | display/moniker         | history                  | cooldown                                       | Evidence                                                                                                                                                 | Gap                                    |
-| --------------------------------------------------- | ----------- | --------- | ---------------- | ----------------------- | ------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Organization-like (`Enterprise`/`Bureau`/`Company`) | yes         | yes       | no               | `name` / future `title` | no                       | no                                             | [app/models/enterprise.rb](../../app/models/enterprise.rb), [app/models/bureau.rb](../../app/models/bureau.rb), [app/models/company.rb](../../app/models/company.rb)       | display vocabulary not unified         |
-| Account-like (`Persona`/`Agent`/`Individual`)       | yes         | yes       | no               | `moniker`               | no                       | no                                             | app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), [app/models/individual.rb](../../app/models/individual.rb)         | no direct display model                |
-| Avatar                                              | yes         | yes       | yes via `Handle` | `moniker`               | yes, via `AvatarMoniker` | handle has cooldown; moniker does not show one | [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb) | separate display vocabulary unresolved |
-| Group-like                                          | no model    | no model  | no model         | no model                | no model                 | no model                                       | no Group model file found in inspected inventory                                                                                                         | Group layer must be created            |
+| Resource                                            | Internal ID | public_id | handle           | display/moniker         | history                  | cooldown                                       | Evidence                                                                                                                                                                       | Gap                                    |
+| --------------------------------------------------- | ----------- | --------- | ---------------- | ----------------------- | ------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| Organization-like (`Enterprise`/`Bureau`/`Company`) | yes         | yes       | no               | `name` / future `title` | no                       | no                                             | [app/models/enterprise.rb](../../app/models/enterprise.rb), [app/models/bureau.rb](../../app/models/bureau.rb), [app/models/company.rb](../../app/models/company.rb)           | display vocabulary not unified         |
+| Account-like (`Persona`/`Agent`/`Individual`)       | yes         | yes       | no               | `moniker`               | no                       | no                                             | app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), [app/models/individual.rb](../../app/models/individual.rb) | no direct display model                |
+| Avatar                                              | yes         | yes       | yes via `Handle` | `moniker`               | yes, via `AvatarMoniker` | handle has cooldown; moniker does not show one | [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), [app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb)     | separate display vocabulary unresolved |
+| Group-like                                          | no model    | no model  | no model         | no model                | no model                 | no model                                       | no Group model file found in inspected inventory                                                                                                                               | Group layer must be created            |
 
 Known handle rule from repository evidence:
 
@@ -923,7 +961,8 @@ Assessments:
 - Uniqueness global? `Handle` uniqueness is global for non-system rows in
   [app/models/handle.rb](../../app/models/handle.rb).
 - Case sensitivity? Repository evidence here does not prove case sensitivity behavior.
-- DB-enforced? Yes for uniqueness through indexes in [app/models/handle.rb](../../app/models/handle.rb).
+- DB-enforced? Yes for uniqueness through indexes in
+  [app/models/handle.rb](../../app/models/handle.rb).
 - Reserved words? `is_system` provides a separate path, but reserved-word policy is not documented
   in code.
 - Reuse of old handles? Not proven.
@@ -933,8 +972,9 @@ Assessments:
 ## Moniker / Display Terminology Decision
 
 - `display` is the product term.
-- `moniker` is the current implementation term in [app/models/avatar.rb](../../app/models/avatar.rb),
-  app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and
+- `moniker` is the current implementation term in
+  [app/models/avatar.rb](../../app/models/avatar.rb), app/models/persona.rb (historical path:
+  `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and
   [app/models/individual.rb](../../app/models/individual.rb).
 - Repository evidence currently supports option A: `display` maps to `moniker` at the implementation
   layer.
@@ -990,7 +1030,8 @@ What the repository actually has:
 
 - `Enterprise`, `Bureau`, and `Company` are the current collective/container models in
   [app/models/enterprise.rb](../../app/models/enterprise.rb),
-  [app/models/bureau.rb](../../app/models/bureau.rb), and [app/models/company.rb](../../app/models/company.rb).
+  [app/models/bureau.rb](../../app/models/bureau.rb), and
+  [app/models/company.rb](../../app/models/company.rb).
 - `EnterpriseUnit`, `BureauUnit`, and `CompanyUnit` are the current recursive child-container models
   in [app/models/enterprise_unit.rb](../../app/models/enterprise_unit.rb),
   [app/models/bureau_unit.rb](../../app/models/bureau_unit.rb), and
@@ -1011,7 +1052,8 @@ Group-specific questions:
 ## Mention Syntax Questions
 
 - `@handle` initially resolving only to Avatar is consistent with current Avatar/Handle ownership in
-  [app/models/avatar.rb](../../app/models/avatar.rb), [app/models/handle.rb](../../app/models/handle.rb), and
+  [app/models/avatar.rb](../../app/models/avatar.rb),
+  [app/models/handle.rb](../../app/models/handle.rb), and
   [app/models/handle_assignment.rb](../../app/models/handle_assignment.rb).
 - There is no `@@group` syntax support in the inspected repository files.
 - Mention lookup, autocomplete, notifications, markdown/rich text, and search indexing for Avatar
@@ -1019,8 +1061,10 @@ Group-specific questions:
 
 ## SNS Subject Model Interrogation
 
-- Are follows Avatar-to-Avatar? Yes, in [app/models/avatar_follow.rb](../../app/models/avatar_follow.rb).
-- Are blocks Avatar-to-Avatar? Yes, in [app/models/avatar_block.rb](../../app/models/avatar_block.rb).
+- Are follows Avatar-to-Avatar? Yes, in
+  [app/models/avatar_follow.rb](../../app/models/avatar_follow.rb).
+- Are blocks Avatar-to-Avatar? Yes, in
+  [app/models/avatar_block.rb](../../app/models/avatar_block.rb).
 - Are mutes Avatar-to-Avatar? Yes, in [app/models/avatar_mute.rb](../../app/models/avatar_mute.rb).
 - Are posts authored by Avatar, if Post exists? No Post model was found.
 - Are public profiles Avatar-centered? The current Avatar model is the profile-like SNS object, but
@@ -1032,12 +1076,13 @@ Group-specific questions:
 - Does any code allow Account/Organization/Group to author posts? No post model exists to prove
   that.
 - Can Avatar exist without Account? The current `Avatar` schema and bootstrap path suggest it is
-  tied to `client_id` and ownership context in [app/models/avatar.rb](../../app/models/avatar.rb) and
-  app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`).
+  tied to `client_id` and ownership context in [app/models/avatar.rb](../../app/models/avatar.rb)
+  and app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`).
 - Can Account exist without Organization? The selector/bootstrap path always creates a collective
-  and membership in
-  app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`),
-  but the repository evidence shown here does not prove a DB-level prohibition.
+  and membership in app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`), but the repository evidence shown here does
+  not prove a DB-level prohibition.
 - Can Avatar be transferred between Accounts? The current code shows ownership and handle history,
   but no direct transfer service was inspected.
 - Can Avatar represent Organization? The code stores `representing_organization_id`, but the meaning
@@ -1048,7 +1093,8 @@ Group-specific questions:
 ## Data Integrity Risks
 
 - Required relationships: `Persona`/`Agent`/`Individual` require identity rows in
-  app/models/persona.rb (historical path: `app/models/persona.rb`), [app/models/agent.rb](../../app/models/agent.rb), and
+  app/models/persona.rb (historical path: `app/models/persona.rb`),
+  [app/models/agent.rb](../../app/models/agent.rb), and
   [app/models/individual.rb](../../app/models/individual.rb).
 - `Account -> Organization` is currently enforced by membership logic, not a direct FK.
 - `Avatar -> Account` is not directly enforced.
@@ -1068,7 +1114,8 @@ Group-specific questions:
 ## Authorization Risks
 
 - Authorization is currently mostly empty at the Avatar policy layer in
-  [app/policies/avatar_policy.rb](../../app/policies/avatar_policy.rb) and related empty policy files.
+  [app/policies/avatar_policy.rb](../../app/policies/avatar_policy.rb) and related empty policy
+  files.
 - The current code relies on direct membership/assignment checks in services and controllers more
   than on meaningful Avatar policy logic.
 - Inheritance is not implemented for Avatar permissions in the inspected files.
@@ -1080,9 +1127,10 @@ Group-specific questions:
 ## Routing / API Risks
 
 - Public URLs currently use `params[:id]` while resolving by `public_id` in controllers like
-  app/controllers/acme/app/organizations_controller.rb (historical path: `app/controllers/acme/app/organizations_controller.rb`)
-  and
-  app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`).
+  app/controllers/acme/app/organizations_controller.rb (historical path:
+  `app/controllers/acme/app/organizations_controller.rb`) and
+  app/controllers/acme/app/avatars_controller.rb (historical path:
+  `app/controllers/acme/app/avatars_controller.rb`).
 - Internal admin URLs versus public URLs are not clearly separated for the SNS subject layer.
 - JSON responses can still expose ambiguous `id` fields if future work is not careful.
 - Nested route depth is already significant for selector/switcher/current-context flows in
@@ -1093,16 +1141,16 @@ Group-specific questions:
 
 ## Multi-Surface Vocabulary
 
-| Product concept     | App surface    | Com surface  | Org surface   | Evidence                                                                                     | Notes                               |
-| ------------------- | -------------- | ------------ | ------------- | -------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Product concept     | App surface    | Com surface  | Org surface   | Evidence                                                                                           | Notes                               |
+| ------------------- | -------------- | ------------ | ------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | Account-like        | Persona        | Individual   | Agent         | [app/services/acme_selector_surface_config.rb](../../app/services/acme_selector_surface_config.rb) | Matches the current selector config |
 | Organization-like   | Enterprise     | Company      | Bureau        | [app/services/acme_selector_surface_config.rb](../../app/services/acme_selector_surface_config.rb) | Matches the current selector config |
 | Unit-like           | EnterpriseUnit | CompanyUnit  | BureauUnit    | [app/services/acme_selector_surface_config.rb](../../app/services/acme_selector_surface_config.rb) | Matches the current selector config |
-| Proposed Group-like | ClientGroup    | VisitorGroup | OperatorGroup | no code evidence                                                                             | Proposal only                       |
+| Proposed Group-like | ClientGroup    | VisitorGroup | OperatorGroup | no code evidence                                                                                   | Proposal only                       |
 
 The rough mapping above is supported by
-[app/services/acme_selector_surface_config.rb](../../app/services/acme_selector_surface_config.rb), but it
-is still a configuration mapping, not a final product ontology.
+[app/services/acme_selector_surface_config.rb](../../app/services/acme_selector_surface_config.rb),
+but it is still a configuration mapping, not a final product ontology.
 
 ## Gaps vs Confirmed Target
 
@@ -1135,7 +1183,8 @@ layer by implementation or product language.
 Current evidence:
 
 - [app/models/avatar.rb](../../app/models/avatar.rb)
-- app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`)
+- app/controllers/acme/app/avatars_controller.rb (historical path:
+  `app/controllers/acme/app/avatars_controller.rb`)
 
 What is unclear: Whether the product should keep `Avatar` as the public name or only as an internal
 model name.
@@ -1160,7 +1209,8 @@ schema.
 Current evidence:
 
 - [app/models/avatar.rb](../../app/models/avatar.rb)
-- app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)
+- app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`)
 
 What is unclear: Whether this column is authority, presentation, or a temporary projection.
 
@@ -1532,7 +1582,8 @@ Why this matters: It affects creation flows and whether handle assignment is man
 Current evidence:
 
 - [app/models/avatar.rb](../../app/models/avatar.rb)
-- app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)
+- app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`)
 
 What is unclear: The bootstrap currently creates a handle and avatar together, but the schema
 relationship is not a hard requirement in the model excerpt.
@@ -1626,14 +1677,17 @@ Question: Should the com and org switcher controllers stay stubbed, or should th
 switcher behavior now?
 
 Why this matters: There is an implementation asymmetry in
-app/controllers/acme/com/switchers_controller.rb (historical path: `app/controllers/acme/com/switchers_controller.rb`)
-and
-app/controllers/acme/org/switchers_controller.rb (historical path: `app/controllers/acme/org/switchers_controller.rb`).
+app/controllers/acme/com/switchers_controller.rb (historical path:
+`app/controllers/acme/com/switchers_controller.rb`) and
+app/controllers/acme/org/switchers_controller.rb (historical path:
+`app/controllers/acme/org/switchers_controller.rb`).
 
 Current evidence:
 
-- app/controllers/acme/com/switchers_controller.rb (historical path: `app/controllers/acme/com/switchers_controller.rb`)
-- app/controllers/acme/org/switchers_controller.rb (historical path: `app/controllers/acme/org/switchers_controller.rb`)
+- app/controllers/acme/com/switchers_controller.rb (historical path:
+  `app/controllers/acme/com/switchers_controller.rb`)
+- app/controllers/acme/org/switchers_controller.rb (historical path:
+  `app/controllers/acme/org/switchers_controller.rb`)
 
 What is unclear: Whether the stubs are intentional placeholders or a gap.
 
@@ -1655,7 +1709,8 @@ Why this matters: The config already has `requires_avatar` toggles.
 
 Current evidence:
 
-- app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)
+- app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`)
 - [app/services/acme_selector_surface_config.rb](../../app/services/acme_selector_surface_config.rb)
 
 What is unclear: Whether the Avatar hook is permanent or only app-specific.
@@ -1675,7 +1730,8 @@ Risk if unresolved: Surface rules will diverge silently.
 Question: Should `title` replace `moniker` on accounts, or should the two stay separate forever?
 
 Why this matters: The bootstrap code already seeds both `moniker` and `title` for accounts in
-app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`).
+app/services/acme_selector_bootstrap_authority.rb (historical path:
+`app/services/acme_selector_bootstrap_authority.rb`).
 
 Current evidence:
 
@@ -1941,7 +1997,8 @@ Why this matters: The code already accepts both in some places.
 Current evidence:
 
 - [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb)
-- app/controllers/acme/app/selectors_controller.rb (historical path: `app/controllers/acme/app/selectors_controller.rb`)
+- app/controllers/acme/app/selectors_controller.rb (historical path:
+  `app/controllers/acme/app/selectors_controller.rb`)
 
 What is unclear: Whether collective is final product vocabulary or transitional internal language.
 
@@ -2009,8 +2066,10 @@ Why this matters: Route design and external links depend on it.
 
 Current evidence:
 
-- app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`)
-- test/controllers/acme/app/avatars_controller_test.rb (historical path: `test/controllers/acme/app/avatars_controller_test.rb`)
+- app/controllers/acme/app/avatars_controller.rb (historical path:
+  `app/controllers/acme/app/avatars_controller.rb`)
+- test/controllers/acme/app/avatars_controller_test.rb (historical path:
+  `test/controllers/acme/app/avatars_controller_test.rb`)
 
 What is unclear: There is no public Avatar handle route today.
 
@@ -2033,7 +2092,8 @@ Why this matters: The current code stores `owner_organization_id` and `client_id
 Current evidence:
 
 - [app/models/avatar.rb](../../app/models/avatar.rb)
-- app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)
+- app/services/acme_selector_bootstrap_authority.rb (historical path:
+  `app/services/acme_selector_bootstrap_authority.rb`)
 
 What is unclear: Which one is the real authority boundary.
 
@@ -2267,8 +2327,10 @@ Why this matters: Current context is already a shared runtime contract.
 
 Current evidence:
 
-- app/services/acme_selector_authority.rb (historical path: `app/services/acme_selector_authority.rb`)
-- app/services/acme_switcher_authority.rb (historical path: `app/services/acme_switcher_authority.rb`)
+- app/services/acme_selector_authority.rb (historical path:
+  `app/services/acme_selector_authority.rb`)
+- app/services/acme_switcher_authority.rb (historical path:
+  `app/services/acme_switcher_authority.rb`)
 - [app/controllers/concerns/actor_support.rb](../../app/controllers/concerns/actor_support.rb)
 
 What is unclear: Whether other services are allowed to mutate selected IDs.
@@ -2313,8 +2375,8 @@ Decision 01: Question: Should Avatar remain the only public SNS actor in v1? Cho
 Avatar only. B. Avatar plus Account. C. Avatar plus Group. Recommended default: A. Why: The current
 model and routes already center Avatar. Repository evidence:
 [app/models/avatar.rb](../../app/models/avatar.rb),
-[app/models/avatar_follow.rb](../../app/models/avatar_follow.rb) Risk of choosing wrong: The subject model
-will split too early. Implementation affected:
+[app/models/avatar_follow.rb](../../app/models/avatar_follow.rb) Risk of choosing wrong: The subject
+model will split too early. Implementation affected:
 
 - models: Avatar, follow/block/mute, handle history
 - migrations: maybe none yet
@@ -2329,8 +2391,9 @@ Decision 02: Question: Should `Organization -> Account` be DB-enforced? Choose o
 service-only. C. Hybrid with service + projection. Recommended default: C. Why: Current code already
 uses a service projection, but no direct FK exists. Repository evidence:
 [app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb),
-app/services/acme_selector_bootstrap_authority.rb (historical path: `app/services/acme_selector_bootstrap_authority.rb`)
-Risk of choosing wrong: Account ownership may drift. Implementation affected:
+app/services/acme_selector_bootstrap_authority.rb (historical path:
+`app/services/acme_selector_bootstrap_authority.rb`) Risk of choosing wrong: Account ownership may
+drift. Implementation affected:
 
 - models:
 - migrations:
@@ -2344,8 +2407,9 @@ Risk of choosing wrong: Account ownership may drift. Implementation affected:
 Decision 03: Question: Should `Avatar -> Account` be DB-enforced? Choose one: A. Yes. B. No,
 service-only. C. Transitional Member-based ownership. Recommended default: A. Why: The current
 `Avatar -> Member` path is the clearest structural mismatch. Repository evidence:
-[app/models/avatar.rb](../../app/models/avatar.rb), [app/models/member.rb](../../app/models/member.rb) Risk of
-choosing wrong: SNS actor ownership remains indirect. Implementation affected:
+[app/models/avatar.rb](../../app/models/avatar.rb),
+[app/models/member.rb](../../app/models/member.rb) Risk of choosing wrong: SNS actor ownership
+remains indirect. Implementation affected:
 
 - models:
 - migrations:
@@ -2360,7 +2424,8 @@ Decision 04: Question: Should `Group` be a new model family or a projection over
 Choose one: A. New model family. B. Projection over collectives. C. Reuse collective models
 directly. Recommended default: A. Why: The product vocabulary says Group should not be a generic
 `Group`. Repository evidence: No Group model exists; collective model family exists in
-[app/models/enterprise.rb](../../app/models/enterprise.rb), [app/models/bureau.rb](../../app/models/bureau.rb),
+[app/models/enterprise.rb](../../app/models/enterprise.rb),
+[app/models/bureau.rb](../../app/models/bureau.rb),
 [app/models/company.rb](../../app/models/company.rb) Risk of choosing wrong: Collective and group
 semantics will blur. Implementation affected:
 
@@ -2376,7 +2441,8 @@ semantics will blur. Implementation affected:
 Decision 05: Question: Should `AvatarAssignment` be retained as authority or collapsed into
 `AvatarMembership`? Choose one: A. Retain both with a clear boundary. B. Collapse into membership
 only. C. Collapse into assignment only. Recommended default: A. Why: Current code already uses both
-layers. Repository evidence: [app/models/avatar_assignment.rb](../../app/models/avatar_assignment.rb),
+layers. Repository evidence:
+[app/models/avatar_assignment.rb](../../app/models/avatar_assignment.rb),
 [app/models/avatar_membership.rb](../../app/models/avatar_membership.rb) Risk of choosing wrong:
 Authorization logic will duplicate or disappear. Implementation affected:
 
@@ -2392,8 +2458,8 @@ Authorization logic will duplicate or disappear. Implementation affected:
 Decision 06: Question: Should handle history be immutable rows only? Choose one: A. Yes. B. No,
 allow overwrite. C. Current row plus immutable history. Recommended default: A. Why:
 `HandleAssignment` already looks temporal. Repository evidence:
-[app/models/handle_assignment.rb](../../app/models/handle_assignment.rb) Risk of choosing wrong: Handle
-changes will be hard to audit. Implementation affected:
+[app/models/handle_assignment.rb](../../app/models/handle_assignment.rb) Risk of choosing wrong:
+Handle changes will be hard to audit. Implementation affected:
 
 - models:
 - migrations:
@@ -2407,8 +2473,8 @@ changes will be hard to audit. Implementation affected:
 Decision 07: Question: Should moniker history use a cooldown? Choose one: A. Yes. B. No. C. Only for
 some surfaces. Recommended default: B or C, depending on product intent. Why: The schema currently
 shows history but not cooldown. Repository evidence:
-[app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb) Risk of choosing wrong: Display name
-changes will feel inconsistent with handles. Implementation affected:
+[app/models/avatar_moniker.rb](../../app/models/avatar_moniker.rb) Risk of choosing wrong: Display
+name changes will feel inconsistent with handles. Implementation affected:
 
 - models:
 - migrations:
@@ -2422,8 +2488,8 @@ changes will feel inconsistent with handles. Implementation affected:
 Decision 08: Question: Should `@handle` remain Avatar-only? Choose one: A. Yes. B. Expand later. C.
 Shared namespace now. Recommended default: A. Why: Current code only supports Avatar handle
 ownership. Repository evidence: [app/models/handle.rb](../../app/models/handle.rb),
-[app/models/handle_assignment.rb](../../app/models/handle_assignment.rb) Risk of choosing wrong: Namespace
-collisions. Implementation affected:
+[app/models/handle_assignment.rb](../../app/models/handle_assignment.rb) Risk of choosing wrong:
+Namespace collisions. Implementation affected:
 
 - models:
 - migrations:
@@ -2436,8 +2502,8 @@ collisions. Implementation affected:
 
 Decision 09: Question: Should representative authority be modeled separately from posting authority?
 Choose one: A. Yes. B. No. C. Combine them for v1. Recommended default: A. Why: The product decision
-already separates them. Repository evidence: [app/models/avatar.rb](../../app/models/avatar.rb) Risk of
-choosing wrong: High-risk admin-like authority will be conflated with ordinary posting.
+already separates them. Repository evidence: [app/models/avatar.rb](../../app/models/avatar.rb) Risk
+of choosing wrong: High-risk admin-like authority will be conflated with ordinary posting.
 Implementation affected:
 
 - models:
@@ -2484,8 +2550,8 @@ Decision 12: Question: Should groups inherit collective units? Choose one: A. Ye
 some groups. Recommended default: B. Why: Unit hierarchies already exist on collective models.
 Repository evidence: [app/models/enterprise_unit.rb](../../app/models/enterprise_unit.rb),
 [app/models/bureau_unit.rb](../../app/models/bureau_unit.rb),
-[app/models/company_unit.rb](../../app/models/company_unit.rb) Risk of choosing wrong: The hierarchy will
-become overcomplicated. Implementation affected:
+[app/models/company_unit.rb](../../app/models/company_unit.rb) Risk of choosing wrong: The hierarchy
+will become overcomplicated. Implementation affected:
 
 - models:
 - migrations:
@@ -2499,9 +2565,8 @@ become overcomplicated. Implementation affected:
 Decision 13: Question: Should `display` remain the product term and `moniker` remain storage term?
 Choose one: A. Yes. B. Rename storage to display. C. Keep moniker as product term. Recommended
 default: A. Why: That matches the current code while preserving product vocabulary. Repository
-evidence: [app/models/avatar.rb](../../app/models/avatar.rb),
-app/models/persona.rb (historical path: `app/models/persona.rb`) Risk of choosing wrong: Vocabulary drift.
-Implementation affected:
+evidence: [app/models/avatar.rb](../../app/models/avatar.rb), app/models/persona.rb (historical
+path: `app/models/persona.rb`) Risk of choosing wrong: Vocabulary drift. Implementation affected:
 
 - models:
 - migrations:
@@ -2514,9 +2579,10 @@ Implementation affected:
 
 Decision 14: Question: Should last-owner protection apply to Avatar, Group, and collective
 membership? Choose one: A. Yes. B. No. C. Only on some surfaces. Recommended default: A. Why: The
-product explicitly requires it. Repository evidence: [app/models/avatar.rb](../../app/models/avatar.rb),
-[app/models/concerns/collective_membership.rb](../../app/models/concerns/collective_membership.rb) Risk of
-choosing wrong: Orphaned resources and broken recovery paths. Implementation affected:
+product explicitly requires it. Repository evidence:
+[app/models/avatar.rb](../../app/models/avatar.rb),
+[app/models/concerns/collective_membership.rb](../../app/models/concerns/collective_membership.rb)
+Risk of choosing wrong: Orphaned resources and broken recovery paths. Implementation affected:
 
 - models:
 - migrations:
@@ -2544,8 +2610,9 @@ choosing wrong: UI and validation drift. Implementation affected:
 Decision 16: Question: Should the current `Member` layer remain visible in SNS docs? Choose one: A.
 Yes, as an intermediate layer. B. No, hide it from SNS docs. C. Rename it now. Recommended default:
 A. Why: It is part of the current graph. Repository evidence:
-[app/models/member.rb](../../app/models/member.rb), [app/models/avatar.rb](../../app/models/avatar.rb) Risk of
-choosing wrong: The real ownership path will be obscured. Implementation affected:
+[app/models/member.rb](../../app/models/member.rb),
+[app/models/avatar.rb](../../app/models/avatar.rb) Risk of choosing wrong: The real ownership path
+will be obscured. Implementation affected:
 
 - models:
 - migrations:
@@ -2559,8 +2626,8 @@ choosing wrong: The real ownership path will be obscured. Implementation affecte
 Decision 17: Question: Should `Chronicle` be the SNS audit model? Choose one: A. Yes. B. No,
 dedicated SNS audit table. C. Both. Recommended default: C. Why: `Chronicle` exists, but `actor_id`
 is polymorphic and not SNS-specific. Repository evidence:
-[app/models/chronicle.rb](../../app/models/chronicle.rb) Risk of choosing wrong: Audit semantics will
-remain ambiguous. Implementation affected:
+[app/models/chronicle.rb](../../app/models/chronicle.rb) Risk of choosing wrong: Audit semantics
+will remain ambiguous. Implementation affected:
 
 - models:
 - migrations:
@@ -2574,10 +2641,10 @@ remain ambiguous. Implementation affected:
 Decision 18: Question: Should app/com/org selector params keep both `organization_*` and
 `collective_*` names? Choose one: A. Yes. B. Normalize to organization only. C. Normalize to
 collective only. Recommended default: A temporarily, with one canonical doc term. Why: The code
-already accepts both. Repository evidence:
-app/controllers/acme/app/selectors_controller.rb (historical path: `app/controllers/acme/app/selectors_controller.rb`),
-[app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb) Risk of choosing
-wrong: Compatibility bugs during rollout. Implementation affected:
+already accepts both. Repository evidence: app/controllers/acme/app/selectors_controller.rb
+(historical path: `app/controllers/acme/app/selectors_controller.rb`),
+[app/services/acme_selectable_context.rb](../../app/services/acme_selectable_context.rb) Risk of
+choosing wrong: Compatibility bugs during rollout. Implementation affected:
 
 - models:
 - migrations:
@@ -2591,9 +2658,11 @@ wrong: Compatibility bugs during rollout. Implementation affected:
 Decision 19: Question: Should app/org/com switchers be fully functional on all surfaces now? Choose
 one: A. Yes. B. App only. C. Keep com/org stubs. Recommended default: C until their surface rules
 are settled. Why: The current code is intentionally asymmetric. Repository evidence:
-app/controllers/acme/com/switchers_controller.rb (historical path: `app/controllers/acme/com/switchers_controller.rb`),
-app/controllers/acme/org/switchers_controller.rb (historical path: `app/controllers/acme/org/switchers_controller.rb`)
-Risk of choosing wrong: Unfinished behavior leaks into user flows. Implementation affected:
+app/controllers/acme/com/switchers_controller.rb (historical path:
+`app/controllers/acme/com/switchers_controller.rb`),
+app/controllers/acme/org/switchers_controller.rb (historical path:
+`app/controllers/acme/org/switchers_controller.rb`) Risk of choosing wrong: Unfinished behavior
+leaks into user flows. Implementation affected:
 
 - models:
 - migrations:
@@ -2606,10 +2675,11 @@ Risk of choosing wrong: Unfinished behavior leaks into user flows. Implementatio
 
 Decision 20: Question: Should app Avatar CRUD remain public-id based in the route `:id` slot? Choose
 one: A. Yes. B. Move to handle. C. Use a separate param name. Recommended default: A. Why: That is
-the current controller contract. Repository evidence:
-app/controllers/acme/app/avatars_controller.rb (historical path: `app/controllers/acme/app/avatars_controller.rb`),
-test/controllers/acme/app/avatars_controller_test.rb (historical path: `test/controllers/acme/app/avatars_controller_test.rb`)
-Risk of choosing wrong: Public URLs will change unnecessarily. Implementation affected:
+the current controller contract. Repository evidence: app/controllers/acme/app/avatars_controller.rb
+(historical path: `app/controllers/acme/app/avatars_controller.rb`),
+test/controllers/acme/app/avatars_controller_test.rb (historical path:
+`test/controllers/acme/app/avatars_controller_test.rb`) Risk of choosing wrong: Public URLs will
+change unnecessarily. Implementation affected:
 
 - models:
 - migrations:

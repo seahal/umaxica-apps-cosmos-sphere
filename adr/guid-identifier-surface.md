@@ -2,6 +2,10 @@
 
 ## Status
 
+Retired (2026-11-09). The `guid` surface is removed from all four Cosmos repositories
+(`specs/cosmos-press-route-ownership/spec.md`). The decisions below are kept as history; a future
+identifier service needs a new decision.
+
 Accepted (2026-09-09). Supersedes the 2026-09-08 revision of this ADR, which named the public host
 `guid.umaxica.id`. That hostname is retired; do not admit it.
 

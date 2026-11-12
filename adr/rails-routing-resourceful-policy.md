@@ -193,3 +193,12 @@ be updated for every approved exception.
 
 The owner removed the Visa roots to reduce the anonymous surface. `/` on a Visa host is unrouted and
 answers 404.
+
+### Auth public roots (retired 2026-11-08)
+
+The owner decided that Auth and Visa must not have a home page. Neither is a relying party, so a
+home page there cannot know whether the person is signed in at an RP and cannot offer correct
+navigation; entry starts at an RP through an OpenID Connect request instead
+(`adr/cosmos-base-surface-decomposition.md`, decisions 8 and 9). The 2026-07-05 pre-approval of
+`root ...` no longer covers `config/routes/auth.rb`. `/` on an Auth host is unrouted and answers
+404, as on Visa.

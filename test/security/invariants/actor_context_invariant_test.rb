@@ -40,20 +40,12 @@ module Security
       end
 
       test "Actor install_context is limited to reviewed lifecycle boundaries" do
+        # These components install context only after request-bound credential or step-up checks.
         allowlist = [
           "app/controllers/concerns/actor_support.rb",
           "app/controllers/concerns/authentication_base.rb",
-          "app/controllers/concerns/authentication_jwt_tokens.rb",
-          "app/controllers/concerns/base_step_up_completion.rb",
           "app/controllers/concerns/core_browser_api_boundary.rb",
           "app/controllers/concerns/verification_base.rb",
-          # Avatar owner endpoints install a selection only after resolving the supplied tuple
-          # against the authenticated actor's candidates; their controllers clear it in the
-          # with_actor_lifecycle around action.
-          "app/controllers/concerns/avatar_authority_api_endpoint.rb",
-          # Anonymous com lifecycle: installs the com actor for the request and clears it in the
-          # around hook, because the corporate surface has no principal to resolve.
-          "app/controllers/concerns/com_anonymous_actor_context.rb",
         ]
 
         offenders =
@@ -75,10 +67,7 @@ module Security
       end
 
       test "request id is never used as an OpenTelemetry trace id" do
-        paths = [
-          Rails.root.join("app/controllers/concerns/actor_support.rb"),
-          Rails.root.join("app/controllers/concerns/core_browser_api_boundary.rb"),
-        ]
+        paths = Rails.root.glob("app/**/*.rb")
 
         offenders =
           paths.flat_map do |path|

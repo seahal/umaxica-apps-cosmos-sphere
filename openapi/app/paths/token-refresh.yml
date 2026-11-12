@@ -1,6 +1,6 @@
 # POST /api/v0/token/refresh on the app surface.
 servers:
-  - url: https://jp.umaxica.app
+  - url: https://www-jp.umaxica.app
     description: Canonical Core public host for the app (end-user application) surface.
 post:
   summary: Rotate the browser credential pair

@@ -14,7 +14,7 @@
 
 /*
  * The theme lives on `<html data-theme>`, written by the server from the `ct` cookie
- * (`app/helpers/application_helper.rb#theme_cookie_value`) and kept in sync by `src/lib/theme.ts`.
+ * (`app/helpers/application_helper.rb#theme_cookie_value`).
  * The attribute is always one of `light`, `dark` or `system`, so the two branches below are total:
  *
  *   - `dark`   always dark, whatever the operating system says
@@ -53,8 +53,7 @@
 
   /*
    * System fonts only, Latin face first so Latin text is not rendered by the Japanese face. No
-   * webfont, so nothing here blocks first paint. `base_family.css` re-points this for the base
-   * family rather than restating the whole rule at a higher specificity.
+   * webfont, so nothing here blocks first paint.
    */
   --ui-font-sans:
     "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
@@ -163,45 +162,8 @@
 }
 
 /*
- * Motion. Both animations are referenced by existing markup; `fade-in-up` was used by
- * `auth/org/omniauth/omniauth_callbacks/error.html.erb` without ever being defined, so nothing
- * animated. Declaring them here makes `animate-shake` and `animate-fade-in-up` real utilities.
- */
-@theme {
-  --animate-shake: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  --animate-fade-in-up: fade-in-up 0.3s ease-out both;
-
-  @keyframes shake {
-    0%,
-    100% {
-      transform: translateX(0);
-    }
-
-    25% {
-      transform: translateX(-4px);
-    }
-
-    75% {
-      transform: translateX(4px);
-    }
-  }
-
-  @keyframes fade-in-up {
-    from {
-      opacity: 0;
-      transform: translateY(0.5rem);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-}
-
-/*
  * Unlayered, so the page ground wins over every Tailwind layer. A surface stylesheet re-points
- * `--ui-canvas` rather than restating this rule, which is why the fourteen surface files no longer
+ * `--ui-canvas` rather than restating this rule, which is why the retained surface files no longer
  * carry a `body` block of their own.
  */
 body {

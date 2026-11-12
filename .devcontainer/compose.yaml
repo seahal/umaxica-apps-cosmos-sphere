@@ -6,6 +6,8 @@ name: umaxicaappscosmosspheredc
 services:
   core:
     container_name: cosmos-sphere-devcontainer-core
+    # Identify this repository in SSH shell prompts as well as container listings.
+    hostname: cosmos-sphere-devcontainer-core
     build:
       context: "."
       dockerfile: "./Containerfile"
@@ -148,17 +150,16 @@ services:
     # The two are separate decisions
     # (docs/operations/development-host-port-exposure.md).
     ports:
-      - "127.0.0.1:3001:3000"
-      - "127.0.0.1:3036:3036"
-      # noVNC for the browser desktop. The RFB port (5900) is not published.
-      - "127.0.0.1:6080:6080"
+      # Each Cosmos repository has its own Rails host port so their Dev Containers can run side
+      # by side: access 3001, governance 3002, press 3003, sphere 3004. Vite (3036) and noVNC
+      # (6080) are not published.
+      - "127.0.0.1:3004:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       backend: {}
       frontend:
         aliases:
-          - core-workers-vpc.internal
           - base.app.localhost
           - base.com.localhost
           - base.org.localhost
@@ -190,7 +191,6 @@ services:
           - info.app.localhost
           - info.com.localhost
           - info.org.localhost
-          - guid.net.localhost
           - edit.org.localhost
           - tech.org.localhost
           # Browser-facing site names (PUBLIC_*_URL). Development is published through
@@ -198,36 +198,25 @@ services:
           # its `service:` address on this network, so the published names have to resolve
           # to `core` here. Only Umaxica-owned names belong in this list.
           # See docs/architecture/cloudflare-request-paths.md.
-          - auth.umaxica.app
-          - auth.umaxica.org
-          - www.umaxica.app
-          - www.umaxica.com
-          - www.umaxica.org
-          - visa.umaxica.app
-          - visa.umaxica.org
-          - edit.umaxica.org
-          - tech.umaxica.org
-          - www.umaxica.dev
           - www-jp.umaxica.app
           - www-jp.umaxica.com
           - www-jp.umaxica.org
-          - jp.umaxica.dev
-          - guid.umaxica.net
+          - warp-jp.umaxica.app
+          - warp-jp.umaxica.com
+          - warp-jp.umaxica.org
           - palm-jp.umaxica.app
           - mission.core.dev.localhost
           - flipper.core.dev.localhost
           - blazer.core.dev.localhost
           - pghero.core.dev.localhost
-          - performance.core.dev.localhost
           - coverband.core.dev.localhost
           - swagger.core.dev.localhost
-          - mission.umaxica.dev
-          - flipper.umaxica.dev
-          - blazer.umaxica.dev
-          - pghero.umaxica.dev
-          - performance.umaxica.dev
-          - coverband.umaxica.dev
-          - swagger.umaxica.dev
+          - mission-sphere-jp.umaxica.dev
+          - flipper-sphere-jp.umaxica.dev
+          - blazer-sphere-jp.umaxica.dev
+          - pghero-sphere-jp.umaxica.dev
+          - coverband-sphere-jp.umaxica.dev
+          - swagger-sphere-jp.umaxica.dev
       observability: {}
       outer:
         aliases:
@@ -252,7 +241,7 @@ networks:
   # network no base service used and made a plain `podman compose up` warn
   # `unused networks: outer`.
   outer:
-    name: "${OUTER_DOCKER_NETWORK:-umaxica-apps-global_outer}"
+    name: "${OUTER_DOCKER_NETWORK:-umaxica-apps-cosmos-sphere_outer}"
     # Keep this network Compose-managed. Interpolating `external` produces a
     # string, which podman-compose cannot safely treat as the boolean required
     # by the Compose model and causes `up` to fail while building network args.

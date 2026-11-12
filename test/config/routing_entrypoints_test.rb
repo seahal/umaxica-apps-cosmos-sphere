@@ -8,11 +8,20 @@ class RoutingEntrypointsTest < ActiveSupport::TestCase
   test "global routing entrypoints are loaded" do
     assert_nothing_raised { Rails.application.reload_routes! }
 
-    root_route = Rails.application.routes.recognize_path(
-      "http://#{ENV.fetch("PRIVATE_BASE_SERVICE_URL", "www.app.localhost")}/",
+    routes = Rails.application.routes.routes
+    route_names = routes.filter_map(&:name)
+    retired_route_names = route_names.grep(
+      /\A(?:auth|base|tech|visa|docs|news|help|info|guid|performance)_|\Aedit_(?:app|org|com)_/,
     )
 
-    assert_equal "base/app/roots", root_route[:controller]
-    assert_equal "index", root_route[:action]
+    assert_empty retired_route_names
+    %w(core_app core_org warp_app warp_org palm_app).each do |prefix|
+      assert(route_names.any? { |name| name.start_with?("#{prefix}_") }, "missing route prefix: #{prefix}")
+    end
+
+    root_route = Rails.application.routes.recognize_path("https://unclaimed.invalid/")
+
+    assert_equal "unknown_hosts", root_route[:controller]
+    assert_equal "show", root_route[:action]
   end
 end

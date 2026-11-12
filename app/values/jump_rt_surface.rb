@@ -4,13 +4,10 @@
 module JumpRtSurface
   module_function
 
-  # Jump RT issuer capability is limited to the active app/org namespaces and Palm app. It is deliberately
-  # separate from JitSecurityJwtRegistry::SURFACE_NAMESPACES, which also carries non-Jump issuers.
-  # Each issuer identity comes from the existing public surface setting; there is no Jump-specific
-  # issuer-origin setting.
+  # Core, Warp and Palm own the retained Sphere Jump issuers. Base and Visa remain external Jump
+  # participants for retained RP contracts. This capability is separate from
+  # JitSecurityJwtRegistry::SURFACE_NAMESPACES, which also carries non-Jump issuers.
   ISSUER_ORIGIN_ENV = {
-    "AUTH_APP" => "PUBLIC_AUTH_SERVICE_URL",
-    "AUTH_ORG" => "PUBLIC_AUTH_STAFF_URL",
     "BASE_APP" => "PUBLIC_BASE_SERVICE_URL",
     "BASE_ORG" => "PUBLIC_BASE_STAFF_URL",
     "VISA_APP" => "PUBLIC_VISA_SERVICE_URL",
@@ -21,7 +18,15 @@ module JumpRtSurface
     "WARP_ORG" => "PUBLIC_WARP_STAFF_URL",
     "PALM_APP" => "PUBLIC_PALM_SERVICE_URL",
   }.freeze
-  BOOT_HOST_FIELDS = { "VISA_APP" => :visa_service, "VISA_ORG" => :visa_staff }.freeze
+  BOOT_HOST_FIELDS = {
+    "VISA_APP" => :visa_service,
+    "VISA_ORG" => :visa_staff,
+    "CORE_APP" => :core_service,
+    "CORE_ORG" => :core_staff,
+    "WARP_APP" => :warp_service,
+    "WARP_ORG" => :warp_staff,
+    "PALM_APP" => :palm_service,
+  }.freeze
   ISSUER_NAMESPACES = ISSUER_ORIGIN_ENV.keys.freeze
 
   JWKS_PATH = "/.well-known/jwks.json"
@@ -52,12 +57,11 @@ module JumpRtSurface
     "#{issuer_origin(namespace, env: env)}#{JWKS_PATH}"
   end
 
-  # Acme is Base-hosted and issues through the Base or Auth controller that owns the request; Edit
-  # is a receiver only. Neither has a Jump issuer namespace.
+  # Only external Base and Visa controllers can own Jump issuance. Edit is a receiver and has no
+  # issuer namespace.
   def namespace_for_controller(controller_class_name)
     service =
       case controller_class_name.to_s
-      when /\AAuth::/ then "AUTH"
       when /\ACore::/ then "CORE"
       when /\AWarp::/ then "WARP"
       when /\ABase::/ then "BASE"

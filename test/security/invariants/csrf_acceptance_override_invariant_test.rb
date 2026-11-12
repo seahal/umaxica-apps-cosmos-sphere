@@ -53,10 +53,11 @@ class CsrfAcceptanceOverrideInvariantTest < ActiveSupport::TestCase
   end
 
   test "the scan covers Ruby sources in app and lib" do
-    assert_operator begin
-      SCANNED.flat_map { |fv5003| Rails.root.glob("#{fv5003}/**/*.rb") }
-        .map { |fv5002| fv5002.relative_path_from(Rails.root).to_s }
-    end.size, :>, 1000
+    SCANNED.each do |directory|
+      paths = Rails.root.glob("#{directory}/**/*.rb")
+
+      assert_not_empty paths, "#{directory} must contribute Ruby sources to the CSRF scan"
+    end
     assert(
       begin
         SCANNED.flat_map { |fv5001| Rails.root.glob("#{fv5001}/**/*.rb") }

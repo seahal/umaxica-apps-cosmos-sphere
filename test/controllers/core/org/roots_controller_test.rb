@@ -19,15 +19,12 @@ class Core::Org::RootsControllerTest < ActionDispatch::IntegrationTest
     assert_equal I18n.t("landing.thin_endpoint"), inertia_props.fetch("description")
   end
 
-  test "root does not create preference state" do
-    host! ENV.fetch("PUBLIC_CORE_STAFF_URL", "core.org.localhost")
-
-    assert_no_difference("OrgPreference.count") do
-      get core_org_root_url(ri: "jp")
-    end
+  test "root does not issue retired preference credentials" do
+    host! ENV.fetch("PUBLIC_CORE_STAFF_URL")
+    get core_org_root_url(ri: "jp")
 
     assert_response :success
-    assert_nil cookies[PreferenceCookieName.anonymous_jwt]
+    assert_nil cookies["preference_jwt"]
     assert_nil cookies["preference_refresh"]
   end
 end

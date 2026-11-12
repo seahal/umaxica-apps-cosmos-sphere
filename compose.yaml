@@ -84,12 +84,6 @@ services:
       - fakecloud-data:/var/lib/fakecloud
     networks:
       - backend
-    # Loopback-only publication so Terraform and the AWS CLI can run from the
-    # host, the same reason the former RustFS service published 9000. fakecloud
-    # is not a datastore, so this does not weaken the never-publish rule in
-    # docs/operations/development-host-port-exposure.md.
-    ports:
-      - "127.0.0.1:${FAKECLOUD_HOST_PORT:-4566}:4566"
     # Bounded on purpose. Podman applies no backoff to `unless-stopped`, so a
     # service that exits immediately on a bad configuration is recreated several
     # times a second until the netns, veth, conmon, and journald churn saturates
@@ -159,9 +153,6 @@ services:
       - "./podman/psql-pub/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro,z"
     networks:
       - backend
-    # Host-native Rails reaches PostgreSQL through loopback.
-    ports:
-      - "127.0.0.1:${POSTGRESQL_PRIMARY_HOST_PORT:-5432}:5432"
     # Bounded on purpose. Podman applies no backoff to a restart policy, so a service that
     # exits immediately on a bad configuration is recreated several times a second until
     # the netns, veth, conmon, and journald churn saturates a CPU. Five attempts ride out
@@ -220,9 +211,6 @@ services:
         condition: service_healthy
     networks:
       - backend
-    # Host-native Rails reaches PostgreSQL through loopback.
-    ports:
-      - "127.0.0.1:${POSTGRESQL_REPLICA_HOST_PORT:-5433}:5432"
     # Bounded on purpose. Podman applies no backoff to a restart policy, so a service that
     # exits immediately on a bad configuration is recreated several times a second until
     # the netns, veth, conmon, and journald churn saturates a CPU. Five attempts ride out
@@ -265,11 +253,10 @@ services:
   #   valkey-cache  — reconstructible Rails.cache. Eviction is allowed.
   #   valkey-kvs    — rate-limit and auth-state. noeviction: memory pressure
   #                   must error, not drop arbitrary keys.
-  #   valkey        — compatibility + diagnostic dashboards
-  #                   (PERFORMANCE_REDIS_URL / COVERBAND_REDIS_URL). Not a
+  #   valkey        — compatibility + Coverband diagnostics
+  #                   (COVERBAND_REDIS_URL). Not a
   #                   canonical application endpoint. Do not point cache or
-  #                   KVS at this service. Remove once Rails no longer
-  #                   resolves those gems (or cache/KVS) through `valkey`.
+  #                   KVS at this service.
   #
   # Persistence is the image default (RDB snapshots under /data), unchanged
   # from the previous single-service volume.
@@ -282,8 +269,6 @@ services:
       - 256mb
       - --maxmemory-policy
       - allkeys-lru
-    ports:
-      - "127.0.0.1:${VALKEY_CACHE_HOST_PORT:-6380}:6379"
     volumes:
       - valkey-cache-volume:/data
   valkey-kvs:
@@ -295,15 +280,11 @@ services:
       - 256mb
       - --maxmemory-policy
       - noeviction
-    ports:
-      - "127.0.0.1:${VALKEY_KVS_HOST_PORT:-6381}:6379"
     volumes:
       - valkey-kvs-volume:/data
   valkey:
     <<: *valkey-common
     container_name: cosmos-sphere-devcontainer-valkey
-    ports:
-      - "127.0.0.1:${VALKEY_HOST_PORT:-6379}:6379"
     volumes:
       - valkey-volume:/data
   loki:
@@ -382,16 +363,6 @@ services:
       GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-pass}"
       GF_PATHS_PROVISIONING: "/etc/grafana/provisioning"
-    # Loopback-only publication so the developer's own browser can open the UI.
-    # 13000 rather than 3000/3001: those belong to host-native Rails and Dev
-    # Container Rails respectively (docs/operations/development-host-port-exposure.md).
-    # The container port stays Grafana's upstream 3000; only the host side moves.
-    # 127.0.0.1 is written explicitly — a bare "13000:3000" binds 0.0.0.0, which
-    # would put a credentialed UI over development telemetry on every LAN, Wi-Fi
-    # and Tailscale interface. Grafana stays off `frontend`, so no Cloudflare
-    # Tunnel ingress can reach it either.
-    ports:
-      - "127.0.0.1:${GRAFANA_HOST_PORT:-13000}:3000"
     volumes:
       - grafana-volume:/var/lib/grafana
       - "./podman/grafana/provisioning:/etc/grafana/provisioning:z"
@@ -441,15 +412,6 @@ services:
       - "./log:/var/log/umaxica:ro,z"
     networks:
       - observability
-    # Loopback-only OTLP/HTTP ingress for host-native Rails, which resolves no
-    # Compose DNS name and therefore cannot reach `alloy:4318`. Only 4318 is
-    # published: OTLP/gRPC (4317) has no host-side client, and the Alloy
-    # management UI (12345) is an unauthenticated control surface that must stay
-    # on the `observability` network. The 0.0.0.0 binds inside the container are
-    # a separate decision from this publication
-    # (docs/operations/development-host-port-exposure.md).
-    ports:
-      - "127.0.0.1:${ALLOY_OTLP_HTTP_HOST_PORT:-4318}:4318"
     depends_on:
       - tempo
       - prometheus
@@ -516,19 +478,17 @@ services:
   # A missing token is not a clone-breaker: `:-` rather than `:?` so Compose
   # still interpolates, the process exits immediately, and `restart: on-failure:3`
   # leaves a stopped container instead of a restart storm.
-  cloudflare-tunnel: &cloudflare-connector
-    # Cloudflare supports cloudflared releases for one year. Keep this explicit tag current;
-    # Workers VPC additionally requires 2025.7.0 or newer.
+  cloudflare-tunnel:
+    # Cloudflare supports cloudflared releases for one year. Keep this explicit tag current.
     image: docker.io/cloudflare/cloudflared:2026.8.2
     # No `depends_on: core`. Podman turns a Compose dependency into a container
     # dependency, and the Dev Containers CLI's `--remove-existing-container` then
     # fails on a bare `podman rm -f`.
     #
-    # Workers VPC requires QUIC via `--protocol auto` or `quic`, and outbound UDP 7844.
+    # Prefer QUIC while retaining the HTTP/2 fallback for transient UDP failures.
     # Pinning `quic` disables the HTTP/2 fallback. After a sleep or UDP blip the
     # process can drain every connection and exit 0, which `restart: on-failure`
     # will not recreate. `auto` still prefers QUIC and falls back instead of exiting.
-    # https://developers.cloudflare.com/workers-vpc/configuration/tunnel/
     # https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/#protocol
     #
     # `--no-autoupdate`: this image tag is the release we run. In-process updates
@@ -567,48 +527,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-  # The same connector against the second remotely managed tunnel. The Cloudflare
-  # account holds two development tunnels, and a connector can only run one, so
-  # this is a second service rather than a switch on the first. The primary
-  # connector starts with the stack; this one stays behind `--profile tunnel-edge`.
-  #
-  #   docker compose --profile tunnel-edge up -d   # CLOUDFLARED_EDGE_TOKEN
-  #
-  # Everything except the profile and the token is merged from the definition
-  # above, so the pinned release, the protocol/metrics command, the `frontend`
-  # attachment and the crash-loop caps cannot drift between the two.
-  #
-  # The primary connector and this profiled one may run together; they then serve
-  # their own tunnels over the same private `*.localhost` origins.
-  cloudflare-tunnel-edge:
-    <<: *cloudflare-connector
-    profiles:
-      - tunnel-edge
-    environment:
-      TUNNEL_TOKEN: "${CLOUDFLARED_EDGE_TOKEN:-}"
-  # The connector for the dedicated Workers VPC tunnel `umaxica-dev-workers-vpc`
-  # (`03a4a67c-2aca-4f2c-9aeb-d1666f18bc87`). It exists so the Workers VPC path does
-  # not ride on `cloudflare-tunnel`'s tunnel, which also serves the ten published
-  # browser hostnames behind Access: any ingress, replica, or token change there used
-  # to move the Edge Worker's only route to Rails with it.
-  #
-  # Unlike the other two this tunnel carries NO ingress rules, no public hostname and
-  # no Access application. Cloudflare routes Workers VPC traffic from the VPC Service
-  # target rather than from tunnel ingress, so a locally managed tunnel needs no
-  # ingress configuration at all.
-  # https://developers.cloudflare.com/workers-vpc/configuration/tunnel/
-  #
-  # Everything else — the pinned release, `--protocol auto` for QUIC, the `frontend`
-  # attachment that makes `core.app.localhost` resolve to `core`, and the crash-loop
-  # caps — is merged from `cloudflare-tunnel` so it cannot drift.
-  #
-  # No profile: the Workers VPC path is part of the standard development environment,
-  # so `devcontainer up` and a plain `up` both start it. A missing token leaves a
-  # stopped container, exactly as it does for the other two connectors.
-  cloudflare-tunnel-workers-vpc:
-    <<: *cloudflare-connector
-    environment:
-      TUNNEL_TOKEN: "${CLOUDFLARED_WORKERS_VPC_TOKEN:-}"
+
 networks:
   backend: {}
   frontend: {}

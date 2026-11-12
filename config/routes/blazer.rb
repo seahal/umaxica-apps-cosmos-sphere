@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # Blazer owns the SQL exploration dashboard (Blazer::Engine), on its own dedicated host.
-# Public canonical host: blazer.umaxica.dev. Development host: blazer.core.dev.localhost.
+# Public canonical host: blazer-sphere-jp.umaxica.dev. Development host: blazer.core.dev.localhost.
 constraints host: [ENV["PUBLIC_BLAZER_URL"], ENV["PRIVATE_BLAZER_URL"],
                    "blazer.core.dev.localhost",].compact do
   # `blazer` is a `group :development` gem (Gemfile); it is not in the test group's load path,

@@ -5,8 +5,8 @@ require "timeout"
 
 # RP-side client for the OP token endpoint over public HTTPS (R5-WU05, one.md section 6.4).
 #
-# An RP never calls OidcTokenExchangeCoordinator in-process: it presents a fresh endpoint-bound
-# private_key_jwt assertion to the OP's registered token endpoint, exactly like an external client.
+# An RP posts a fresh endpoint-bound private_key_jwt assertion to the OP's registered token
+# endpoint, as an external client does.
 # Results are classified so callers can tell a definitive refusal (clear credentials) from a
 # dependency failure (keep cookies, retry later) and from an indeterminate commit (the OP may have
 # rotated the Refresh credential; D-25 has no replay of a lost response, so the RP recovers through a

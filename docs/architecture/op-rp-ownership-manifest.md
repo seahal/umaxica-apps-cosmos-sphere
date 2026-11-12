@@ -5,10 +5,17 @@ development catalog, controller source). The `OidcCallback` reader entry was rec
 current controller and service references on 2026-11-01; model counts and other reader rows were not
 regenerated.
 
-Current authentication boundary update (2026-11-07): app and org are the active authenticated realms.
-The com Auth, Core, and Warp RP paths and Visitor token issuance were retired. The inventory and
-read rows below are historical R5 worklist evidence; their `Visitor` and com-cell entries describe
-persisted/model state at the dated snapshot, not current route or authentication capability.
+Current authentication boundary update (2026-11-07): app and org are the active authenticated
+realms. The com Auth, Core, and Warp RP paths and Visitor token issuance were retired. The inventory
+and read rows below are historical R5 worklist evidence; their `Visitor` and com-cell entries
+describe persisted/model state at the dated snapshot, not current route or authentication
+capability.
+
+Sphere surface hard reset (2026-11-10): current route ownership keeps Docs, News, Help, Info, Edit,
+and the six operator tools. The Auth, Base, Core, GUID, Palm, Tech, Visa, and Warp controller trees
+are no longer served here. The model inventory and all controller-read rows below are dated R5
+evidence, not a current route map; models and database connections remain pending the separate
+model/database decision.
 
 Owner specification: `one.md` sections 4, 5.3 and R5-WU01.
 
@@ -39,7 +46,7 @@ is a separate decision.
 | `chronicle`  | 36               | `app_document_audit_events`, `com_document_behaviors`               |
 | `avatar`     | 12               | `posts`, `post_versions`, `client_avatar_extractions`               |
 
-## Current direct reads by RP code (work list)
+## Direct reads by pre-reset RP code (historical work list)
 
 Constants referenced directly from RP controller trees and the shared RP Concerns. Every entry below
 is a cross-owner read that R5 must replace; none may survive cell activation (R5-WU19).

@@ -48,7 +48,7 @@ The repository previously mixed Base RP routes, Auth RP routes, shared browser c
 (`sign-rp`, `base-rails-rp`, `side-rails-rp`, `core-next-rp`), TokenUsage child sessions, PostgreSQL
 authorization codes, Auth JWT ceremony grants, six Auth/Base `/dashboard` homes, Base `/lobby`, and
 `/sign/out/complete` completion pages. The consolidation plan requires one authority surface, seven
-independent first-party RPs, ceremony-only Auth, Valkey auth-state, Root homes, and one-shot
+independent first-party RPs, ceremony-only Auth, Valkey auth-state, Base Root homes, and one-shot
 `GET /sign/out`.
 
 ## Decision
@@ -95,8 +95,8 @@ Identity → Base Browser Session (`ClientToken` / `VisitorToken` / `OperatorTok
 
 ### Roots and logout
 
-- Six Auth/Base Roots: Base authenticated Root keeps former Dashboard content/guards; Auth Root is
-  always public ceremony entry. Remove six `/dashboard` routes and Base `/lobby`.
+- Three Base Roots: Base authenticated Root keeps former Dashboard content/guards. Remove the
+  `/dashboard` routes and Base `/lobby`.
 - Browser `/sign/out` is a one-shot `show`; retire `/sign/out/complete`. `GET /sign/out` never
   mutates authority state (only presentation-marker consume).
 

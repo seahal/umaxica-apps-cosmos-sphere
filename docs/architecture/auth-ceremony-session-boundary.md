@@ -1,5 +1,11 @@
 # Auth ceremony session boundary
 
+> **Historical after the 2026-11-11 hard reset:** Auth browser routes and controllers have been
+> removed. This describes retained database structures and earlier ceremony behavior, not a served
+> surface. Sphere no longer includes `BaseAuthAdmissionCoordinator` or the Valkey opaque admission
+> store. Current route ownership is in `README.md` and
+> `docs/architecture/content-surface-matrix.md`.
+
 Auth uses actor-specific `ClientAuthCeremonySession` and `OperatorAuthCeremonySession` rows in the
 matching ticket DB. Each row has a NOT NULL `status_id` FK to its realm-local status reference; the
 status is the current lifecycle authority, while admission, authentication, terminal, and SID

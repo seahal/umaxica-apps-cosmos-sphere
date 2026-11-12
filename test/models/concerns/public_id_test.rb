@@ -21,10 +21,11 @@ class PublicIdTest < ActiveSupport::TestCase
 
   setup do
     # Create a temporary dummy_models table that has a public_id column
-    ActiveRecord::Base.connection.create_table(:dummy_models, temporary: true) do |t|
+    ActiveRecord::Base.connection.create_table(:dummy_models) do |t|
       t.string(:public_id)
       t.timestamps
     end
+    DummyModel.reset_column_information
     # Mock Nanoid so that it always returns the same ID for stability
     @original_nanoid_generate = Nanoid.method(:generate)
     Nanoid.define_singleton_method(:generate) { |**_args| "testpublicid123456789" }
@@ -67,6 +68,37 @@ class PublicIdTest < ActiveSupport::TestCase
     dummy_instance.save!
 
     assert_equal "existingid12345678901", dummy_instance.public_id
+  end
+
+  test "public validation refreshes a generated identifier that already exists" do
+    existing = DummyModel.create!(public_id: "a" * PublicId::GENERATION_SIZE)
+    identifiers = [existing.public_id, "b" * PublicId::GENERATION_SIZE]
+    candidate = DummyModel.new
+
+    Nanoid.stub(:generate, ->(**) { identifiers.shift }) do
+      assert_predicate candidate, :valid?
+    end
+
+    assert_equal "b" * PublicId::GENERATION_SIZE, candidate.public_id
+  end
+
+  test "public fixed-id insertion timestamps timestamped model rows and is idempotent" do
+    identifier = 2_000_000_002
+
+    DummyModel.transaction(requires_new: true) do
+      assert_not DummyModel.exists?(id: identifier)
+      assert_predicate DummyModel, :table_exists?
+
+      assert DummyModel.insert_missing_fixed_ids!([identifier])
+      DummyModel.insert_missing_fixed_ids!([identifier])
+      row = DummyModel.find(identifier)
+
+      assert_kind_of Time, row.created_at
+      assert_kind_of Time, row.updated_at
+      raise ActiveRecord::Rollback
+    end
+  ensure
+    ApplicationRecord.clear_fixed_id_seed_cache!
   end
 
   test "public_id accepts exactly the 21-character NanoID length" do

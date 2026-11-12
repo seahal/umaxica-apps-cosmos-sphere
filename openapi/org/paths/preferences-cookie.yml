@@ -1,18 +1,19 @@
 # GET and PATCH /api/v0/preferences/cookie on the org surface.
 servers:
-  - url: https://jp.umaxica.org
+  - url: https://www-jp.umaxica.org
     description: Core public host for the org (staff and organization) surface.
   - url: https://www.umaxica.org
     description: Base public host for the org (staff and organization) surface.
   - url: https://auth.umaxica.org
     description: Auth public host for the org (staff and organization) surface.
-  - url: https://www-jp.umaxica.org
+  - url: https://warp-jp.umaxica.org
     description: Warp public host for the org (staff and organization) surface.
 get:
   summary: Cookie-consent banner state
   description: >-
-    Reports whether the cookie-consent banner should be shown. Open: no session is required.
-    Served host-locally by each listed host: each host reads and writes its own host-only preference credentials, and a browser calls only its current origin.
+    Reports whether the cookie-consent banner should be shown. Open: no session is required. Served
+    host-locally by each listed host: each host reads and writes its own host-only preference
+    credentials, and a browser calls only its current origin.
   operationId: getPreferencesCookie
   tags: [Preferences]
   security: []
@@ -36,9 +37,9 @@ patch:
   summary: Record cookie consent
   description: >-
     Records a cookie-consent decision. Open: a caller without a preference token records the
-    decision in the consent buffer only. `cookie.consented` is required; each present flag must be
-    a boolean or one of `1`, `0`, `"1"`, `"0"`, `"true"`, `"false"`, `"t"`, `"f"` (and the
-    upper-case forms), otherwise the request is a 422 naming each field. Successful writes have no
+    decision in the consent buffer only. `cookie.consented` is required; each present flag must be a
+    boolean or one of `1`, `0`, `"1"`, `"0"`, `"true"`, `"false"`, `"t"`, `"f"` (and the upper-case
+    forms), otherwise the request is a 422 naming each field. Successful writes have no
     representation.
   operationId: patchPreferencesCookie
   tags: [Preferences]

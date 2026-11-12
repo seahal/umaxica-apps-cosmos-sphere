@@ -69,15 +69,11 @@ Rails.application.configure do
   # Render exception templates for rescuable exceptions and raise for other exceptions.
   config.action_dispatch.show_exceptions = :rescuable
 
-  # Browser E2E explicitly opts in to real CSRF; ordinary Minitest retains the default below.
-  # Off by default, permanently - this is the Rails-generated test default, and the test
-  # environment is deliberately different from development and production here. Enabling it
-  # suite-wide would require threading authenticity tokens through a large number of tests whose
-  # subject is not CSRF, duplicating coverage the boundary tests already provide. Individual tests
-  # that need real CSRF verification are welcome to opt in with `with_forgery_protection`.
-  # Decision, and why a suite-wide flag is not revisited:
+  # CSRF remains disabled for ordinary Minitest cases. Tests that exercise the real boundary opt in
+  # with `with_forgery_protection`.
+  # Decision:
   # adr/csrf-protection-disabled-in-test-environment.md
-  config.action_controller.allow_forgery_protection = ENV["RAILS_BROWSER_E2E"] == "1"
+  config.action_controller.allow_forgery_protection = false
 
   # Store uploaded files on the local file system in a temporary directory.
   # config.active_storage.service = :test
@@ -159,12 +155,7 @@ Rails.application.configure do
   # is what takes this out of `log_file_size`'s hands, and that is intended.
   #
   # The cost: two `bin/rails test` invocations running at once clobber each other's log.
-  test_log =
-    if ENV["RAILS_BROWSER_E2E"] == "1"
-      Rails.root.join("log/e2e-rails.log")
-    else
-      Rails.root.join("log/test.log")
-    end
+  test_log = Rails.root.join("log/test.log")
   test_log.dirname.mkpath
   test_log_device = test_log.open("w")
   test_log_device.sync = true

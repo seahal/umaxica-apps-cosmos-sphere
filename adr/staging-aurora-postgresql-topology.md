@@ -2,6 +2,12 @@
 
 Accepted: 2026-09-14
 
+Amended 2026-11-09: Cosmos stops using Neon. Decision 1 ("Production stays on Neon for now") is
+withdrawn, and the production database entries that read the `NEON_*` variables are removed from
+`config/database.yml` in all four Cosmos repositories. Until a production database provider is
+decided in a new record, production has no database configuration and fails at boot. References to
+Neon below are history.
+
 ## Context
 
 `adr/fakecloud-podman-staging-environment.md` fixes staging as a Podman-hosted FakeCloud environment

@@ -1,79 +1,16 @@
 # WebAuthn Architecture
 
-> The current overview of where and how Passkeys are used is [Passkeys](passkeys.md) (2026-10-23).
-> The com authentication surface was retired on 2026-11-07. Only app and org are active WebAuthn
-> surfaces. Passages below that describe com ceremonies are historical and must not be used as a
-> current route or authentication contract.
+## Current status
 
-This document summarizes the passkey and WebAuthn ceremony architecture. The authoritative
-invariants are in `docs/security/webauthn-security-invariants.md`; RP boundaries are in
-`docs/security/webauthn-rp-id-origin-boundary.md`.
+The surface hard reset removed local WebAuthn assertion, registration, and challenge endpoints.
+Edit's browser authentication uses OIDC with its configured identity provider; it does not execute
+WebAuthn ceremonies in this application.
 
-## Components
+The client and operator credential models, ceremony transaction models, their migrations, and
+scheduled audit/retention jobs remain for the next model/database review. `Webauthn::Surface` and
+per-surface relying-party configuration remain referenced by model concerns. Those retained types do
+not expose a current user-facing ceremony.
 
-| Layer                      | Implementation                                                                                                                                     |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Surface enum               | `app/values/webauthn/surface.rb`, a closed registry for app/org                                                                                    |
-| RP configuration           | `app/values/webauthn/relying_party_config.rb` and `app/resolvers/webauthn/relying_party_config_resolver.rb`                                        |
-| UV policy                  | `app/values/webauthn/uv_policy.rb`, a purpose-specific closed registry currently requiring UV for every purpose                                    |
-| Verifiers                  | `app/services/webauthn/registration_verifier.rb` and `assertion_verifier.rb`                                                                       |
-| Ceremony result            | `app/values/webauthn/authentication_context.rb`, containing user verification, backup flags, AAGUID, transports, and attachment                    |
-| Metadata                   | `app/values/webauthn/authenticator_metadata.rb`, `app/resolvers/webauthn/authenticator_name_resolver.rb`, and `config/webauthn/aaguid_catalog.yml` |
-| Challenge                  | `app/services/webauthn/challenge_store.rb`, with a ten-minute TTL, purpose/surface/RP/origin/actor binding, and one-time consumption               |
-| Authentication context     | `app/values/authentication_context_value.rb`, the closed normal/emergency registry behind Restricted Mode                                          |
-| Cross-boundary ceremony    | `*PasskeyCeremonyTransaction` tickets plus grant/result JWTs in `IdentityPasskeyCeremony*`                                                         |
-| Shared controller concerns | `PasskeyCeremonyContext`, `PasskeyRegistrationFlow`, `PasskeySignInFlow`, and `SignVerificationPasskeyChecks`                                      |
-
-## Ceremonies Across All Surfaces
-
-| Operation                             | Challenge purpose | UV policy purpose            | Allow/exclude set                        | Persistence                          |
-| ------------------------------------- | ----------------- | ---------------------------- | ---------------------------------------- | ------------------------------------ |
-| Sign-up registration (`app` only)     | registration      | registration (required)      | Exclude every passkey, including revoked | New row and metadata                 |
-| Settings registration (app / org)     | registration      | registration (required)      | Exclude every passkey                    | New row, metadata, and app/org audit |
-| Direct sign-in (`app` / `org`)        | authentication    | direct_sign_in (required)    | None: discoverable credentials           | `sign_count`, `last_used_at`         |
-| Normal sign-in (`org`)                | authentication    | direct_sign_in (required)    | Entra-selected Operator's ACTIVE keys    | `sign_count`, `last_used_at`         |
-| Emergency Access sign-in (`org` only) | emergency_sign_in | emergency_sign_in (required) | Empty; selected Operator stays bound                              | `sign_count`, `last_used_at`         |
-| MFA challenge (app / org)             | authentication    | mfa_challenge (required)     | ACTIVE only                              | `sign_count`, `last_used_at`         |
-| Step-up (app / org)                   | step_up           | ordinary_step_up (required)  | ACTIVE only                              | `sign_count`                         |
-
-- Both active surfaces require discoverable credentials at registration. Org Emergency options
-  disclose no descriptors while retaining selected-Operator binding. Org normal sign-in, MFA
-  and Step-Up retain actor-scoped descriptors. Existing non-discoverable Org keys need
-  re-registration for Emergency Access. See
-  [response nondisclosure](../../adr/credential-response-nondisclosure.md).
-- App and org direct sign-in options are issued without an identifier lookup and contain no real
-  credential IDs in `allowCredentials` (the serialized list is empty). Verification resolves the
-  surface-local passkey by assertion credential ID and verifies it with the saved public key;
-  browser-supplied `userHandle`, identifier, and client metadata do not select the account.
-- Verification rechecks ACTIVE credential status, active actor state, existing verified-PII and
-  session/risk restrictions before establishing a session. App and org credential stores remain
-  separate. Persisted legacy visitor credential records are not an active authentication surface.
-- `user.id` is the actor's opaque, immutable `webauthn_user_handle`.
-- The display name is `passkey_resource_display_name`, derived from email or `public_id`.
-
-## Naming and Metadata Flow (Option D)
-
-1. Successful registration verification returns AAGUID, transports, backup flags, and attachment in
-   `AuthenticationContext`.
-2. `Webauthn::AuthenticatorNameResolver.resolve(aaguid)` resolves a friendly name from the local
-   catalog. Unknown and zero AAGUID values return nil without failing the ceremony.
-3. The initial `description` precedence is user input, provider name, then the i18n default.
-   `provider_name` and `metadata_source` are stored separately and never overwrite the user's label.
-4. Lists display `description`; the detail page displays the provider name or "Unknown
-   authenticator".
-5. The source-aware resolver interface can add a FIDO MDS backend later without a schema change.
-
-## Emergency Access
-
-The org surface has a second sign-in ceremony, Emergency Access, which reuses the operator's
-existing passkeys under its own challenge purpose and produces an Emergency-context session. It
-shares this entire implementation; only the ceremony purpose, the actor source, the eligibility
-decision, and the resulting authentication context differ. Duplicating any of the mechanics above
-into an Emergency-specific verifier is prohibited. See `docs/security/org-emergency-access.md`.
-
-## Password Fallback
-
-When direct app/org passkey sign-in or UV fails, return to the existing sign-in screen and its
-password-plus-MFA path. Do not mix a password exchange into a WebAuthn ceremony; the password path
-retains its own audit and rate limits. Org Emergency remains an identifier-bound, actor-known
-ceremony and is not converted to discoverable direct sign-in by this decision.
+The previous ceremony design is preserved in accepted ADRs and archived authentication-cycle
+material. For current retained data behavior, see [Passkeys](passkeys.md) and
+[Passkey lifecycle and audit](passkey-lifecycle-and-audit.md).

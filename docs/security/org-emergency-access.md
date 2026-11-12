@@ -1,5 +1,9 @@
 # Org Emergency Access (Restricted Mode)
 
+> **Retired by the 2026-11-11 hard reset:** The local Org sign-in and Emergency Access routes have
+> been removed. This document is retained as a record of the former workflow; it is not an available
+> operational path.
+
 Emergency Access is intended to provide an Entra-free way for an Operator to sign in to the org
 surface and run the resulting ORG Root session under a restricted authentication context. The
 current Auth-to-Visa implementation does not yet carry Standby through Root issuance; see
@@ -390,3 +394,9 @@ what the UI shows.
 - `docs/security/step-up-ceremony-delegation.md`
 - `docs/security/webauthn-architecture.md`
 - `docs/security/webauthn-security-invariants.md`
+
+# Historical Org Emergency Access flow
+
+> The local Org Emergency Access route and ceremony flow were removed with the Auth surface. The
+> material below preserves the former security design and is not a current sign-in contract. Edit's
+> current browser authentication uses OIDC; see [Passkeys](passkeys.md) for current retained data.

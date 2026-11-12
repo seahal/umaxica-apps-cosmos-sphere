@@ -72,6 +72,16 @@ class RpRequestAuthenticatorTest < ActiveSupport::TestCase
     assert_equal :invalid, authenticate.status
   end
 
+  test "a session whose tombstone no longer binds an identity cannot authenticate" do
+    @enrollment.session.op_session_binding.update_columns(identity_binding_id: nil)
+
+    result = authenticate
+
+    assert_equal :invalid, result.status
+    assert_nil result.principal
+    assert_nil result.session
+  end
+
   test "local expiry uses the fresh writer clock despite a slower application clock and a reading caller" do
     base = Time.current.change(usec: 0)
     @enrollment.session.update!(absolute_expires_at: base + 30)

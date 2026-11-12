@@ -4,15 +4,11 @@ require "test_helper"
 
 class RpSenderKeyUniquenessTest < ActiveSupport::TestCase
   CELLS = [
-    [RpBaseAppEventReceipt, RpBaseAppOpSessionBinding, RpBaseAppIdentityBinding, RpBaseAppPrincipal],
-    [RpBaseOrgEventReceipt, RpBaseOrgOpSessionBinding, RpBaseOrgIdentityBinding, RpBaseOrgPrincipal],
     [RpCoreAppEventReceipt, RpCoreAppOpSessionBinding, RpCoreAppIdentityBinding, RpCoreAppPrincipal],
     [RpCoreOrgEventReceipt, RpCoreOrgOpSessionBinding, RpCoreOrgIdentityBinding, RpCoreOrgPrincipal],
     [RpWarpAppEventReceipt, RpWarpAppOpSessionBinding, RpWarpAppIdentityBinding, RpWarpAppPrincipal],
     [RpWarpOrgEventReceipt, RpWarpOrgOpSessionBinding, RpWarpOrgIdentityBinding, RpWarpOrgPrincipal],
     [RpPalmAppEventReceipt, RpPalmAppOpSessionBinding, RpPalmAppIdentityBinding, RpPalmAppPrincipal],
-    [RpTechOrgEventReceipt, RpTechOrgOpSessionBinding, RpTechOrgIdentityBinding, RpTechOrgPrincipal],
-    [RpEditOrgEventReceipt, RpEditOrgOpSessionBinding, RpEditOrgIdentityBinding, RpEditOrgPrincipal],
   ].freeze
 
   CELLS.each do |receipt_class, anchor_class, identity_class, principal_class|

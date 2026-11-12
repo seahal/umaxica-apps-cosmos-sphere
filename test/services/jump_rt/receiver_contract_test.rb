@@ -46,7 +46,7 @@ class JumpRtReceiverContractTest < ActiveSupport::TestCase
           nbf: iat,
           exp: iat + contract.fetch("ttl_seconds"),
           jti: "jump-contract-jti",
-          src: "https://auth.umaxica.app",
+          src: "https://visa.umaxica.app",
           dst: "internal",
           rpl: "reuse",
           url: url_case.fetch("signed_url"),
@@ -90,9 +90,7 @@ class JumpRtReceiverContractTest < ActiveSupport::TestCase
       "jump_receiver_contract_0_4_0.json" =>
         "0db02b9412487931465a81e5e292e7bc6f0ca3eb06a1296e558348772cdadb9a",
       "jump_production_graph_0_4_0.json" =>
-        "3e93ca422c35be5bb034d797ae61ddc9d0befcfd431ba12e3e859a43611588ab",
-      "jump_app_org_candidate_graph.json" =>
-        "1f9f68bf600cc1c018684ffbd5382c4a94d3cb57c8f1767fd957061257fbc179",
+        "44d798435a4669c8d89fa039fc3084f1277f272f2efaab217c6966b66cde1262",
       "jump_receiver_contract.json" =>
         "7f884dcc348ff61cd94643b4dfbc0c5e27caa21fbf570abed81084b59471339e",
     }
@@ -102,16 +100,5 @@ class JumpRtReceiverContractTest < ActiveSupport::TestCase
 
       assert_equal expected_sha256, Digest::SHA256.file(path).hexdigest, filename
     end
-  end
-
-  test "Tech is outside the Jump issuer and navigation graph" do
-    graph = JSON.parse(Rails.root.join("test/fixtures/files/jump_app_org_candidate_graph.json").read)
-
-    assert_raises(JumpRtConfigurationError) do
-      JumpRtSurface.namespace_for_controller("Tech::Org::Sign::EntriesController")
-    end
-    assert_raises(JumpRtConfigurationError) { JumpRtSurface.normalize_namespace("TECH_ORG") }
-    assert_empty graph.fetch("nodes").keys.grep(/tech/i)
-    assert_empty graph.fetch("edges").flatten.grep(/tech/i)
   end
 end

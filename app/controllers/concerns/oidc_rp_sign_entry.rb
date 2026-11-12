@@ -22,10 +22,6 @@ module OidcRpSignEntry
 
   private
 
-  def preference_entry_recovery_action?
-    action_name == "create"
-  end
-
   def browser_rp_invalid_credentials_are_ignored?
     true
   end

@@ -1,25 +1,46 @@
+# typed: false
 # frozen_string_literal: true
 
 require "test_helper"
 
 class RpDeploymentBindingValueTest < ActiveSupport::TestCase
-  test "the deployment catalog separates declared regional clients from active clients" do
-    region = RpDeploymentBindingValue.region
-    other_region = { "jp" => "us", "us" => "jp" }.fetch(region)
-    catalog = RpDeploymentBindingValue.catalog
-    active = RpDeploymentBindingValue.active_client_ids
+  test "resolves every retained Sphere RP family and realm to its deployment client" do
+    region = ENV.fetch("UMAXICA_DEPLOYMENT_REGION")
 
-    assert_equal 14, catalog.length
-    assert_equal catalog.uniq, catalog
-    assert_includes catalog, "core-app-jp"
-    assert_includes catalog, "core-app-us"
-    assert_includes active, "core-app-#{region}"
-    assert_not_includes active, "core-app-#{other_region}"
-    assert_includes active, "base-app-ww"
-    assert_equal "core-app-#{region}", RpDeploymentBindingValue.client_id("core-app")
-    assert_equal "base-app-ww", RpDeploymentBindingValue.client_id("base-app")
-    assert_raises(RpDeploymentBindingValue::UnknownRp) do
-      RpDeploymentBindingValue.client_id("unknown-app")
+    %w(core-app core-org warp-app warp-org palm-app).each do |family_realm|
+      assert_equal "#{family_realm}-#{region}", RpDeploymentBindingValue.client_id(family_realm)
+    end
+  end
+
+  test "accepts the other registered region and rejects an unsupported deployment region" do
+    previous_region = ENV["UMAXICA_DEPLOYMENT_REGION"]
+    ENV["UMAXICA_DEPLOYMENT_REGION"] = "us"
+
+    assert_equal "core-app-us", RpDeploymentBindingValue.client_id("core-app")
+
+    ENV["UMAXICA_DEPLOYMENT_REGION"] = "eu"
+    assert_raises(RpDeploymentBindingValue::UnknownRegion) do
+      RpDeploymentBindingValue.client_id("core-app")
+    end
+  ensure
+    if previous_region.nil?
+      ENV.delete("UMAXICA_DEPLOYMENT_REGION")
+    else
+      ENV["UMAXICA_DEPLOYMENT_REGION"] = previous_region
+    end
+  end
+
+  test "rejects foreign, unsupported, empty, and missing RP family and realm values" do
+    %w(base-app base-org edit-org tech-org visa-app auth-app).each do |family_realm|
+      assert_raises(RpDeploymentBindingValue::UnknownRp) do
+        RpDeploymentBindingValue.client_id(family_realm)
+      end
+    end
+
+    [nil, "", "unknown-app"].each do |family_realm|
+      assert_raises(RpDeploymentBindingValue::UnknownRp) do
+        RpDeploymentBindingValue.client_id(family_realm)
+      end
     end
   end
 end

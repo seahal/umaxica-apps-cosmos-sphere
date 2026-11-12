@@ -24,6 +24,8 @@ module AuthorizationAudit
         render json: { error: "Unauthorized" }, status: :forbidden
       end
     end
+  rescue SphereOwnerDataUnavailableError => e
+    handle_owner_data_unavailable(e)
   end
 
   def log_authorization_failure(exception)
@@ -36,8 +38,10 @@ module AuthorizationAudit
     Rails.logger.info(JitLogEvent.format("authorization.failure", log_data))
 
     create_audit_record(actor, log_data)
+  rescue SphereOwnerDataUnavailableError
+    raise
   rescue StandardError => e
-    # Don't let audit logging break the application
+    # Audit infrastructure failures remain visible
     Rails.logger.error(
       JitLogEvent.format(
         "authorization.failure_log.failed", error_class: e.class.name,
@@ -72,83 +76,13 @@ module AuthorizationAudit
     }.compact
   end
 
-  # Denials usually happen on GET requests, which run on the reading role, so the chronicle
-  # write needs the writing role explicitly.
-  def create_audit_record(actor, log_data)
-    ChronicleRecord.connected_to(role: :writing) do
-      if actor.is_a?(Client)
-        create_user_authorization_audit(actor, log_data)
-      elsif actor.is_a?(Operator)
-        create_staff_authorization_audit(actor, log_data)
-      end
-    end
-  end
-
-  def create_user_authorization_audit(user, log_data)
-    audit = ClientChronicle.new(
-      actor: user,
-      event_id: ClientChronicleEvent::AUTHORIZATION_FAILED,
-      ip_address: log_data[:ip_address],
-      occurred_at: log_data[:timestamp],
-    )
-    audit.user = user
-    audit.save!
-  rescue ActiveRecord::RecordInvalid => e
-    # Event ID might not exist in the database yet
-    # ActiveRecord::RecordInvalid#message quotes the offending values, and
-    # "error_message" is not matched by ObservabilityRedactor::SENSITIVE_KEY_PATTERN,
-    # so it would reach the log unredacted. Attribute names carry the same
-    # diagnostic value without the values themselves.
-    Rails.logger.info(
-      JitLogEvent.format(
-        "authorization.audit.user_creation_failed",
-        error_class: e.class.name,
-        invalid_attributes: e.record&.errors&.attribute_names,
-      ),
-    )
-  end
-
-  def create_staff_authorization_audit(staff, log_data)
-    audit = OperatorChronicle.new(
-      actor: staff,
-      event_id: OperatorChronicleEvent::AUTHORIZATION_FAILED,
-      ip_address: log_data[:ip_address],
-      occurred_at: log_data[:timestamp],
-    )
-    audit.staff = staff
-    audit.save!
-  rescue ActiveRecord::RecordInvalid => e
-    # Event ID might not exist in the database yet
-    # ActiveRecord::RecordInvalid#message quotes the offending values, and
-    # "error_message" is not matched by ObservabilityRedactor::SENSITIVE_KEY_PATTERN,
-    # so it would reach the log unredacted. Attribute names carry the same
-    # diagnostic value without the values themselves.
-    Rails.logger.info(
-      JitLogEvent.format(
-        "authorization.audit.staff_creation_failed",
-        error_class: e.class.name,
-        invalid_attributes: e.record&.errors&.attribute_names,
-      ),
-    )
+  # Existing audit rows name Governance actors. A local RP principal cannot stand in for them.
+  def create_audit_record(_actor, _log_data)
+    raise SphereOwnerDataUnavailableError, "Governance authorization audit identity is unavailable in Sphere"
   end
 
   def authorization_audit_actor
-    legacy_actor = current_client_or_staff
-
-    if defined?(Actor) && Actor.authenticated?
-      actor = Actor.actor
-      return actor if usable_authorization_audit_actor?(actor, legacy_actor)
-    end
-
-    legacy_actor
-  end
-
-  def usable_authorization_audit_actor?(actor, legacy_actor)
-    return false if actor.blank?
-    return false if defined?(Unauthenticated) && actor.equal?(Unauthenticated.instance)
-    return true if legacy_actor.blank?
-
-    actor == legacy_actor
+    current_resource
   end
 
   def audit_identifier(record)
@@ -157,16 +91,4 @@ module AuthorizationAudit
 
     record.id if record.respond_to?(:id)
   end
-
-  def current_client_or_staff
-    return current_client if respond_to?(:current_client) && current_client
-    return current_user if respond_to?(:current_user) && current_user
-
-    # Try current_operator (for Operator controllers)
-    return current_operator if respond_to?(:current_operator) && current_operator
-
-    nil
-  end
-
-  def current_user_or_staff = current_client_or_staff
 end

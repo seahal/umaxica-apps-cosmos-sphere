@@ -8,13 +8,13 @@ class CoreRouteContractTest < ActionDispatch::IntegrationTest
   self.fixture_table_names = []
 
   BOOT_HOSTS = Rails.configuration.x.boot_config.fetch(:hosts)
-  CORE_APP_HOST = ENV.fetch("PUBLIC_CORE_SERVICE_URL", BOOT_HOSTS.core_service.host)
-  CORE_COM_HOST = ENV.fetch("PUBLIC_CORE_CORPORATE_URL", BOOT_HOSTS.core_corporate.host)
-  CORE_ORG_HOST = ENV.fetch("PUBLIC_CORE_STAFF_URL", BOOT_HOSTS.core_staff.host)
-  CORE_NET_HOST = ENV["PRIVATE_CORE_NETWORK_URL"] || ENV.fetch("PRIVATE_CORE_NETWORK_URL", "core.net.localhost")
-  CORE_DEV_HOST = ENV["PRIVATE_CORE_DEVELOPER_URL"] || ENV.fetch("PRIVATE_CORE_DEVELOPER_URL", "core.dev.localhost")
+  CORE_APP_HOST = BOOT_HOSTS.core_service.host
+  CORE_COM_HOST = "www-jp.umaxica.com"
+  CORE_ORG_HOST = BOOT_HOSTS.core_staff.host
+  CORE_NET_HOST = "core.net.localhost"
+  CORE_DEV_HOST = "core.dev.localhost"
 
-  # Two request paths reach the Core app/com/org surfaces with different Host headers:
+  # Two request paths reach the Core app/org surfaces with different Host headers:
   # cloudflared forwards the browser-facing PUBLIC_* site name, while a request that arrives
   # directly on the compose `frontend` network carries the PRIVATE_* ingress alias. The
   # constraints used to list only the boot_config (PUBLIC_*) host, so every request on the
@@ -117,25 +117,29 @@ class CoreRouteContractTest < ActionDispatch::IntegrationTest
       { path: "http://#{CORE_APP_HOST}/csp-violation-report", method: :post },
     )
 
-    assert_recognizes(
-      { controller: "core/app/api/v0/preferences/cookies", action: "show" },
-      { path: "http://#{CORE_APP_HOST}/api/v0/preferences/cookie", method: :get },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_APP_HOST}/api/v0/preferences/cookie", method: :get,
+      )
+    end
 
-    assert_recognizes(
-      { controller: "core/app/api/v0/preferences/cookies", action: "update" },
-      { path: "http://#{CORE_APP_HOST}/api/v0/preferences/cookie", method: :patch },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_APP_HOST}/api/v0/preferences/cookie", method: :patch,
+      )
+    end
 
-    assert_recognizes(
-      { controller: "core/app/api/v0/preferences/themes", action: "show" },
-      { path: "http://#{CORE_APP_HOST}/api/v0/preferences/theme", method: :get },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_APP_HOST}/api/v0/preferences/theme", method: :get,
+      )
+    end
 
-    assert_recognizes(
-      { controller: "core/app/api/v0/preferences/themes", action: "update" },
-      { path: "http://#{CORE_APP_HOST}/api/v0/preferences/theme", method: :patch },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_APP_HOST}/api/v0/preferences/theme", method: :patch,
+      )
+    end
 
     assert_recognizes(
       { controller: "core/app/api/v0/sessions", action: "show" },
@@ -264,25 +268,29 @@ class CoreRouteContractTest < ActionDispatch::IntegrationTest
       { path: "http://#{CORE_ORG_HOST}/csp-violation-report", method: :post },
     )
 
-    assert_recognizes(
-      { controller: "core/org/api/v0/preferences/cookies", action: "show" },
-      { path: "http://#{CORE_ORG_HOST}/api/v0/preferences/cookie", method: :get },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_ORG_HOST}/api/v0/preferences/cookie", method: :get,
+      )
+    end
 
-    assert_recognizes(
-      { controller: "core/org/api/v0/preferences/cookies", action: "update" },
-      { path: "http://#{CORE_ORG_HOST}/api/v0/preferences/cookie", method: :patch },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_ORG_HOST}/api/v0/preferences/cookie", method: :patch,
+      )
+    end
 
-    assert_recognizes(
-      { controller: "core/org/api/v0/preferences/themes", action: "show" },
-      { path: "http://#{CORE_ORG_HOST}/api/v0/preferences/theme", method: :get },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_ORG_HOST}/api/v0/preferences/theme", method: :get,
+      )
+    end
 
-    assert_recognizes(
-      { controller: "core/org/api/v0/preferences/themes", action: "update" },
-      { path: "http://#{CORE_ORG_HOST}/api/v0/preferences/theme", method: :patch },
-    )
+    assert_raises(ActionController::RoutingError) do
+      Rails.application.routes.recognize_path(
+        "http://#{CORE_ORG_HOST}/api/v0/preferences/theme", method: :patch,
+      )
+    end
 
     assert_recognizes(
       { controller: "core/org/api/v0/sessions", action: "show" },
