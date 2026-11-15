@@ -17,7 +17,7 @@ ARG GITHUB_ACTIONS=""
 ARG REVISION=""
 # Node.js Active LTS (v24 "Krypton"; maintenance starts 2026-10-20). Pinned to an
 # exact patch so Global and Edge cannot drift to different Node builds.
-ARG NODE_VERSION=24.20.0
+ARG NODE_VERSION=26.13.1
 # Bun is pinned for reproducible builds across local containers and CI.
 ARG BUN_VERSION=1.4.0
 # actionlint has no Debian package; the binary is copied from the upstream image at a pinned tag.

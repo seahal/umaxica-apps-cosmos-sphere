@@ -52,6 +52,76 @@ class CoverageRoundThreeErrorAndLogoutPublicBoundariesTest < ActiveSupport::Test
     end
   end
 
+  test "authorization failures without a local actor keep explicit HTML and JSON responses" do
+    policy = ApplicationPolicy.new(Object.new)
+    error = ActionPolicy::Unauthorized.new(policy, :show?)
+
+    ["text/html", "application/json"].each do |accept|
+      Actor.clear
+      controller = Warp::Org::ApplicationController.new
+      request = ActionDispatch::TestRequest.create
+      request.set_header("HTTP_ACCEPT", accept)
+      response = ActionDispatch::TestResponse.new
+      response.request = request
+      controller.set_request!(request)
+      controller.set_response!(response)
+
+      assert_same error, controller.rescue_with_handler(error)
+      if accept == "application/json"
+        assert_equal 403, response.status
+        assert_equal({ "error" => "Unauthorized" }, JSON.parse(response.body))
+      else
+        assert_equal 302, response.status
+        assert_equal "#{request.base_url}/", response.location
+        assert_equal I18n.t("errors.messages.not_authorized"), controller.flash[:alert]
+      end
+    end
+  ensure
+    Actor.clear
+  end
+
+  test "authorization auditing uses an id fallback and visibly records failures without replacing the denial" do
+    error = ActionPolicy::Unauthorized.new(ApplicationPolicy.new(Object.new), :show?)
+    controller = Warp::Org::ApplicationController.new
+    request = ActionDispatch::TestRequest.create
+    request.set_header("HTTP_ACCEPT", "application/json")
+    response = ActionDispatch::TestResponse.new
+    response.request = request
+    controller.set_request!(request)
+    controller.set_response!(response)
+    legacy_actor = Struct.new(:id).new(731)
+
+    controller.stub(:current_resource, legacy_actor) do
+      assert_same error, controller.rescue_with_handler(error)
+    end
+
+    assert_equal 503, response.status
+    assert_equal I18n.t("errors.messages.temporarily_unavailable"), response.body
+
+    controller = Warp::Org::ApplicationController.new
+    request = ActionDispatch::TestRequest.create
+    request.set_header("HTTP_ACCEPT", "application/json")
+    response = ActionDispatch::TestResponse.new
+    response.request = request
+    controller.set_request!(request)
+    controller.set_response!(response)
+    broken_actor = Object.new
+    broken_actor.define_singleton_method(:public_id) { raise StandardError, "audit identity lookup failed" }
+    logged_failures = []
+
+    controller.stub(:current_resource, broken_actor) do
+      Rails.logger.stub(:error, ->(event) { logged_failures << event }) do
+        assert_same error, controller.rescue_with_handler(error)
+      end
+    end
+
+    assert_equal 1, logged_failures.length
+    assert_equal 403, response.status
+    assert_equal({ "error" => "Unauthorized" }, JSON.parse(response.body))
+  ensure
+    Actor.clear
+  end
+
   test "registered CSRF response handling keeps JSON forbidden and reraises HTML violations" do
     ["application/json", "text/html"].each do |accept|
       controller = Core::Org::ApplicationController.new

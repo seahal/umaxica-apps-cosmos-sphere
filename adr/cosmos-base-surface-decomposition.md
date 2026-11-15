@@ -5,6 +5,14 @@
 Accepted (2026-11-08), direction only. Implementation order and design are decided later. Preference
 placement remains open.
 
+Amended 2026-11-14 (owner): decision 8 no longer says that an RP starts sign-up with
+`prompt=create`. That sentence conflicted with decision 1 of
+`adr/sign-neutral-entry-and-logout-target-authorization.md` (2026-10-02), which stays in force:
+first-party RPs keep one neutral entry and send no `prompt=create`. `prompt=create` (OpenID Connect
+Initiating User Registration 1.0) is an optional extension, not part of OpenID Connect Core. The OP
+keeps `create` in `prompt_values_supported`; no first-party RP sends it, and adding a separate
+sign-up entry to an RP needs a new decision.
+
 ## Context
 
 `adr/cosmos-identity-authentication-global-authorization-split.md` lists the placement of Base as an
@@ -71,12 +79,13 @@ and stays with Governance; an earlier version of this record assigned it to Acce
 8. **Auth and Visa carry no navigation out of their ceremonies.** They are not relying parties, so
    they cannot know whether the person is signed in at an RP. Their screens therefore show no links
    or menus to preferences, sign-in, sign-up or sign-out. Every entry starts at an RP through an
-   OpenID Connect request: sign-in with an authorization request (OpenID Connect Core 1.0), sign-up
-   with `prompt=create` (OpenID Connect Initiating User Registration 1.0), and sign-out through
-   `end_session_endpoint` (OpenID Connect RP-Initiated Logout 1.0). The only way back is the RP's
-   `redirect_uri` with `state`. Steps within one ceremony, such as moving from OTP entry to the next
-   step, keep their links. Auth and Visa read the preference cookie for language and theme but offer
-   no screen to change it.
+   OpenID Connect request: sign-in and sign-up with the same neutral authorization request (OpenID
+   Connect Core 1.0), and sign-out through `end_session_endpoint` (OpenID Connect RP-Initiated
+   Logout 1.0). An RP offers one entry and sends no `prompt=create`; whether the visit becomes a
+   registration is decided inside Auth (`adr/sign-neutral-entry-and-logout-target-authorization.md`,
+   decision 1). The only way back is the RP's `redirect_uri` with `state`. Steps within one
+   ceremony, such as moving from OTP entry to the next step, keep their links. Auth and Visa read
+   the preference cookie for language and theme but offer no screen to change it.
 9. **Auth and Visa have no home page.** `/` on an Auth or Visa host is unrouted and answers 404.
    Visa's roots were already retired on 2026-11-02 (`adr/rails-routing-resourceful-policy.md`);
    Auth's `root "roots#index"` is removed the same way. Code that uses the Auth root as a return or

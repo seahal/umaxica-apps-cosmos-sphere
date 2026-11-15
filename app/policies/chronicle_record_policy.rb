@@ -64,6 +64,8 @@ class ChronicleRecordPolicy
   ].freeze
 
   class << self
+    public
+
     def sanitize(value, key: nil)
       case value
       when Hash
@@ -84,16 +86,22 @@ class ChronicleRecordPolicy
       end
     end
 
+    public
+
     def sanitize_text(value)
       return if value.nil?
 
       sanitize_string(value.to_s)
     end
 
+    public
+
     def retention_policy_for(action:)
       code = retention_policy_code_for(action)
       ChronicleRetentionPolicy.find_by!(code: code)
     end
+
+    public
 
     def retention_policy_code_for(action)
       action_value = action.to_s
@@ -109,19 +117,27 @@ class ChronicleRecordPolicy
       RETENTION_POLICY_BY_ACTION.fetch(action_value, "security")
     end
 
+    public
+
     def erasable_at_for(policy:, occurred_at:)
       return nil if policy.permanent?
 
       occurred_at + policy.duration_days.days
     end
 
+    public
+
     def actor_payload(actor)
       payload_for(actor, prefix: :actor)
     end
 
+    public
+
     def subject_payload(subject)
       payload_for(subject, prefix: :subject)
     end
+
+    public
 
     def log_payload(event:, event_uuid:, request_id:, action:, actor:, subject:, error: nil,
                     manual_recovery_required: false)

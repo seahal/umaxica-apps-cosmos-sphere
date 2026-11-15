@@ -12,42 +12,50 @@ module JitSecurityJwtLocalKeysetInstaller
   module_function
 
   DEFAULT_STORE_PATH = Rails.root.join("tmp/local_jwt_keysets.json")
+  KEY_FORMAT = [
+    JitSecurityJwtJwk::ALGORITHM,
+    "RSA",
+    JitSecurityJwtJwk::MINIMUM_RSA_BITS,
+    "v1",
+  ].join("-").freeze
 
   def install!(store_path: DEFAULT_STORE_PATH)
     store = load_store(store_path)
-    changed = false
+    changed = store["key_format"] != KEY_FORMAT
+    store = {} if changed
 
     changed |= install_keyset_issuer!(
       store,
       prefix: "AUTH",
-      kid: "#{Rails.env}-auth-es384-a",
+      kid: "#{Rails.env}-auth-ps256-rsa3072-a",
     )
     changed |= install_keyset_issuer!(
       store,
       prefix: "PREFERENCE_APP",
-      kid: "#{Rails.env}-preference-app-es384-a",
+      kid: "#{Rails.env}-preference-app-ps256-rsa3072-a",
     )
     changed |= install_keyset_issuer!(
       store,
       prefix: "PREFERENCE_ORG",
-      kid: "#{Rails.env}-preference-org-es384-a",
+      kid: "#{Rails.env}-preference-org-ps256-rsa3072-a",
     )
 
     JitSecurityJwtRegistry::SURFACE_NAMESPACES.each do |namespace|
       changed |= install_surface_issuer!(
         store,
         namespace: namespace,
-        kid: "#{Rails.env}-#{namespace.downcase.tr("_", "-")}-es384-a",
+        kid: "#{Rails.env}-#{namespace.downcase.tr("_", "-")}-ps256-rsa3072-a",
       )
     end
     JitSecurityJwtRegistry::OIDC_CLIENT_NAMESPACES.each do |namespace|
       changed |= install_oidc_client_issuer!(
         store,
         namespace: namespace,
-        kid: "#{Rails.env}-oidc-client-#{namespace.downcase.tr("_", "-")}-es384-a",
+        kid: "#{Rails.env}-oidc-client-#{namespace.downcase.tr("_", "-")}-ps256-rsa3072-a",
       )
     end
 
+    store["key_format"] = KEY_FORMAT
     write_store(store_path, store) if changed
     drop_private_keys_outside_rp_cell!
     true
@@ -188,7 +196,7 @@ module JitSecurityJwtLocalKeysetInstaller
   end
 
   def keyset_issuer_env(kid)
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(JitSecurityJwtJwk::MINIMUM_RSA_BITS)
     {
       "active_kid" => kid,
       "private_keyset" => JSON.generate(kid => base64_der(key)),
@@ -197,7 +205,7 @@ module JitSecurityJwtLocalKeysetInstaller
   end
 
   def surface_issuer_env(kid)
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(JitSecurityJwtJwk::MINIMUM_RSA_BITS)
     {
       "active_kid" => kid,
       "private_key" => base64_der(key),
@@ -210,7 +218,7 @@ module JitSecurityJwtLocalKeysetInstaller
   end
 
   def base64_der(key)
-    Base64.strict_encode64(key.to_der)
+    Base64.strict_encode64(key.private_to_der)
   end
 
   private_class_method :install_keyset_issuer!, :install_surface_issuer!, :install_oidc_client_issuer!,

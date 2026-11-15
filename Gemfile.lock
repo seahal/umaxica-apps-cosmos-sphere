@@ -132,12 +132,6 @@ GIT
       zeitwerk (~> 2.6)
 
 PATH
-  remote: vendor/fork/database_consistency
-  specs:
-    database_consistency (3.0.16)
-      activerecord (>= 3.2)
-
-PATH
   remote: vendor/fork/rails-erd
   specs:
     rails-erd (2.2.0)
@@ -254,6 +248,8 @@ GEM
       redis (>= 3.0)
     crass (1.0.8)
     csv (3.3.7)
+    database_consistency (3.1.2)
+      activerecord (>= 3.2)
     date (3.6.0)
     debride (1.15.2)
       path_expander (~> 2.0)
@@ -1102,7 +1098,7 @@ DEPENDENCIES
   committee-rails
   counter_culture
   coverband
-  database_consistency!
+  database_consistency
   debride
   debug
   derailed_benchmarks
@@ -1264,7 +1260,7 @@ CHECKSUMS
   coverband (6.2.2) sha256=0e525f3ad256d2610fee489e937fb978388a9ad2d1157c230303a58fc839a6e3
   crass (1.0.8) sha256=7a0145c7a2c59f8e7923b3a69ce819c444823a00a5127d805298fea13be24efe
   csv (3.3.7) sha256=15a3f16f6628da8664d455eb634e7f22031bcf53044923caf56975109e71b9f8
-  database_consistency (3.0.16)
+  database_consistency (3.1.2) sha256=3f79b1f874eaae967ff298d570a2a311b28befa49d28790f007e334ab5776a78
   date (3.6.0) sha256=18ac945c4e24ebd93534f8eab8c2fd8c5604b3e977105b3798d62a1e8d27b580
   debride (1.15.2) sha256=5e5c50b150a37c418a7d48a2137ebb9f29d8a72fa550e626a4e1f8d418b79538
   debug (1.11.1) sha256=2e0b0ac6119f2207a6f8ac7d4a73ca8eb4e440f64da0a3136c30343146e952b6

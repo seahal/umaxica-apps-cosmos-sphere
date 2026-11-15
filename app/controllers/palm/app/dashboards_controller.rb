@@ -9,6 +9,7 @@ module Palm
       inertia_share chrome: -> { surface_chrome }
       inertia_share clear_history: -> { session[:inertia_clear_history] == true }
       AUTHENTICATION_MODE = :private
+      layout "palm/app/inertia"
       declare_authentication_mode! :private
       before_action :authenticate_browser_rp!
 

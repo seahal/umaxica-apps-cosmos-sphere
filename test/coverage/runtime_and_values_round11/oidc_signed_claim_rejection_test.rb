@@ -13,7 +13,7 @@ class RuntimeAndValuesRound11OidcSignedClaimRejectionTest < ActiveSupport::TestC
     payload, = JWT.decode(state, nil, false)
     private_key = JitSecurityJwtKeyring.private_key_for_active(issuer_id)
     unknown = JWT.encode(
-      payload, private_key, "ES384",
+      payload, private_key, "PS256",
       { "kid" => "never-registered-round11", "typ" => OidcStateJwt::TOKEN_TYPE },
     )
     result = OidcStateJwt.verify(client_id:, token: unknown)
@@ -41,7 +41,7 @@ class RuntimeAndValuesRound11OidcSignedClaimRejectionTest < ActiveSupport::TestC
   end
 
   test "logout expiry encoded as a numeric string cannot bypass the local numeric claim contract" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     issuer = "https://op.example.test"
     now = Time.current.to_i
     payload = {
@@ -53,10 +53,15 @@ class RuntimeAndValuesRound11OidcSignedClaimRejectionTest < ActiveSupport::TestC
       "sid" => "session-round11",
       "events" => { OidcOpLogoutTokenVerifier::EVENT => {} },
     }
-    header = { "kid" => "round11-key", "typ" => "logout+jwt", "alg" => "ES384" }
-    segments = [header, payload].map { |value| Base64.urlsafe_encode64(JSON.generate(value), padding: false) }
+    segments =
+      [
+        { "kid" => "round11-key", "typ" => "logout+jwt", "alg" => "PS256" },
+        payload,
+      ].map do |segment|
+        Base64.urlsafe_encode64(JSON.generate(segment), padding: false)
+      end
     signing_input = segments.join(".")
-    signature = JWT::JWA::Ecdsa.new("ES384", "SHA384").sign(data: signing_input, signing_key: key)
+    signature = key.sign_pss("SHA256", signing_input, salt_length: :digest, mgf1_hash: "SHA256")
     token = "#{signing_input}.#{Base64.urlsafe_encode64(signature, padding: false)}"
     keys = Minitest::Mock.new
     keys.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil), ["round11-key"])

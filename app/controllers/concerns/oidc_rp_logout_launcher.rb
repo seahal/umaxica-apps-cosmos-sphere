@@ -6,12 +6,6 @@ require "securerandom"
 module OidcRpLogoutLauncher
   extend ActiveSupport::Concern
 
-  # FIXME: Violates Umaxica/NoConcernInclusionHooks; move the declarations in this block into each class that includes this concern.
-  included do
-    prepend_before_action :normalize_rp_logout_region!, if: -> { action_name == "create" }
-    ensure_fqdn_gate_first!
-  end
-
   public
 
   def authenticate_oidc_rp_session!

@@ -11,6 +11,7 @@ module Warp
       include ::SessionBoundaryNotFound
 
       AUTHENTICATION_MODE = :open
+      layout "warp/app/inertia"
       declare_authentication_mode! :open
 
       public

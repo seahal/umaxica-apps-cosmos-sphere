@@ -13,6 +13,8 @@ class ChronicleInvalidator < ChronicleApplicationService
     @error = error
   end
 
+  public
+
   def call
     chronicle.update!(result: "manual_recovery_required")
     ChronicleFallbackRecorder.call(

@@ -11,8 +11,8 @@ module Jit
         self.fixture_table_names = []
 
         setup do
-          @active_key = OpenSSL::PKey::EC.generate("secp384r1")
-          @legacy_key = OpenSSL::PKey::EC.generate("secp384r1")
+          @active_key = OpenSSL::PKey::RSA.generate(3072)
+          @legacy_key = OpenSSL::PKey::RSA.generate(3072)
         end
 
         test "builds keyset issuer with active private key and grace public key" do
@@ -97,7 +97,7 @@ module Jit
         private
 
         def base64_der(key)
-          Base64.strict_encode64(key.to_der)
+          Base64.strict_encode64(key.private_to_der)
         end
       end
     end

@@ -6,7 +6,7 @@ class RuntimeAndValuesRound12AccessWireRejectionTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
   setup do
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @issuer = "https://op.example.test"
     now = Time.current.to_i
     @payload = {
@@ -27,7 +27,7 @@ class RuntimeAndValuesRound12AccessWireRejectionTest < ActiveSupport::TestCase
   test "absent blank and non-string key identifiers are refused without a JWKS lookup" do
     [nil, "", " ", 1, []].each do |kid|
       keys = Minitest::Mock.new
-      token = JWT.encode(@payload, @key, "ES384", { "alg" => "ES384", "typ" => "at+jwt", "kid" => kid })
+      token = JWT.encode(@payload, @key, "PS256", { "alg" => "PS256", "typ" => "at+jwt", "kid" => kid })
       result = OidcOpAccessTokenVerifier.new(
         access_token: token, client_id: "core-app-jp", realm: "app", issuer: @issuer,
         audience: "core-app-jp", jwks_client: keys,
@@ -41,8 +41,8 @@ class RuntimeAndValuesRound12AccessWireRejectionTest < ActiveSupport::TestCase
 
   test "a signed token with an unknown nonblank authentication context is never authenticated" do
     token = JWT.encode(
-      @payload.merge("authn_ctx" => "unregistered-round12"), @key, "ES384",
-      { "alg" => "ES384", "typ" => "at+jwt", "kid" => "round12-key" },
+      @payload.merge("authn_ctx" => "unregistered-round12"), @key, "PS256",
+      { "alg" => "PS256", "typ" => "at+jwt", "kid" => "round12-key" },
     )
     keys = Minitest::Mock.new
     keys.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key: @key, reason: nil), ["round12-key"])

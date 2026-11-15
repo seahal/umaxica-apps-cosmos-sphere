@@ -20,6 +20,8 @@ class ChronicleIntentWriter < ChronicleApplicationService
     @visibility_contexts = Array(visibility_contexts)
   end
 
+  public
+
   def call
     policy = ChronicleRecordPolicy.retention_policy_for(
       action: action,

@@ -18,7 +18,7 @@ class CoverageRoundSixTransientDependencyRequestsTest < ActionDispatch::Integrat
     )
 
     assert_predicate enrollment, :success?
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     claims = {
       "iss" => issuer,
       "aud" => [cell.client_id],
@@ -33,7 +33,7 @@ class CoverageRoundSixTransientDependencyRequestsTest < ActionDispatch::Integrat
       "authn_ctx" => "normal",
     }
     cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-      JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
     cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
     jwks = OidcOpJwksClient.for_resource_type("client")
     lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)
@@ -89,7 +89,7 @@ class CoverageRoundSixTransientDependencyRequestsTest < ActionDispatch::Integrat
     cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
     refresh = "bad-lifetime-sid.original"
     cookies[OidcRpBrowserCredentialContract::REFRESH_COOKIE] = refresh
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     claims = {
       "iss" => issuer,
       "aud" => [cell.client_id],
@@ -103,7 +103,7 @@ class CoverageRoundSixTransientDependencyRequestsTest < ActionDispatch::Integrat
       "scope" => "openid profile",
       "authn_ctx" => "normal",
     }
-    access = JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+    access = JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
     # The HTTP client's success contract checks access-token presence; this malformed OP
     # response has positive lifetimes but violates their ordering at the browser boundary.
     tokens = {

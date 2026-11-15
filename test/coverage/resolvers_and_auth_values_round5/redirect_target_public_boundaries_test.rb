@@ -36,40 +36,4 @@ class ResolversAndAuthValuesRound5RedirectTargetPublicBoundariesTest < ActiveSup
     assert_equal :pt, result.kind
     assert_nil result.unsafe_value_digest
   end
-
-  test "a registered destination with unsafe query data cannot become an accepted navigation target" do
-    result = RedirectsNavigationTargetResolver.call(
-      :home, routes: Rails.application.routes.url_helpers,
-             params: { ri: "\x00" },
-    )
-
-    assert_not_predicate result, :ok?
-    assert_equal "invalid_registered_path", result.failure_reason
-    assert_nil result.value
-    assert_equal :nt, result.kind
-  end
-
-  test "the public registry preserves home and signed-out paths without resolving retired helpers" do
-    home = RedirectsNavigationTargetResolver.call(
-      "home", routes: Rails.application.routes.url_helpers,
-              params: { "ri" => "jp" }, scope: :public,
-    )
-    signed_out = RedirectsNavigationTargetResolver.call(
-      :signed_out, routes: Rails.application.routes.url_helpers,
-                   scope: :public,
-    )
-
-    assert_equal "/?ri=jp", home.value
-    assert_equal "/sign/out", signed_out.value
-    assert_predicate home, :ok?
-    assert_predicate signed_out, :ok?
-    denied = RedirectsNavigationTargetResolver.call(
-      :home, routes: Rails.application.routes.url_helpers,
-             scope: :unknown,
-    )
-
-    assert_equal "scope_denied", denied.failure_reason
-    assert_equal "app", RedirectsNavigationTargetResolver.surface({})
-    assert_equal "org", RedirectsNavigationTargetResolver.surface(surface: "org")
-  end
 end

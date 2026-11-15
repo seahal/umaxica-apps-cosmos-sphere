@@ -20,14 +20,11 @@
 module HealthCheckRendering
   extend ActiveSupport::Concern
 
-  # FIXME: Violates Umaxica/NoConcernInclusionHooks; move the declarations in this block into each class that includes this concern.
-  included do
-    before_action :disable_health_response_cache
-  end
-
   # Probe endpoints (liveness/readiness/startup): text/plain, no redirect, no layout, no
   # negotiation. `result.ok?` already folds the probe-specific rule that liveness tolerates a
   # "starting" process while startup and readiness do not.
+  public
+
   def render_probe(result)
     if result.ok?
       render plain: "ok\n"
@@ -39,6 +36,8 @@ module HealthCheckRendering
   # Aggregate endpoint (`GET /health`): text/plain block. `status` is the overall verdict; the
   # other three lines are the individual probe verdicts, taken from the same nested results the
   # snapshot check already aggregated.
+  public
+
   def render_snapshot(result)
     snapshot = result.as_public_json(namespace: health_namespace)
     dependencies = snapshot.fetch(:dependencies)
@@ -58,6 +57,8 @@ module HealthCheckRendering
 
   # Machine aggregate (`/api/v0/health.json`): application/json. The three probe results are
   # mapped and aggregated by the serializer, which also owns the HTTP status.
+  public
+
   def render_health_status(liveness:, readiness:, startup:)
     serialized = HealthStatusSerializer.call(
       liveness: liveness,

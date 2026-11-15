@@ -11,6 +11,8 @@
 class ComPreferenceChronicleLevel < ChronicleRecord
   include ReferenceRecord
 
+  self.record_timestamps = false
+
   # Fixed IDs - unified across App/Org/Com (aligned to App pattern)
   NOTHING = 0
   INFO = 1
@@ -22,4 +24,5 @@ class ComPreferenceChronicleLevel < ChronicleRecord
   def self.ensure_defaults!
     insert_missing_fixed_ids!(DEFAULTS)
   end
+  public_class_method :ensure_defaults!
 end

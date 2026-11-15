@@ -6,7 +6,7 @@ class OidcAdaptersPublicTokenVerifierBoundariesTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
   setup do
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @issuer = "https://op.example.test"
     @now = Time.current.to_i
     @id_arguments = {
@@ -73,7 +73,7 @@ class OidcAdaptersPublicTokenVerifierBoundariesTest < ActiveSupport::TestCase
     [{ "kid" => nil }, { "kid" => "" }, { "jku" => "https://attacker.example/jwks" },
      { "alg" => "none" },].each do |extra|
       header = { "kid" => "known", "typ" => "id-token+jwt" }.merge(extra)
-      token = JWT.encode(@payload, @key, "ES384", header)
+      token = JWT.encode(@payload, @key, "PS256", header)
       result = OidcOpIdTokenVerifier.new(**@id_arguments.merge(id_token: token)).call
 
       assert_equal "invalid_header", result.error
@@ -83,7 +83,7 @@ class OidcAdaptersPublicTokenVerifierBoundariesTest < ActiveSupport::TestCase
   end
 
   test "ID key lookup preserves unavailable versus unknown classification" do
-    token = JWT.encode(@payload, @key, "ES384", { "kid" => "known", "typ" => "id-token+jwt" })
+    token = JWT.encode(@payload, @key, "PS256", { "kid" => "known", "typ" => "id-token+jwt" })
     { unavailable: ["key_unavailable", "jwks_unavailable"],
       invalid: ["invalid_id_token", "kid_not_found"], }.each do |status, expected|
       jwks = Minitest::Mock.new
@@ -109,7 +109,7 @@ class OidcAdaptersPublicTokenVerifierBoundariesTest < ActiveSupport::TestCase
     cases.each do |payload, detail|
       jwks = Minitest::Mock.new
       jwks.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key: @key, reason: nil), ["known"])
-      token = JWT.encode(payload, @key, "ES384", { "kid" => "known", "typ" => "id-token+jwt" })
+      token = JWT.encode(payload, @key, "PS256", { "kid" => "known", "typ" => "id-token+jwt" })
       result = OidcOpIdTokenVerifier.new(**@id_arguments.merge(id_token: token, jwks_client: jwks)).call
 
       assert_equal detail, result.detail
@@ -125,7 +125,7 @@ class OidcAdaptersPublicTokenVerifierBoundariesTest < ActiveSupport::TestCase
         jwks = Minitest::Mock.new
         jwks.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key: @key, reason: nil), ["known"])
         token = JWT.encode(
-          @payload.merge("auth_time" => @now - age), @key, "ES384",
+          @payload.merge("auth_time" => @now - age), @key, "PS256",
           { "kid" => "known", "typ" => "id-token+jwt" },
         )
         result = OidcOpIdTokenVerifier.new(
@@ -146,7 +146,7 @@ class OidcAdaptersPublicTokenVerifierBoundariesTest < ActiveSupport::TestCase
      payload.merge("sub" => ""), payload.merge("iat" => @now.to_f),].each do |claims|
       jwks = Minitest::Mock.new
       jwks.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key: @key, reason: nil), ["known"])
-      token = JWT.encode(claims, @key, "ES384", { "kid" => "known", "typ" => "at+jwt" })
+      token = JWT.encode(claims, @key, "PS256", { "kid" => "known", "typ" => "at+jwt" })
       result = OidcOpAccessTokenVerifier.new(**@access_arguments.merge(access_token: token, jwks_client: jwks)).call
 
       assert_equal "invalid_token", result.error

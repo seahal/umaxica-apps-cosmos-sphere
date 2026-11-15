@@ -18,17 +18,25 @@ class Actor
       freeze
     end
 
+    public
+
     def null?
       login_public_id.blank? && access_claims.blank?
     end
+
+    public
 
     def signed_in?
       login_public_id.present? && actor_type.present? && actor_type != :unauthenticated
     end
 
+    public
+
     def aal
       acr&.to_sym
     end
+
+    public
 
     def aal1?
       aal == :aal1
@@ -39,6 +47,8 @@ class Actor
     # carries the claims, and a caller must not be able to assert a context the
     # token does not.
     #
+    public
+
     def authentication_context
       AuthenticationContextValue.from_claims(access_claims)
     end

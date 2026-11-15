@@ -16,12 +16,10 @@
 # 14. Cops this project does not apply
 # 15. Deferred cops (debt)
 
-# `.rubocop/umaxica.yml` loads the two architecture cops. `.rubocop_todo.yml` is their generated
-# baseline (`bin/rails architecture:baseline`) and carries entries for those two cops only; no
-# other cop may be recorded there.
+# `.rubocop/umaxica.yml` loads the two architecture cops. Their per-file debt ratchet is measured
+# by the Rails architecture baseline test and does not suppress RuboCop offenses.
 inherit_from:
   - .rubocop/umaxica.yml
-  - .rubocop_todo.yml
 
 # An `Exclude` written here adds to a cop's default exclusions instead of replacing them.
 inherit_mode:

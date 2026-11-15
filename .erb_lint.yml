@@ -1,6 +1,7 @@
 ---
 glob: "**/*.{html,text,js}{+*,}.erb"
 exclude:
+  - "vendor/**/*"
   - "**/vendor/**/*"
   - "**/node_modules/**/*"
   - "tmp/**/*"

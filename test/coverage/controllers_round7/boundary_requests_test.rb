@@ -35,6 +35,22 @@ class CoverageRoundSevenBoundaryRequestsTest < ActionDispatch::IntegrationTest
     assert_nil cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE]
   end
 
+  test "a verified Jump return strips its token and redirects without referrer or caching" do
+    host! ENV.fetch("PUBLIC_CORE_SERVICE_URL")
+    https!
+    verification = JumpRtReturnVerifier::Result.new(
+      success: true, payload: { "jti" => "verified-jump-return", "src" => "base/app" }, error: nil,
+    )
+    JumpRtReturnVerifier.stub(:call, verification) do
+      get "/?tab=security&rt=header.payload.signature"
+    end
+
+    assert_response :see_other
+    assert_equal "/?tab=security", URI.parse(response.location).request_uri
+    assert_equal "no-referrer", response.headers["Referrer-Policy"]
+    assert_equal "no-store", response.headers["Cache-Control"]
+  end
+
   test "network and developer CSP intake keeps the telemetry no-content contract" do
     %w(core.net.localhost core.dev.localhost).each do |surface_host|
       browser = open_session
@@ -68,7 +84,7 @@ class CoverageRoundSevenBoundaryRequestsTest < ActionDispatch::IntegrationTest
       )
 
       assert_predicate enrollment, :success?
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       claims = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -82,7 +98,7 @@ class CoverageRoundSevenBoundaryRequestsTest < ActionDispatch::IntegrationTest
         "scope" => "openid profile",
         "authn_ctx" => "normal",
       }
-      access = JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      access = JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] = access
       browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
       jwks = OidcOpJwksClient.for_resource_type(resource_type)

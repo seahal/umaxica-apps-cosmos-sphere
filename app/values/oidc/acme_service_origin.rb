@@ -35,6 +35,8 @@ module Oidc
       end
 
     class << self
+      public
+
       def from(value, default_scheme:)
         raw = value.to_s.strip
         raise ArgumentError, "missing origin" if raw.blank?
@@ -46,6 +48,8 @@ module Oidc
           port: normalize_port(parsed.scheme, parsed.port),
         )
       end
+
+      public
 
       def host_from(value)
         raw = value.to_s.strip
@@ -95,9 +99,13 @@ module Oidc
       @port = port
     end
 
+    public
+
     def origin
       build_uri("/").to_s.delete_suffix("/")
     end
+
+    public
 
     def authorization_endpoint(query: nil)
       uri = build_uri("/oauth/authorize")
@@ -105,13 +113,19 @@ module Oidc
       uri.to_s
     end
 
+    public
+
     def token_endpoint
       build_uri("/oauth/token").to_s
     end
 
+    public
+
     def same_site_authorize_url?(url, request:)
       decision_for_authorize_url(url, request: request).direct?
     end
+
+    public
 
     def same_site_rejection_reason(url, request:)
       decision = decision_for_authorize_url(url, request: request)
@@ -119,6 +133,8 @@ module Oidc
 
       decision.reason_code
     end
+
+    public
 
     def decision_for_authorize_url(url, request:)
       target = parse_target_url(url)

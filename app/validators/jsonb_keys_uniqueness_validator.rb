@@ -1,9 +1,25 @@
 # frozen_string_literal: true
 
+# Checks the JSON text tuple and row predicate of a PostgreSQL partial expression index. The
+# declaration also publishes standard uniqueness metadata (index expression terms as attributes,
+# `scope`, `conditions`) so that the released database_consistency checker can match the index.
+# The database index remains authoritative for concurrent inserts.
 class JsonbKeysUniquenessValidator < ActiveModel::EachValidator
+  def self.kind
+    :uniqueness
+  end
+  public_class_method :kind
+
   public
 
   def check_validity!
+    unless options[:source_attribute].is_a?(Symbol)
+      raise ArgumentError, "JSON uniqueness requires the source JSONB attribute as a symbol"
+    end
+    unless options[:scope].is_a?(String) && options[:conditions].is_a?(Proc)
+      raise ArgumentError, "JSON uniqueness requires index expression scope and conditions metadata"
+    end
+
     keys = options[:keys]
     unless keys.is_a?(Array) && keys.present? && keys.uniq == keys &&
         keys.all? { |key| key.is_a?(String) && key.match?(/\A[a-z_][a-z0-9_]*\z/) }
@@ -28,7 +44,8 @@ class JsonbKeysUniquenessValidator < ActiveModel::EachValidator
           "JSON uniqueness record must belong to its configured writer" unless record.is_a?(options.fetch(:writer))
 
     predicate_for(record.class)
-    super
+    source = options.fetch(:source_attribute)
+    validate_each(record, source, record.read_attribute_for_validation(source))
   end
 
   def predicate_for(model)

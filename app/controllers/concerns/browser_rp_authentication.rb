@@ -203,10 +203,6 @@ module BrowserRpAuthentication
     raise NotImplementedError, "controller must define browser_rp_resource_type"
   end
 
-  def resource_type
-    browser_rp_resource_type
-  end
-
   def browser_rp_trusted_origins
     []
   end

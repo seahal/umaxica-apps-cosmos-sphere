@@ -11,11 +11,12 @@ class RuntimeAndValuesRound10ActiveSigningKeyPublicContractTest < ActiveSupport:
     private_key = JitSecurityJwtKeyring.private_key_for_active(issuer_id)
     public_key = JitSecurityJwtKeyring.public_key_for_active(issuer_id)
 
-    assert_instance_of OpenSSL::PKey::EC, private_key
+    assert_instance_of OpenSSL::PKey::RSA, private_key
+    assert_equal 3072, private_key.n.num_bits
     assert_predicate private_key, :private?
     assert_equal public_key.public_to_der, private_key.public_to_der
-    token = JWT.encode({ "purpose" => "runtime-public-key-contract" }, private_key, "ES384")
-    payload, = JWT.decode(token, public_key, true, algorithms: ["ES384"])
+    token = JWT.encode({ "purpose" => "runtime-public-key-contract" }, private_key, "PS256")
+    payload, = JWT.decode(token, public_key, true, algorithms: ["PS256"])
 
     assert_equal "runtime-public-key-contract", payload.fetch("purpose")
   end

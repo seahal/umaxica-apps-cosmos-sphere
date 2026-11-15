@@ -15,15 +15,23 @@ authorization-launcher restriction in `adr/acme-sign-core-base-port-boundary.md`
 issuer/return-policy portion of the remaining steps in `adr/core-canonical-public-host.md`. Their
 persistence and API ownership boundaries remain.
 
+## Signing algorithm amendment (2026-11-13)
+
+The accepted Cosmos signing decision supersedes the ES384 algorithm references below. First-party
+Jump RTs use PS256 only, with RSA public keys of at least 3072 bits; verifiers reject ES384 and all
+other algorithms. This Sphere implementation does not include the external Jump gateway. The
+gateway-side cutover and live issuer/JWKS interoperability remain unverified here.
+
 ## Gateway selection amendment (2026-10-22)
 
-The [required Jump/Away selection amendment](secure-jump-link-redirector.md#amendment-required-jump-and-away-selection-2026-10-22)
+The
+[required Jump/Away selection amendment](secure-jump-link-redirector.md#amendment-required-jump-and-away-selection-2026-10-22)
 supersedes broad references below to all cross-origin navigation using Jump. Jump is required for
 approved subdomain changes within the same registered application domain; cross-TLD navigation,
 including first-party navigation, requires `https://away.umaxica.net`. Same-origin path navigation
 remains direct. This revision adds no Jump edges and changes no runtime behavior. Existing direct
-admission exceptions, including Edit, are implementation gaps against the revised navigation
-policy, not exemptions for new work. Method-preserving POST handoffs retain their separate contract.
+admission exceptions, including Edit, are implementation gaps against the revised navigation policy,
+not exemptions for new work. Method-preserving POST handoffs retain their separate contract.
 
 ## Decision
 
@@ -62,13 +70,12 @@ are absent. Adding an RP requires an explicit decision. Core is `jp.*`; Warp is 
 
 Because self-loops are absent, a navigation whose target shares the request's origin (scheme, host
 and port) does not use Jump; the gateway refuses such an rt with `invalid_dst`. The Base self-RPs
-(`base-app-ww`, `base-org-ww`) share their origin with their authority, so the
-`POST /sign` start to `/oauth/authorize`, the authorization code return to `/oidc/callback` and the
-`prompt=none` `login_required` return move by path through
-`CommonRedirect#redirect_to_same_origin_or_jump_url`, which callers opt into explicitly. A
-cross-origin target, including another RP's callback on a Base authority, still goes through Jump.
-`www.jp.*` is rejected, never rewritten to Warp. Node region reflects the deployment; query `ri`
-does not change these origins' identities.
+(`base-app-ww`, `base-org-ww`) share their origin with their authority, so the `POST /sign` start to
+`/oauth/authorize`, the authorization code return to `/oidc/callback` and the `prompt=none`
+`login_required` return move by path through `CommonRedirect#redirect_to_same_origin_or_jump_url`,
+which callers opt into explicitly. A cross-origin target, including another RP's callback on a Base
+authority, still goes through Jump. `www.jp.*` is rejected, never rewritten to Warp. Node region
+reflects the deployment; query `ri` does not change these origins' identities.
 
 Auth surface JWT identities are `AUTH_APP/ORG` with `auth.umaxica.*` issuer origins. Retired
 `SIGN_*` identities and `Sign::*` controller mappings have no fallback. `/sign/...` ceremony paths
@@ -174,22 +181,21 @@ setting. That redesign is intentionally deferred.
 
 ### Issuer identity and keys
 
-Jump issuer capability is exactly eleven namespaces, held in `JumpRtSurface::ISSUER_NAMESPACES`
-and kept separate from the general JWT registry namespaces: app/org for Auth, Base, Visa, Core and
-Warp, plus `PALM_APP`. The corporate authentication realm has no Jump issuer. `ACME_APP` and
-`ACME_ORG` remain general registry namespaces but have no Jump issuer capability; no `Acme::*`
-controller exists, and Base-hosted Acme behavior issues through the Base or Auth controller handling
-the request. Edit is a receiver only.
+Jump issuer capability is exactly eleven namespaces, held in `JumpRtSurface::ISSUER_NAMESPACES` and
+kept separate from the general JWT registry namespaces: app/org for Auth, Base, Visa, Core and Warp,
+plus `PALM_APP`. The corporate authentication realm has no Jump issuer. `ACME_APP` and `ACME_ORG`
+remain general registry namespaces but have no Jump issuer capability; no `Acme::*` controller
+exists, and Base-hosted Acme behavior issues through the Base or Auth controller handling the
+request. Edit is a receiver only.
 
 Each issuer origin is derived from the existing public surface setting (`PUBLIC_AUTH_*_URL`,
 `PUBLIC_BASE_*_URL`, `PUBLIC_VISA_*_URL`, `PUBLIC_CORE_*_URL`, `PUBLIC_WARP_*_URL`,
-`PUBLIC_PALM_SERVICE_URL`). The same
-origin is the return origin, and the issuer JWKS URI is that origin plus `/.well-known/jwks.json`.
-There are no Jump-specific issuer, return or JWKS settings, and the `JUMP_DEVELOPMENT_<NS>_*` and
-`JWT_DEVELOPMENT_<NS>_*` families were removed without replacement. The receiver maps origins to
-namespaces through the same settings, so another environment's identities use the same fourteen
-non-Visa edges;
-a duplicated origin is a configuration error.
+`PUBLIC_PALM_SERVICE_URL`). The same origin is the return origin, and the issuer JWKS URI is that
+origin plus `/.well-known/jwks.json`. There are no Jump-specific issuer, return or JWKS settings,
+and the `JUMP_DEVELOPMENT_<NS>_*` and `JWT_DEVELOPMENT_<NS>_*` families were removed without
+replacement. The receiver maps origins to namespaces through the same settings, so another
+environment's identities use the same fourteen non-Visa edges; a duplicated origin is a
+configuration error.
 
 Each issuer keeps its own ES384 key. In development and test the surface keys are owned by
 `JitSecurityJwtLocalKeysetInstaller` and persisted in `tmp/local_jwt_keysets.json`; a `JWT_<NS>_*`

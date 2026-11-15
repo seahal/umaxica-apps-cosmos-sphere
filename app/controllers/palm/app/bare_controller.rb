@@ -10,6 +10,7 @@ module Palm
       include ::RateLimit
 
       AUTHENTICATION_MODE = :bare
+      prepend_before_action(:enforce_fqdn_availability!)
 
       allow_browser versions: :modern
 

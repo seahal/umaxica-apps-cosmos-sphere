@@ -37,6 +37,7 @@ class JumpRtReturnVerifier
   def self.call(...)
     new(...).call
   end
+  public_class_method :call
 
   def initialize(token:, request_url:, request_base_url:, fetcher: nil, now: Time.current)
     @token = token.to_s
@@ -45,6 +46,8 @@ class JumpRtReturnVerifier
     @fetcher = fetcher || method(:fetch_jwks)
     @now = now
   end
+
+  public
 
   def call
     return failure("missing_token") if token.blank?
@@ -208,7 +211,7 @@ class JumpRtReturnVerifier
         end
 
         jwk = normalized_public_jwk(source)
-        raise JwksUnavailable, "jwks entry is not a public ES384 verification key" unless jwk
+        raise JwksUnavailable, "jwks entry is not a public PS256 verification key" unless jwk
 
         begin
           JWT::JWK.import(jwk).public_key

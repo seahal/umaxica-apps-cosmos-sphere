@@ -14,7 +14,7 @@ class OidcOpIdTokenVerifier
       def success? = success
     end
 
-  ALGORITHM = "ES384"
+  ALGORITHM = JitSecurityJwtJwk::ALGORITHM
   TOKEN_TYPE = "id-token+jwt"
   REQUIRED_CLAIMS = %w(iss aud exp nbf iat sub nonce jti sid typ act).freeze
   RESOURCE_TYPE_BY_REALM = { "app" => "client", "org" => "operator" }.freeze

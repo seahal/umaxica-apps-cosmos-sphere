@@ -4,16 +4,16 @@ require "test_helper"
 
 class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
   test "malformed JWKS documents never authorize a signed return" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
-    jwk = JWT::JWK.new(key, kid: "coverage-jump").export.stringify_keys.except("d").merge(
-      "alg" => "ES384",
+    key = OpenSSL::PKey::RSA.generate(3072)
+    jwk = JWT::JWK.new(key, kid: "coverage-jump").export.stringify_keys.except(*JitSecurityJwtJwk::PRIVATE_FIELDS).merge(
+      "alg" => "PS256",
       "use" => "sig",
     )
-    token = JWT.encode({}, key, "ES384", { typ: "JWT", kid: "coverage-jump" })
+    token = JWT.encode({}, key, "PS256", { typ: "JWT", kid: "coverage-jump" })
     documents = [nil, {}, { "keys" => [] }, { "keys" => Array.new(11, jwk) }, { "keys" => [nil] },
                  { "keys" => [jwk, jwk] }, { "keys" => [jwk.merge("kid" => "")] },
                  { "keys" => [jwk.merge("key_ops" => ["sign"])] }, { "keys" => [jwk.merge("d" => "private")] },
-                 { "keys" => [jwk.merge("x" => "bad")] },]
+                 { "keys" => [jwk.merge("n" => "bad")] },]
     documents.each do |document|
       Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
         result = JumpRtReturnVerifier.call(
@@ -32,12 +32,12 @@ class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
   end
 
   test "unknown signing keys refresh once then negative cache the miss" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
-    jwk = JWT::JWK.new(key, kid: "different-key").export.stringify_keys.except("d").merge(
-      "alg" => "ES384",
+    key = OpenSSL::PKey::RSA.generate(3072)
+    jwk = JWT::JWK.new(key, kid: "different-key").export.stringify_keys.except(*JitSecurityJwtJwk::PRIVATE_FIELDS).merge(
+      "alg" => "PS256",
       "use" => "sig", "key_ops" => ["verify"],
     )
-    token = JWT.encode({}, key, "ES384", { typ: "JWT", kid: "unknown-coverage-key" })
+    token = JWT.encode({}, key, "PS256", { typ: "JWT", kid: "unknown-coverage-key" })
     calls = 0
     Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
       2.times do
@@ -58,8 +58,8 @@ class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
   end
 
   test "JWKS transport errors fail closed" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
-    token = JWT.encode({}, key, "ES384", { typ: "JWT", kid: "coverage-jump" })
+    key = OpenSSL::PKey::RSA.generate(3072)
+    token = JWT.encode({}, key, "PS256", { typ: "JWT", kid: "coverage-jump" })
     [SocketError, Net::ReadTimeout, JSON::ParserError, JWT::DecodeError].each do |error|
       Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
         result = JumpRtReturnVerifier.call(
@@ -76,9 +76,9 @@ class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
   end
 
   test "signed issuer audience and time errors retain distinct failure contracts" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
-    jwk = JWT::JWK.new(key, kid: "coverage-jump").export.stringify_keys.except("d").merge(
-      "alg" => "ES384",
+    key = OpenSSL::PKey::RSA.generate(3072)
+    jwk = JWT::JWK.new(key, kid: "coverage-jump").export.stringify_keys.except(*JitSecurityJwtJwk::PRIVATE_FIELDS).merge(
+      "alg" => "PS256",
       "use" => "sig",
     )
     now = Time.current.change(usec: 0)
@@ -99,7 +99,7 @@ class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
      [{ exp: now.to_i + 31 }, "invalid_claim"],
      [{ jti: "bad\n" }, "invalid_claim"], [{ src: "https://unknown.example" },
                                            "invalid_claim",],].each do |changes, expected|
-      token = JWT.encode(payload.merge(changes), key, "ES384", { typ: "JWT", kid: "coverage-jump" })
+      token = JWT.encode(payload.merge(changes), key, "PS256", { typ: "JWT", kid: "coverage-jump" })
       Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
         result = JumpRtReturnVerifier.call(
           token: token, request_url: "https://www.umaxica.app/?rt=#{token}",
@@ -113,8 +113,8 @@ class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
         assert_equal expected, result.error
       end
     end
-    other_key = OpenSSL::PKey::EC.generate("secp384r1")
-    token = JWT.encode(payload, other_key, "ES384", { typ: "JWT", kid: "coverage-jump" })
+    other_key = OpenSSL::PKey::RSA.generate(3072)
+    token = JWT.encode(payload, other_key, "PS256", { typ: "JWT", kid: "coverage-jump" })
     Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
       result = JumpRtReturnVerifier.call(
         token: token, request_url: "https://www.umaxica.app/?rt=#{token}",
@@ -128,12 +128,12 @@ class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
     end
   end
   test "streamed JWKS enforces its byte ceiling through the real fetch boundary" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
-    jwk = JWT::JWK.new(key, kid: "coverage-jump").export.stringify_keys.except("d").merge(
-      "alg" => "ES384",
+    key = OpenSSL::PKey::RSA.generate(3072)
+    jwk = JWT::JWK.new(key, kid: "coverage-jump").export.stringify_keys.except(*JitSecurityJwtJwk::PRIVATE_FIELDS).merge(
+      "alg" => "PS256",
       "use" => "sig",
     )
-    token = JWT.encode({}, key, "ES384", { typ: "JWT", kid: "coverage-jump" })
+    token = JWT.encode({}, key, "PS256", { typ: "JWT", kid: "coverage-jump" })
     [-1, 0, 1].each do |offset|
       size = JumpRtReturnVerifier::MAX_JWKS_BYTES + offset
       body = { "keys" => [jwk] }.to_json
@@ -162,8 +162,8 @@ class JumpReturnVerifierPublicContractTest < ActiveSupport::TestCase
   end
 
   test "HTTP status malformed JSON and network failures cannot become valid JWKS" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
-    token = JWT.encode({}, key, "ES384", { typ: "JWT", kid: "coverage-jump" })
+    key = OpenSSL::PKey::RSA.generate(3072)
+    token = JWT.encode({}, key, "PS256", { typ: "JWT", kid: "coverage-jump" })
     [500, 200, :network].each do |status|
       transport = Faraday.new
       get =

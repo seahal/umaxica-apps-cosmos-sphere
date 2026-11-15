@@ -9,6 +9,7 @@ module Core
       inertia_share chrome: -> { surface_chrome }
       inertia_share clear_history: -> { session[:inertia_clear_history] == true }
       AUTHENTICATION_MODE = :open
+      layout "core/org/inertia"
 
       public
 

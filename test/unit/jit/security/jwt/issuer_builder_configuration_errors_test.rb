@@ -51,8 +51,8 @@ module Jit
         # A private key whose public half disagrees with the published JWK would
         # sign tokens no verifier accepts, so the mismatch is refused at boot.
         test "a private key that disagrees with its published JWK is refused by kid" do
-          key = OpenSSL::PKey::EC.generate("secp384r1")
-          other = OpenSSL::PKey::EC.generate("secp384r1")
+          key = OpenSSL::PKey::RSA.generate(3072)
+          other = OpenSSL::PKey::RSA.generate(3072)
           published = JitSecurityJwtJwk.export_public(other, kid: "auth-2026")
 
           error =
@@ -69,7 +69,7 @@ module Jit
         end
 
         test "a private key that agrees with its published JWK merges into one active record" do
-          key = OpenSSL::PKey::EC.generate("secp384r1")
+          key = OpenSSL::PKey::RSA.generate(3072)
           published = JitSecurityJwtJwk.export_public(key, kid: "auth-2026")
 
           merged =

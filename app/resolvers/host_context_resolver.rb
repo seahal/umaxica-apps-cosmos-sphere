@@ -11,4 +11,5 @@ class HostContextResolver
       tenant: nil,
     )
   end
+  public_class_method :call
 end

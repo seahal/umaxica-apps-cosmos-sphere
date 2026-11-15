@@ -57,7 +57,7 @@ stated per record):
   redirected, unsupported `prompt` a direct 400, per-realm `prompt_values_supported`,
   `invalid_grant` for mismatches and PKCE failures, boot-time registration validation.
 - [RP OIDC state and return target](rp-oidc-state-and-return-target.md) — **RP Rails slice
-  implemented 2026-10-24 (WU-39).** ES384 JWS `state` (30 minutes), one pending entry per browser
+  implemented 2026-10-24 (WU-39).** PS256 JWS `state` (30 minutes), one pending entry per browser
   and RP, path-only `target_link_uri` replacing the RP `pt`, Cancel and abnormal endings on
   `GET /sign/interruption`; external Jump/Edge and deployment evidence remain separate.
 

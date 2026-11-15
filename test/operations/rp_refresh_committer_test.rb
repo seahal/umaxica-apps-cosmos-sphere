@@ -10,7 +10,7 @@ class RpRefreshCommitterTest < ActiveSupport::TestCase
 
   setup do
     @cell = RpCellBinding.fetch("rp_core_app")
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @session = RpCallbackCommitter.call(
       cell: @cell, issuer: ISSUER, subject: "subject-a", sid: "sid-1",
       absolute_expires_at: 1.hour.from_now,
@@ -111,7 +111,7 @@ class RpRefreshCommitterTest < ActiveSupport::TestCase
           "jti" => "wrong-binding",
           "scope" => "openid",
           "authn_ctx" => "normal", },
-        @key, "ES384", { "kid" => "k1", "typ" => "at+jwt" },
+        @key, "PS256", { "kid" => "k1", "typ" => "at+jwt" },
       )
       response = Outcome.new(
         outcome: :success, token_response: { access_token: token, refresh_token: "next" },
@@ -233,7 +233,7 @@ class RpRefreshCommitterTest < ActiveSupport::TestCase
   end
 
   def jwt(claims)
-    JWT.encode(claims, @key, "ES384", { "kid" => "k1", "alg" => "ES384", "typ" => "at+jwt" })
+    JWT.encode(claims, @key, "PS256", { "kid" => "k1", "alg" => "PS256", "typ" => "at+jwt" })
   end
 
   def payload

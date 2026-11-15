@@ -28,7 +28,7 @@ class CoverageControllerLocalLogoutRequestsTest < ActionDispatch::IntegrationTes
       host = ENV.fetch(host_setting)
       browser.host!(host)
       browser.https!
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       claims = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -43,7 +43,7 @@ class CoverageControllerLocalLogoutRequestsTest < ActionDispatch::IntegrationTes
         "authn_ctx" => "normal",
       }
       browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-        JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+        JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
       browser.cookies[OidcRpBrowserCredentialContract::REFRESH_COOKIE] = "#{sid}.external-secret"
       jwks = OidcOpJwksClient.for_resource_type(resource_type)
@@ -135,7 +135,7 @@ class CoverageControllerLocalLogoutRequestsTest < ActionDispatch::IntegrationTes
       host = ENV.fetch("PUBLIC_CORE_STAFF_URL")
       browser.host!(host)
       browser.https!
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       claims = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -150,7 +150,7 @@ class CoverageControllerLocalLogoutRequestsTest < ActionDispatch::IntegrationTes
         "authn_ctx" => "normal",
       }
       browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-        JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+        JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
       browser.cookies[OidcRpBrowserCredentialContract::REFRESH_COOKIE] = refresh unless refresh.nil?
       jwks = OidcOpJwksClient.for_resource_type("operator")

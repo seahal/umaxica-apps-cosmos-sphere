@@ -14,34 +14,29 @@ module Retainable
   private_constant :REGISTRY
 
   class << self
+    public
+
     def registry
       REGISTRY
     end
   end
 
-  # FIXME: Violates Umaxica/NoConcernInclusionHooks; move the declarations in this block into each class that includes this concern.
-  included do
-    attribute :discard_at, :datetime, default: -> { SENTINEL }
-    attribute :purge_eligible_at, :datetime, default: -> { SENTINEL }
-
-    validates :discard_at, presence: true
-    validates :purge_eligible_at, presence: true
-    validate :retention_order_valid
-    validate :retention_times_not_before_created_at, on: :update
-
-    Retainable.registry << self unless Retainable.registry.include?(self)
-  end
-
   # NOTE: ActiveRecord scope intentionally omitted (conflicts with pre-existing
   #   `.active` / `.deletable` semantics). Use raw `where('discard_at > ?', Time.current)` for queries.
+
+  public
 
   def accessible?(now = Time.current)
     future_time?(discard_at, now)
   end
 
+  public
+
   def lapsed?(now = Time.current)
     !future_time?(discard_at, now)
   end
+
+  public
 
   def purgeable?(now = Time.current)
     !future_time?(purge_eligible_at, now)
@@ -50,6 +45,8 @@ module Retainable
   # Schedule a future logical+physical deletion window. Both timestamps must be
   # in the future. Use this when scheduling retention up front (e.g. issuing a
   # token with a known expiry).
+  public
+
   def schedule_retention!(discard_at:, purge_eligible_at:, now: nil)
     now ||= self.class.database_now
     raise ArgumentError, "discard_at must be in the future" unless future_time?(discard_at, now)
@@ -66,6 +63,8 @@ module Retainable
   # `discard_at` clamps to `created_at` to satisfy the
   # `retention_times_not_before_created_at` invariant when the row was created
   # in the same request (Time.current may be less than created_at by us).
+  public
+
   def discard_now!(purge_after:, now: nil)
     raise ArgumentError, "purge_after must be a Duration" unless purge_after.respond_to?(:from_now)
 

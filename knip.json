@@ -2,19 +2,20 @@
   "$schema": "./node_modules/knip/schema.json",
   "entry": [
     "src/entrypoints/**/*.{ts,tsx}",
+    "src/styles/surfaces/*.css",
     "gait/**/*.{test,spec}.{ts,tsx}",
     "app/javascript/**/*.{js,ts}"
   ],
-  "project": ["src/**/*.{ts,tsx}", "gait/**/*.{ts,tsx}", "app/javascript/**/*.{js,ts}"],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "src/styles/**/*.css",
+    "gait/**/*.{ts,tsx}",
+    "app/javascript/**/*.{js,ts}"
+  ],
   "ignore": ["src/types/**"],
-  "ignoreUnresolved": ["bin/rails"],
   "ignoreDependencies": [
-    "tailwindcss",
     // Shared Inertia props augment the core adapter module in src/types/globals.d.ts.
     "@inertiajs/core",
-    "tailwindcss-react-aria-components",
-    "@tailwindcss/forms",
-    "@tailwindcss/typography",
     // `.herb.yml` enables the Herb linter for editor template diagnostics.
     "@herb-tools/linter",
     // The Ruby Capybara driver launches this CLI through PLAYWRIGHT_CLI_EXECUTABLE_PATH.

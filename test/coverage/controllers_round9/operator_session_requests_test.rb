@@ -20,7 +20,7 @@ class CoverageRoundNineOperatorSessionRequestsTest < ActionDispatch::Integration
     )
 
     assert_predicate enrollment, :success?
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     access = JWT.encode(
       {
         "iss" => issuer,
@@ -34,7 +34,7 @@ class CoverageRoundNineOperatorSessionRequestsTest < ActionDispatch::Integration
         "jti" => "operator-session-access",
         "scope" => "openid profile",
         "authn_ctx" => "normal",
-      }, key, "ES384", { kid: "external-op", typ: "at+jwt" },
+      }, key, "PS256", { kid: "external-op", typ: "at+jwt" },
     )
     browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] = access
     browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id

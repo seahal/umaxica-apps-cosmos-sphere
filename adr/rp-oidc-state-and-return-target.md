@@ -8,6 +8,13 @@ implementation in its work unit WU-43. The current implementation covers the RP-
 path-only target, one-pending entry rule, callback interruption, and related Rails tests. Production
 key rotation, external Jump/Edge behavior, and deployment evidence remain separate operational work.
 
+## Amendment (2026-11-13): PS256 state signing
+
+The accepted Cosmos signing decision supersedes the ES384 state algorithm below. RP state and client
+assertions use PS256 only, with RSA keys of at least 3072 bits. Header type, RP-local `kid`, claims,
+browser binding, expiry, callback order and return-target behavior remain unchanged. The external
+Access OP is outside this repository and live sign-in was not verified here.
+
 ## Decision
 
 1. **`state` is an ES384 JWS** signed with the RP's existing `oidc_client:<namespace>` key (no new

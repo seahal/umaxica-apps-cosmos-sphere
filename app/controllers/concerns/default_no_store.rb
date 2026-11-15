@@ -37,9 +37,8 @@
 #   prepend_before_action :apply_default_no_store
 #
 # That restores the order (no-store, availability gate, subclass callback); it is a reordering of
-# the inherited callback, not a second policy declaration. The same applies when an included
-# concern does the prepending in its own hook (`OidcRpLogoutLauncher`): the controller re-prepends
-# after the include.
+# the inherited callback, not a second policy declaration. Sign-out controllers explicitly declare
+# the OIDC region normalization and restore the gate order after that prepend.
 # test/security/invariants/default_no_store_policy_invariant_test.rb fails when this order is broken.
 #
 # How an action opts into caching:

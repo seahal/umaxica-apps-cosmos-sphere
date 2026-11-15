@@ -2,9 +2,11 @@
 
 require "test_helper"
 
-# Runs the preserved 0.3.0 receiver fixture and pinned 0.4.0 candidate fixture against the real
-# JumpRtReturnVerifier. Each url_case's literal rt value "returned" is replaced with a Jump-signed
-# token whose url claim is the case's signed_url, so the signature, claim, and URL checks all run.
+# Runs the preserved receiver fixtures against the real JumpRtReturnVerifier. Each url_case's
+# literal rt value "returned" is replaced with a PS256 Jump-signed token whose url claim is the
+# case's signed_url, so the signature, claim, and URL checks all run. The fixtures' upstream
+# algorithm metadata remains pinned as historical source material; the current local codec is
+# asserted separately below.
 class JumpRtReceiverContractTest < ActiveSupport::TestCase
   CONTRACTS = {
     "0.3.0 existing fixture" => JSON.parse(
@@ -18,9 +20,9 @@ class JumpRtReceiverContractTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
   setup do
-    @private_key = OpenSSL::PKey::EC.generate("secp384r1")
-    @public_jwk = JWT::JWK.new(@private_key, kid: "jump-test").export.stringify_keys.except("d").merge(
-      "alg" => "ES384",
+    @private_key = OpenSSL::PKey::RSA.generate(3072)
+    @public_jwk = JWT::JWK.new(@private_key, kid: "jump-test").export.stringify_keys.except(*JitSecurityJwtJwk::PRIVATE_FIELDS).merge(
+      "alg" => "PS256",
       "use" => "sig",
     )
     @now = Time.current.change(usec: 0)
@@ -51,7 +53,7 @@ class JumpRtReceiverContractTest < ActiveSupport::TestCase
           rpl: "reuse",
           url: url_case.fetch("signed_url"),
         }
-        token = JWT.encode(payload, @private_key, "ES384", { typ: "JWT", kid: "jump-test" })
+        token = JWT.encode(payload, @private_key, "PS256", { typ: "JWT", kid: "jump-test" })
 
         result = JumpRtReturnVerifier.call(
           token: token,
@@ -75,14 +77,14 @@ class JumpRtReceiverContractTest < ActiveSupport::TestCase
     assert_equal candidate.fetch("max_token_characters"), JumpRtReturnVerifier::MAX_TOKEN_LENGTH
   end
 
-  test "contract claim and header values match the receiver codec" do
+  test "local contract claim and header algorithm match the receiver codec" do
     candidate = CONTRACTS.fetch("0.4.0 pinned candidate")
 
     assert_equal candidate.fetch("schema"), SecurityJwtJumpRtTokenCodec::SCHEMA
     assert_equal candidate.fetch("rpl"), SecurityJwtJumpRtTokenCodec::REPLAY_POLICY
     assert_equal candidate.fetch("sub"), SecurityJwtJumpRtTokenCodec::TOKEN_SUBJECT
-    assert_equal candidate.dig("header", "alg"), SecurityJwtJumpRtTokenCodec::ALGORITHM
     assert_equal candidate.dig("header", "typ"), SecurityJwtJumpRtTokenCodec::TOKEN_TYPE
+    assert_equal "PS256", SecurityJwtJumpRtTokenCodec::ALGORITHM
   end
 
   test "vendored receiver and upstream graph fixtures retain their pinned source hashes" do

@@ -72,7 +72,7 @@ class OriginAndTokenProfileContractTest < ActiveSupport::TestCase
   end
 
   test "RFC9068 validates every JOSE rejection partition" do
-    valid = { "alg" => "ES384", "typ" => "at+jwt", "kid" => "key" }
+    valid = { "alg" => "PS256", "typ" => "at+jwt", "kid" => "key" }
 
     assert SecurityJwtRfc9068AccessTokenProfile.header_valid?(valid)
     [[nil, "MALFORMED_TOKEN"], [{}, "MALFORMED_TOKEN"], [valid.merge("kid" => ""), "MISSING_KID"],

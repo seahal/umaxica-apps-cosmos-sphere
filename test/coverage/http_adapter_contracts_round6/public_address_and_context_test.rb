@@ -31,7 +31,7 @@ class HttpAdapterContractsRound6PublicAddressAndContextTest < ActiveSupport::Tes
   end
 
   test "an expected authentication context cannot be substituted by another valid signed context" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     issuer = "https://op.example.test"
     now = Time.current.to_i
     payload = {
@@ -47,7 +47,7 @@ class HttpAdapterContractsRound6PublicAddressAndContextTest < ActiveSupport::Tes
       "scope" => "openid",
       "authn_ctx" => "normal",
     }
-    token = JWT.encode(payload, key, "ES384", { "kid" => "context-key", "typ" => "at+jwt" })
+    token = JWT.encode(payload, key, "PS256", { "kid" => "context-key", "typ" => "at+jwt" })
     %w(normal standby).each do |expected|
       keys = Minitest::Mock.new
       keys.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil), ["context-key"])

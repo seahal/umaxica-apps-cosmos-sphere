@@ -98,6 +98,27 @@ class ChronicleReferencePublicApiCoverageTest < ActiveSupport::TestCase
   ensure
     ApplicationRecord.clear_fixed_id_seed_cache!
   end
+
+  test "public fixed-id insertion still writes when the optional query detector is absent" do
+    detector = Prosopite
+    model = ClientChronicleEvent
+    identifier = 2_000_000_003
+
+    # Remove only the optional instrumentation constant to exercise the public API's direct-query
+    # path; this is a dependency-boundary test, not a test of ApplicationRecord's private query.
+    Object.send(:remove_const, :Prosopite)
+    model.transaction(requires_new: true) do
+      assert_not model.exists?(id: identifier)
+
+      model.insert_missing_fixed_ids!([identifier])
+
+      assert model.exists?(id: identifier)
+      raise ActiveRecord::Rollback
+    end
+  ensure
+    Object.const_set(:Prosopite, detector) if detector && !Object.const_defined?(:Prosopite, false)
+    ApplicationRecord.clear_fixed_id_seed_cache!
+  end
 end
 
 class PersistedModelPublicApiCoverageTest < ActiveSupport::TestCase

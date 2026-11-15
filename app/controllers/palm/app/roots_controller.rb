@@ -11,6 +11,7 @@ module Palm
       include ::SessionBoundaryNotFound
 
       AUTHENTICATION_MODE = :open
+      layout "palm/app/inertia"
 
       public
 

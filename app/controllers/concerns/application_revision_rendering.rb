@@ -21,6 +21,8 @@ module ApplicationRevisionRendering
 
   # `GET /revision`: text/plain, no redirect, no auth, no negotiation. `render plain:` ignores
   # `Accept`, so the response is text/plain whatever the caller asked for.
+  public
+
   def render_revision
     apply_revision_response_headers
 
@@ -33,6 +35,8 @@ module ApplicationRevisionRendering
 
   # `/api/v0/revision.json`: machine JSON only. The caller-facing 406 for a non-JSON `Accept` is
   # enforced by `MachineJsonNegotiation` in the controller; this method only shapes the body.
+  public
+
   def render_revision_json
     apply_revision_response_headers
 

@@ -56,12 +56,16 @@ class Actor < ActiveSupport::CurrentAttributes
     # bearer? read transport. The two axes are not conflated.
     delegate :browser?, :native?, :cookie?, :bearer?, to: :context
 
+    public
+
     def context
       super || ActorValuesContext.empty
     end
 
     # The currently installed snapshot, or the empty context when nothing is
     # bound. Safe for bare paths, jobs, mailers, and tests.
+    public
+
     def current = context
 
     # Push-based lifecycle installer and the only supported write path.
@@ -71,6 +75,8 @@ class Actor < ActiveSupport::CurrentAttributes
     # preserves the existing incremental-install behavior used across the
     # authentication pipeline. Must stay inside reviewed request lifecycle
     # boundaries (see actor_context_invariant_test).
+    public
+
     def install_context!(context = nil, **attributes)
       if context
         raise ArgumentError, "provide either a context or attributes, not both" if attributes.any?
@@ -81,83 +87,129 @@ class Actor < ActiveSupport::CurrentAttributes
       end
     end
 
+    public
+
     def update(**attributes)
       self.context = context.with(**normalize_context_attributes(attributes))
     end
+
+    public
 
     def clear
       reset
     end
 
     # Alias for clear, for callers that prefer the reset! spelling.
+    public
+
     def reset! = clear
+
+    public
 
     def subject = context.subject || Unauthenticated.instance
 
     # Historical alias for subject, kept for lifecycle and policy compatibility.
     alias_method :actor, :subject
 
+    public
+
     def subject=(value)
       update(subject: value)
     end
+
+    public
 
     def actor=(value)
       update(subject: value)
     end
 
+    public
+
     def actor_type = context.actor_type || :unauthenticated
+
+    public
 
     def actor_type=(value)
       update(actor_type: value)
     end
 
+    public
+
     def whoami = actor_type
+
+    public
 
     def account=(value)
       update(account: value)
     end
 
+    public
+
     def tenant=(value)
       update(tenant: value)
     end
+
+    public
 
     def tld=(value)
       update(tld: value)
     end
 
+    public
+
     def authn = context.authn || Actor::Authentication::NULL
+
+    public
 
     def authn=(value)
       update(authn: value)
     end
 
+    public
+
     def authz = context.authz || Actor::Authz::NULL
+
+    public
 
     def authz=(value)
       update(authz: value)
     end
 
+    public
+
     def configuration = context.configuration || Actor::Configuration::NULL
+
+    public
 
     def configuration=(value)
       update(configuration: value)
     end
 
+    public
+
     def step_up = context.step_up || Actor::StepUp::NULL
+
+    public
 
     def step_up=(value)
       update(step_up: value)
     end
 
+    public
+
     def trace_id=(value)
       update(trace_id: value)
     end
+
+    public
 
     def span_id=(value)
       update(span_id: value)
     end
 
     alias_method :signed_in?, :authenticated?
+
+    public
 
     def signed_up?
       return false unless authenticated?
@@ -169,25 +221,39 @@ class Actor < ActiveSupport::CurrentAttributes
     # Spec-facing predicate aliases. The canonical names in this codebase are
     # unauthenticated?/client?/operator?; these mirror the actor-context vocabulary
     # (anonymous/user/staff) without introducing new state.
+    public
+
     def anonymous? = unauthenticated?
 
+    public
+
     def user? = client?
+
+    public
 
     def staff? = operator?
 
     # Freshness comes from the explicit request step_up context.
+    public
+
     def step_up_fresh? = step_up.satisfied?
 
     # True when the current request demands a step-up that is not yet satisfied.
     # When verification is not required, step_up is Actor::StepUp::NULL (scope nil),
     # so this is false.
+    public
+
     def requires_step_up?
       step_up.scope.present? && !step_up.satisfied?
     end
 
+    public
+
     def client
       actor if client?
     end
+
+    public
 
     def operator
       actor if operator?

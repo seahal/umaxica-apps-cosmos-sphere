@@ -7,7 +7,7 @@ class RuntimeAndValuesRound11JumpSignedTimeAndAudienceTest < ActiveSupport::Test
 
   test "signed claims must satisfy local audience and timestamp ordering even inside JWT leeway" do
     now = Time.current.change(usec: 0)
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     kid = "round11-#{SecureRandom.hex(8)}"
     jwk = JitSecurityJwtJwk.export_public(key, kid:)
     base = JumpRtSurface.issuer_origin("BASE_APP")
@@ -34,7 +34,7 @@ class RuntimeAndValuesRound11JumpSignedTimeAndAudienceTest < ActiveSupport::Test
     ]
     travel_to(now) do
       cases.each do |claims, expected|
-        token = JWT.encode(claims, key, "ES384", { "kid" => kid, "typ" => "JWT" })
+        token = JWT.encode(claims, key, "PS256", { "kid" => kid, "typ" => "JWT" })
         result = JumpRtReturnVerifier.call(
           token:, request_url: "#{target}?rt=#{token}", request_base_url: base,
           fetcher: -> { { "keys" => [jwk] } }, now:,

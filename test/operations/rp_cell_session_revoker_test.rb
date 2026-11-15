@@ -9,7 +9,7 @@ class RpCellSessionRevokerTest < ActiveSupport::TestCase
 
   setup do
     @cell = RpCellBinding.fetch("rp_core_app")
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
   end
 
   test "a verified logout revokes the sid's binding and its live local session in one commit" do
@@ -46,7 +46,7 @@ class RpCellSessionRevokerTest < ActiveSupport::TestCase
     assert_not_predicate verify(token(payload("sid-1").merge("aud" => ["warp-app-jp"]))), :success?
     assert_not_predicate verify(token(payload("sid-1").merge("iss" => "https://evil.test"))), :success?
     assert_not_predicate verify(token(payload("sid-1"), typ: "JWT")), :success?
-    assert_not_predicate verify(token(payload("sid-1"), key: OpenSSL::PKey::EC.generate("secp384r1"))), :success?
+    assert_not_predicate verify(token(payload("sid-1"), key: OpenSSL::PKey::RSA.generate(3072))), :success?
     assert_not_predicate verify(""), :success?
   end
 
@@ -88,7 +88,7 @@ class RpCellSessionRevokerTest < ActiveSupport::TestCase
   end
 
   def token(claims, key: @key, typ: "logout+jwt")
-    JWT.encode(claims, key, "ES384", { "kid" => "k1", "alg" => "ES384", "typ" => typ })
+    JWT.encode(claims, key, "PS256", { "kid" => "k1", "alg" => "PS256", "typ" => typ })
   end
 
   def payload(sid)

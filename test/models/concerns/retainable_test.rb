@@ -10,6 +10,13 @@ class RetainableTest < ActiveSupport::TestCase
     include ActiveModel::Validations
     include Retainable
 
+    attribute :discard_at, :datetime, default: -> { Retainable::SENTINEL }
+    attribute :purge_eligible_at, :datetime, default: -> { Retainable::SENTINEL }
+    validates :discard_at, presence: true
+    validates :purge_eligible_at, presence: true
+    validate :retention_order_valid
+    validate :retention_times_not_before_created_at, on: :update
+
     attribute :created_at, :datetime, default: -> { Time.current }
 
     class << self

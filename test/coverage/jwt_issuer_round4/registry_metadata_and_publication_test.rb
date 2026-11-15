@@ -38,7 +38,7 @@ class RegistryMetadataAndPublicationTest < ActiveSupport::TestCase
     records = JitSecurityJwtRegistry.issuers
     original = records.fetch("surface:CORE_APP")
     current = original.keys.fetch(original.current_kid)
-    other_key = OpenSSL::PKey::EC.generate("secp384r1")
+    other_key = OpenSSL::PKey::RSA.generate(3072)
     other_jwk = JitSecurityJwtJwk.export_public(other_key, kid: original.current_kid)
     other = KeyRecord.new(
       kid: "grace-key", private_key: nil, public_key: OpenSSL::PKey.read(other_key.public_to_pem),
@@ -53,7 +53,7 @@ class RegistryMetadataAndPublicationTest < ActiveSupport::TestCase
   end
 
   test "a private issuer key can derive its public JWKS when no separate publication is supplied" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     credentials = Minitest::Mock.new
     credentials.expect(:option, nil, ["JWT_CORE_APP_PUBLIC_KEYSET"])
     source = JitSecurityJwtKeySource.new(

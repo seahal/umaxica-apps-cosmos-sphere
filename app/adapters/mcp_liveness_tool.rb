@@ -19,6 +19,8 @@ class McpLivenessTool < MCP::Tool
   annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true)
 
   class << self
+    public
+
     def call(server_context:)
       identity = server_context.fetch(:surface_identity)
       result = ::Health::LivenessCheck.call(profile: identity.health_profile)

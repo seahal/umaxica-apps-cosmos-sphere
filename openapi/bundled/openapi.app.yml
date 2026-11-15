@@ -372,11 +372,6 @@ components:
       in: cookie
       name: __Host-auth_access
       description: 'First-party HttpOnly access cookie. The `__Host-` prefix is present in any secure context; the basename alone (`auth_access`) is used otherwise. Unsafe methods additionally require `X-CSRF-Token`, which OpenAPI cannot express as part of a security scheme; it is declared as a required header parameter instead. Requests that also carry an `Authorization` header are rejected: an endpoint accepts exactly one credential transport.'
-    bearerToken:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: 'Native client access token. Requests that also carry a `Cookie` header are rejected: an endpoint accepts exactly one credential transport.'
   schemas:
     CheckStatus:
       type: object

@@ -14,11 +14,11 @@ module Palm
         include ::SignOutInertiaPages
 
         AUTHENTICATION_MODE = :open
+        prepend_before_action :normalize_rp_logout_region!, if: -> { action_name == "create" }
+        ensure_fqdn_gate_first!
+        layout "palm/app/inertia"
         declare_authentication_mode! :open
         before_action :authenticate_oidc_rp_session!, only: :create
-        helper_method :sign_out_completed_description
-        helper_method :sign_out_confirmation_form_path
-
         after_action :sign_out_notice_cache_headers!, only: %i(show edit)
 
         public

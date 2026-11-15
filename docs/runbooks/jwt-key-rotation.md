@@ -39,19 +39,32 @@ present in JWKS. Optional surface records with no active kid and no keys may rem
 {
   "keys": [
     {
-      "kty": "EC",
-      "crv": "P-384",
+      "kty": "RSA",
       "kid": "...",
-      "alg": "ES384",
+      "alg": "PS256",
       "use": "sig",
-      "x": "...",
-      "y": "..."
+      "n": "...",
+      "e": "AQAB"
     }
   ]
 }
 ```
 
 Do not store private DER, private PEM, or private JWK fields in public keysets.
+
+## PS256 Key Format
+
+All first-party JWTs use PS256 only. Private keys must be RSA with at least 3072 bits and use
+PKCS#8; public keysets contain public RSA JWKs with `kty=RSA`, `alg=PS256`, `use=sig`, `n`, and `e`.
+Do not retain ES384 entries in a keyset: this repository rejects the complete keyset if any entry is
+not a valid public PS256 key. The initial cutover has no dual-algorithm acceptance period.
+
+In this repository's existing configuration model, private material is loaded from
+`AUTH_JWT_PRIVATE_KEYSET`, `PREFERENCE_APP_JWT_PRIVATE_KEYSET`, `PREFERENCE_ORG_JWT_PRIVATE_KEYSET`,
+`JWT_<NAMESPACE>_PRIVATE_KEY`, and `OIDC_CLIENT_<NAMESPACE>_PRIVATE_KEY`. Keyset values contain JSON
+objects whose per-`kid` values are base64-encoded DER; scalar private-key values accept PKCS#8 PEM
+or base64-encoded PKCS#8 DER. Provision only the owner-approved names for each runtime role; this
+list defines key format, not which service owns each secret.
 
 ## Required Key Names
 
@@ -127,7 +140,7 @@ acceptable for development and test.
 
 ## Rotation Procedure
 
-1. Generate a P-384 ES384 key.
+1. Generate an RSA key with at least 3072 bits and encode its private material as PKCS#8.
 2. Choose a globally unique `kid`.
 3. Store the new private key in the secret backend.
 4. Publish the new public JWK as a grace key.

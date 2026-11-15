@@ -12,35 +12,7 @@ module OidcSsoInitiator
 
   private
 
-  def normalize_oidc_prompt(value)
-    tokens = value.to_s.split
-    return nil if tokens.empty?
-    return tokens.first if tokens.one? && %w(login none create).include?(tokens.first)
-
-    raise ArgumentError, "prompt is not supported"
-  end
-
-  def normalize_oidc_max_age(value)
-    return nil if value.blank?
-
-    normalized =
-      if value.is_a?(Integer)
-        value
-      elsif value.to_s.match?(/\A\d+\z/)
-        value.to_i
-      else
-        raise ArgumentError
-      end
-    raise ArgumentError, "max_age must be a non-negative integer" if normalized.negative?
-
-    normalized
-  rescue ArgumentError, TypeError
-    raise ArgumentError, "max_age must be a non-negative integer"
-  end
-
-  def initiate_oidc_session!(target_link_uri: nil, prompt: nil, max_age: nil)
-    prompt = normalize_oidc_prompt(prompt)
-    max_age = normalize_oidc_max_age(max_age)
+  def initiate_oidc_session!(target_link_uri: nil)
     verifier = SecureRandom.urlsafe_base64(48)
     challenge = Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)
     nonce = SecureRandom.urlsafe_base64(32)
@@ -49,15 +21,13 @@ module OidcSsoInitiator
       target_link_uri: RpTargetLinkUri.normalize(target_link_uri),
     )
 
-    remember_oidc_pending_flow!(jti:, verifier:, nonce:, max_age:)
+    remember_oidc_pending_flow!(jti:, verifier:, nonce:)
     log_oidc_pending_flow_created
 
     oidc_authorization_url(
       code_challenge: challenge,
       state: state,
       nonce: nonce,
-      prompt: prompt,
-      max_age: max_age,
     )
   end
 
@@ -70,8 +40,6 @@ module OidcSsoInitiator
     log_oidc_redirect_decision(decision)
 
     case decision.kind
-    when :direct
-      redirect_to(url, allow_other_host: true, **options)
     when :jump
       redirect_to_jump_url(url, preserve_query_keys: ["redirect_uri"], **options)
     else
@@ -87,7 +55,7 @@ module OidcSsoInitiator
     decision.with(kind: :jump, reason_code: "jump_authorize_handoff")
   end
 
-  def oidc_authorization_url(code_challenge:, state:, nonce:, prompt: nil, max_age: nil)
+  def oidc_authorization_url(code_challenge:, state:, nonce:)
     query = {
       response_type: "code",
       client_id: oidc_client_id,
@@ -104,20 +72,18 @@ module OidcSsoInitiator
       # this concern is also included on controllers that do not mix in `PreferenceGlobal`.
       ri: RequestContextContract.normalize_region(params[:ri]),
     }
-    query[:prompt] = prompt if prompt.present?
-    query[:max_age] = max_age if max_age.present?
     oidc_acme_service_origin.authorization_endpoint(query: query)
   end
 
   # The pending entry is keyed by the `state` JWS's `jti` and replaces any earlier one (D-155).
-  def remember_oidc_pending_flow!(jti:, verifier:, nonce:, max_age: nil)
-    flow =
-      {
+  def remember_oidc_pending_flow!(jti:, verifier:, nonce:)
+    session[OIDC_PENDING_FLOWS_SESSION_KEY] = {
+      jti => {
         "code_verifier" => verifier,
         "nonce" => nonce,
         "created_at" => Time.current.to_i,
-      }.tap { |pending_flow| pending_flow["max_age"] = max_age if max_age.present? }
-    session[OIDC_PENDING_FLOWS_SESSION_KEY] = { jti => flow }
+      },
+    }
   end
 
   def log_oidc_pending_flow_created
@@ -179,7 +145,6 @@ module OidcSsoInitiator
   def log_oidc_redirect_decision(decision)
     event_name =
       case decision.kind
-      when :direct then "oidc.sso.redirect_policy.direct"
       when :jump then "oidc.sso.redirect_policy.jump"
       else "oidc.sso.redirect_policy.rejected"
       end

@@ -85,5 +85,3 @@ components:
   securitySchemes:
     coreBrowserCookie:
       $ref: "shared/components.yml#/securitySchemes/coreBrowserCookie"
-    bearerToken:
-      $ref: "shared/components.yml#/securitySchemes/bearerToken"

@@ -6,7 +6,7 @@ class OidcAdaptersPublicLogoutTokenBoundariesTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
   setup do
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @issuer = "https://op.example.test"
     @now = Time.current.to_i
     @payload = {
@@ -21,7 +21,7 @@ class OidcAdaptersPublicLogoutTokenBoundariesTest < ActiveSupport::TestCase
   end
 
   test "an unknown key and an unavailable key remain distinguishable public results" do
-    token = JWT.encode(@payload, @key, "ES384", { "kid" => "known", "typ" => "logout+jwt" })
+    token = JWT.encode(@payload, @key, "PS256", { "kid" => "known", "typ" => "logout+jwt" })
     { invalid: "invalid_token", unavailable: "key_unavailable" }.each do |status, error|
       jwks = Minitest::Mock.new
       jwks.expect(:lookup, OidcOpJwksClient::Lookup.new(status:, key: nil, reason: "fixture"), ["known"])
@@ -45,7 +45,7 @@ class OidcAdaptersPublicLogoutTokenBoundariesTest < ActiveSupport::TestCase
     claims.each do |payload|
       jwks = Minitest::Mock.new
       jwks.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key: @key, reason: nil), ["known"])
-      token = JWT.encode(payload, @key, "ES384", { "kid" => "known", "typ" => "logout+jwt" })
+      token = JWT.encode(payload, @key, "PS256", { "kid" => "known", "typ" => "logout+jwt" })
       result = OidcOpLogoutTokenVerifier.new(
         logout_token: token, client_id: "core-app-jp", issuer: @issuer,
         jwks_client: jwks,
@@ -63,7 +63,7 @@ class OidcAdaptersPublicLogoutTokenBoundariesTest < ActiveSupport::TestCase
       jwks = Minitest::Mock.new
       jwks.expect(:lookup, OidcOpJwksClient::Lookup.new(status: :found, key: @key, reason: nil), ["known"])
       token = JWT.encode(
-        @payload.merge("exp" => @now + lifetime), @key, "ES384",
+        @payload.merge("exp" => @now + lifetime), @key, "PS256",
         { "kid" => "known", "typ" => "logout+jwt" },
       )
       result = OidcOpLogoutTokenVerifier.new(

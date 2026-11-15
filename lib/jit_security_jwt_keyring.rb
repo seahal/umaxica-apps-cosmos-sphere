@@ -39,7 +39,10 @@ module JitSecurityJwtKeyring
     pk = private_key_for(kid, issuer_id: issuer_id)
     raise JitSecurityJwtRegistry::ConfigurationError, "Missing private key for kid: #{kid}" if pk.nil?
 
-    JWT.encode(payload, pk, "ES384", { kid: kid, alg: "ES384", typ: typ })
+    JWT.encode(
+      payload, pk, JitSecurityJwtRegistry::ALGORITHM,
+      { kid: kid, alg: JitSecurityJwtRegistry::ALGORITHM, typ: typ },
+    )
   end
 
   def parse_header(token)
@@ -60,8 +63,8 @@ module JitSecurityJwtKeyring
   def decode_key(base64_der)
     return nil if base64_der.blank?
 
-    OpenSSL::PKey::EC.new(Base64.decode64(base64_der))
-  rescue OpenSSL::PKey::PKeyError
+    JitSecurityJwtKeyMaterial.decode_private_key(base64_der)
+  rescue JitSecurityJwtKeyMaterial::Error
     nil
   end
 end

@@ -16,7 +16,7 @@ class JumpReturnPublicRoundThirteenIssuerIdentifierAndRootUrlTest < ActiveSuppor
   end
 
   test "an HTTPS origin without a path is signed with the canonical root path" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     now = Time.zone.at(1_800_000_000)
     token = nil
 

@@ -43,6 +43,14 @@
 class ClientChronicle < ChronicleRecord
   include Retainable
 
+  attribute :discard_at, :datetime, default: -> { Retainable::SENTINEL }
+  attribute :purge_eligible_at, :datetime, default: -> { Retainable::SENTINEL }
+  validates :discard_at, presence: true
+  validates :purge_eligible_at, presence: true
+  validate :retention_order_valid
+  validate :retention_times_not_before_created_at, on: :update
+  Retainable.registry << self unless Retainable.registry.include?(self)
+
   attribute :level_id, default: ClientChronicleLevel::NOTHING
   attribute :subject_id, :string
 
@@ -71,9 +79,13 @@ class ClientChronicle < ChronicleRecord
 
   scope :recent_activity_first, -> { order(arel_table[:occurred_at].desc, arel_table[:created_at].desc) }
 
+  public
+
   def set_timestamp
     self.timestamp ||= Time.current
   end
+
+  public
 
   def event_id_must_exist
     return if event_id.blank?
@@ -92,6 +104,8 @@ class ClientChronicle < ChronicleRecord
 
     errors.add(:event_id, "must reference a valid user audit event")
   end
+
+  public
 
   def default_actor_to_subject
     return if actor_id.present? && actor_type.present?

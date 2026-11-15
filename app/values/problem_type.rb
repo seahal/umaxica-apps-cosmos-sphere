@@ -58,6 +58,8 @@ class ProblemType
   }.freeze
 
   class << self
+    public
+
     def fetch(slug)
       key = slug.to_sym
       definition =
@@ -69,6 +71,8 @@ class ProblemType
       new(slug: key, **definition)
     end
 
+    public
+
     def registered?(slug)
       DEFINITIONS.key?(slug.to_sym)
     end
@@ -77,6 +81,8 @@ class ProblemType
     # must never raise: it runs while an error is already being rendered, so raising here would
     # replace a reportable failure with an unreportable one. The two-way default is bounded and
     # written down rather than invented per call.
+    public
+
     def for_status(code)
       slug = STATUS_FALLBACKS.fetch(code.to_i) { (code.to_i >= 500) ? :server_error : :bad_request }
       fetch(slug)
@@ -94,20 +100,28 @@ class ProblemType
 
   # Slugs are underscored as Ruby symbols and hyphenated in the URI. The URI form is the published
   # contract; the symbol form is an implementation detail of the registry.
+  public
+
   def uri
     "#{NAMESPACE}:#{slug.to_s.tr("_", "-")}"
   end
 
   # RFC 9457 3.1.3 requires the `status` member to be the numeric code, and to agree with the
   # response status line. Both are derived from this one value so they cannot disagree.
+  public
+
   def status_code
     Rack::Utils.status_code(status)
   end
+
+  public
 
   def ==(other)
     other.is_a?(self.class) && other.slug == slug
   end
   alias eql? ==
+
+  public
 
   def hash
     [self.class, slug].hash

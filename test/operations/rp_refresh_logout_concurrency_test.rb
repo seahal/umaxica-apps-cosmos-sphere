@@ -135,7 +135,7 @@ class RpRefreshLogoutConcurrencyTest < ActiveSupport::TestCase
     anchor = RpCoreAppOpSessionBinding.find(session.op_session_binding_id)
     identity = RpCoreAppIdentityBinding.find(anchor.identity_binding_id)
     principal_id = identity.principal_id
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     now = Time.current.to_i
     access = JWT.encode(
       { "iss" => issuer,
@@ -149,7 +149,7 @@ class RpRefreshLogoutConcurrencyTest < ActiveSupport::TestCase
         "jti" => "jti-#{suffix}",
         "scope" => "openid",
         "authn_ctx" => "normal", },
-      key, "ES384", { "kid" => "replica", "typ" => "at+jwt" },
+      key, "PS256", { "kid" => "replica", "typ" => "at+jwt" },
     )
     jwks = OidcOpJwksClient.new(
       jwks_uri: "#{issuer}/.well-known/jwks.json",
@@ -217,7 +217,7 @@ class RpRefreshLogoutConcurrencyTest < ActiveSupport::TestCase
     anchor = RpCoreAppOpSessionBinding.find(session.op_session_binding_id)
     identity = RpCoreAppIdentityBinding.find(anchor.identity_binding_id)
     principal_id = identity.principal_id
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     now = Time.current.to_i
     access = JWT.encode(
       { "iss" => issuer,
@@ -231,7 +231,7 @@ class RpRefreshLogoutConcurrencyTest < ActiveSupport::TestCase
         "jti" => "jti-#{suffix}",
         "scope" => "openid",
         "authn_ctx" => "normal", },
-      key, "ES384", { "kid" => "rotation", "typ" => "at+jwt" },
+      key, "PS256", { "kid" => "rotation", "typ" => "at+jwt" },
     )
     jwks = OidcOpJwksClient.new(
       jwks_uri: "#{issuer}/.well-known/jwks.json",

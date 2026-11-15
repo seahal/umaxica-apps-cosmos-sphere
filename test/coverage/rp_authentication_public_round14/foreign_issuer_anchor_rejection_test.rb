@@ -18,7 +18,7 @@ class RpAuthenticationPublicRoundFourteenForeignIssuerAnchorRejectionTest < Acti
 
     assert_predicate enrollment, :success?
 
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     now = Time.current.to_i
     access_token = JWT.encode(
       {
@@ -35,8 +35,8 @@ class RpAuthenticationPublicRoundFourteenForeignIssuerAnchorRejectionTest < Acti
         "authn_ctx" => "normal",
       },
       key,
-      "ES384",
-      { "kid" => "foreign-issuer-anchor-key", "alg" => "ES384", "typ" => "at+jwt" },
+      "PS256",
+      { "kid" => "foreign-issuer-anchor-key", "alg" => "PS256", "typ" => "at+jwt" },
     )
     jwks_client = OidcOpJwksClient.new(
       jwks_uri: "#{issuer}/.well-known/jwks.json",

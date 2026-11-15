@@ -6,25 +6,20 @@ require "architecture_baseline"
 class ResolversAndAuthValuesRound5ArchitectureBaselinePublicArtifactsTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  test "baseline write derives sorted count and exclusion artifacts from one public measurement" do
+  test "baseline write derives sorted count artifacts from a public measurement" do
     counts = {
       "Umaxica/ExplicitMethodVisibility" => { "app/z.rb" => 2, "app/a.rb" => 1 },
       "Umaxica/NoConcernInclusionHooks" => {},
     }
     artifacts = {}
     ArchitectureBaseline::COUNTS_PATH.stub(:write, ->(content) { artifacts[:counts] = content }) do
-      ArchitectureBaseline::TODO_PATH.stub(:write, ->(content) { artifacts[:todo] = content }) do
-        ArchitectureBaseline.write(counts)
-      end
+      ArchitectureBaseline.write(counts)
     end
     recorded = YAML.safe_load(artifacts.fetch(:counts))
-    exclusions = YAML.safe_load(artifacts.fetch(:todo))
 
     assert_equal %w(app/a.rb app/z.rb), recorded.fetch("Umaxica/ExplicitMethodVisibility").keys
-    assert_equal ["app/a.rb", "app/z.rb"], exclusions.fetch("Umaxica/ExplicitMethodVisibility").fetch("Exclude")
     assert_equal({}, recorded.fetch("Umaxica/NoConcernInclusionHooks"))
-    assert_nil exclusions.fetch("Umaxica/NoConcernInclusionHooks").fetch("Exclude")
-    assert artifacts.values.all? { |text| text.start_with?(ArchitectureBaseline::HEADER) }
+    assert artifacts.fetch(:counts).start_with?(ArchitectureBaseline::HEADER)
     assert_equal 2, counts.fetch("Umaxica/ExplicitMethodVisibility").fetch("app/z.rb")
   end
 

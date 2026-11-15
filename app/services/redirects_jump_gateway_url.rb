@@ -9,11 +9,14 @@ class RedirectsJumpGatewayUrl
   def self.call(token, source: :jump_rt)
     new(token, source: source).call
   end
+  public_class_method :call
 
   def initialize(token, source:)
     @token = token
     @source = source
   end
+
+  public
 
   def call
     return failure(:blank_token) if token.blank?

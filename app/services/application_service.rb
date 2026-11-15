@@ -9,10 +9,13 @@ class ApplicationService
   def self.call(...)
     new(...).call
   end
+  public_class_method :call
 
   # Default initialization method. Override as needed in subclasses.
   def initialize(*)
   end
+
+  public
 
   def call
     raise NotImplementedError, "#{self.class} #call is not implemented"

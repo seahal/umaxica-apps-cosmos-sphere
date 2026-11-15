@@ -63,7 +63,7 @@ bin/rails assets:clobber        # Remove compiled assets
 - Docker Compose, or rootless Podman with `podman-compose`
 - Ruby `4.0.x`
 - Bundler
-- Node.js `24.20.0` (pinned in `.node-version`; `package.json` accepts `>=24.19.0 <25`)
+- Node.js `26.13.1` (pinned in `.node-version`; `package.json` accepts `>=26.13.1 <27`)
 - Bun `1.4.0`
 
 ### Credentials and secrets

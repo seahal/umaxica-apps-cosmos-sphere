@@ -1,5 +1,11 @@
 # Email, Telephone and dead identifier acceptance
 
+> **Sphere scope after the 2026-11-12 split:** Canonical account contact identifiers and their
+> lifecycle were removed from Sphere with the account data stores. This checklist is retained as
+> historical owner-service acceptance, not as current Sphere behavior or coverage. Former test paths
+> are labeled inline. See the
+> [Sphere retirement evidence](../../evidence/2026-11-12-remove-non-sphere-databases-R7P3.md).
+
 Authority: the approved E01–E20 contract and
 [realm-separated identifiers ADR](../../adr/realm-separated-identifiers-and-dead-history.md).
 Implementation ownership stays with its
@@ -40,10 +46,13 @@ deletion, secret rotation or production authority.
 - Exercise an authorized isolated com-Telephone maintenance case: app/org and Email are unaffected;
   ordinary roles cannot use maintenance to alter finalized owner/PII/binding facts. No real secret
   changes are authorized by this criterion.
-- Check [realm rotation tests](../../test/services/realm_identifier_hmac_rotation_test.rb),
-  [maintenance boundary tests](../../test/services/identifier_hmac_maintenance_boundary_test.rb),
-  normalization and missing/malformed-key cases. Required environment wiring is verified by safe
-  direct boot/configuration evidence, not an added setup unit test.
+- Check realm rotation tests (former test path
+  `../../test/services/realm_identifier_hmac_rotation_test.rb`; removed during Sphere ownership
+  retirement on 2026-11-12), maintenance boundary tests (former test path
+  `../../test/services/identifier_hmac_maintenance_boundary_test.rb`; removed during Sphere
+  ownership retirement on 2026-11-12), normalization and missing/malformed-key cases. Required
+  environment wiring is verified by safe direct boot/configuration evidence, not an added setup unit
+  test.
 
 ## CONTACT-3 — Realm encryption ownership and rotation
 
@@ -56,10 +65,11 @@ deletion, secret rotation or production authority.
   inventory's six-identifier scope and separately owned non-identifier keyring. Previous-key
   capability stays available; errors/evidence reveal no secrets and normal test boot needs no ad hoc
   key defaults.
-- Check [encryption tests](../../test/models/realm_identifier_encryption_test.rb),
-  [rotation drill](../../test/integration/identifier_encryption_rotation_drill_test.rb), provider
-  source and actual safe boot. Historical counts/boot results are not current evidence.
-  Non-identifier PII reassignment is outside this criterion.
+- Check encryption tests (former test path `../../test/models/realm_identifier_encryption_test.rb`;
+  removed during Sphere ownership retirement on 2026-11-12), rotation drill (former test path
+  `../../test/integration/identifier_encryption_rotation_drill_test.rb`; removed during Sphere
+  ownership retirement on 2026-11-12), provider source and actual safe boot. Historical counts/boot
+  results are not current evidence. Non-identifier PII reassignment is outside this criterion.
 
 ## CONTACT-4 — Ceremony ownership, binding and single use
 
@@ -160,11 +170,11 @@ deletion, secret rotation or production authority.
   authenticates it. Use semantic status constants; logical deletion/retention must not be
   misclassified as irreversible dead history. Preserve Email/Telephone domain-specific live
   predicates rather than guess a common one.
-- Check actual unique constraints and public concurrency tests; start with
-  [purge concurrency](../../test/operations/dead_identifier_purge_concurrency_test.rb). Full
-  normalized create/delete matrix for all six models is planned where missing; a model validation is
-  insufficient. The current six-model public model collection passed
-  `126 runs, 405 assertions, 0 failures, 0 errors, 0 skips`; see
+- Check actual unique constraints and public concurrency tests; start with purge concurrency (former
+  test path `../../test/operations/dead_identifier_purge_concurrency_test.rb`; removed during Sphere
+  ownership retirement on 2026-11-12). Full normalized create/delete matrix for all six models is
+  planned where missing; a model validation is insufficient. The current six-model public model
+  collection passed `126 runs, 405 assertions, 0 failures, 0 errors, 0 skips`; see
   [`T6N4`](../../evidence/2026-10-12-p3e-live-uniqueness-T6N4.md). That collection is current
   evidence, not a claim that every realm/status/concurrency partition is closed.
 
@@ -184,13 +194,16 @@ deletion, secret rotation or production authority.
   an unmarked persisted destroy is refused. Owner-dependent whole-Identity erasure remains its
   separate history-deleting contract. Raw/bulk deletion paths cannot silently bypass the required
   boundary; callback presence alone does not prove that.
-- Check [schema contract](../../test/models/dead_identifier_history_contract_test.rb),
-  [destroy tests](../../test/models/dead_identifier_destroy_test.rb),
-  [purge tests](../../test/operations/dead_identifier_purge_test.rb) and purge concurrency with
-  actual PostgreSQL rollback/commit. Model-less/source paths must also be accounted for; no
-  real-data purge. The six identifier table catalogs in the current disposable rehearsal have no
-  retired identifier-owned OTP columns or source-proof contexts, and no constraint, non-internal
-  trigger or public function still references them; see
+- Check schema contract (former test path
+  `../../test/models/dead_identifier_history_contract_test.rb`; removed during Sphere ownership
+  retirement on 2026-11-12), destroy tests (former test path
+  `../../test/models/dead_identifier_destroy_test.rb`; removed during Sphere ownership retirement on
+  2026-11-12), purge tests (former test path `../../test/operations/dead_identifier_purge_test.rb`;
+  removed during Sphere ownership retirement on 2026-11-12) and purge concurrency with actual
+  PostgreSQL rollback/commit. Model-less/source paths must also be accounted for; no real-data
+  purge. The six identifier table catalogs in the current disposable rehearsal have no retired
+  identifier-owned OTP columns or source-proof contexts, and no constraint, non-internal trigger or
+  public function still references them; see
   [`U4K6`](../../evidence/2026-10-12-p3d-schema-retirement-U4K6.md). Historical migrations and
   rejection fixtures remain traceability material; this catalog result does not close the full
   transport/source/fixture/constraint inventory. The current seven-file history/retention collection
@@ -215,13 +228,14 @@ deletion, secret rotation or production authority.
   UNIQUE or standalone fingerprint index. No all-users find_by_fingerprint, authentication/recovery
   lookup, cross-realm correlation or restoration from history. Invalid fingerprints/inputs and wrong
   realm/channel/key refuse safely, without reducing crypto parameters for tests.
-- Check
-  [fingerprint verifier tests](../../test/lib/identifier_history_fingerprint_verifier_test.rb),
-  actual schema, matching callers and current Argon2 source/cost configuration. Tests of known
-  fixtures plus cryptographic construction review are evidence; brute-force timing samples do not
-  prove anonymity. The current focused history matrix also includes the verifier and repeated-row
-  checks; see [`V3M7`](../../evidence/2026-10-12-p11a-history-matrix-V3M7.md). The integrated
-  history, retention, HMAC and encryption collection passed
+- Check fingerprint verifier tests (former test path
+  `../../test/lib/identifier_history_fingerprint_verifier_test.rb`; removed during Sphere ownership
+  retirement on 2026-11-12), actual schema, matching callers and current Argon2 source/cost
+  configuration. Tests of known fixtures plus cryptographic construction review are evidence;
+  brute-force timing samples do not prove anonymity. The current focused history matrix also
+  includes the verifier and repeated-row checks; see
+  [`V3M7`](../../evidence/2026-10-12-p11a-history-matrix-V3M7.md). The integrated history,
+  retention, HMAC and encryption collection passed
   `110 runs, 1066 assertions, 0 failures, 0 errors, 0 skips`; see
   [`X7Q4`](../../evidence/2026-10-12-p11a-integrated-matrix-X7Q4.md). These are current focused
   results, not proof that every realm/channel maintenance and legal retention partition is complete.
@@ -238,11 +252,12 @@ deletion, secret rotation or production authority.
   new per-row legal_hold flag are not assumed. Identifier-only purge retains its identity/history;
   approved whole-identity erasure follows its separate guarded contract. Avatar history is
   unaffected.
-- Check
-  [visibility invariant](../../test/security/invariants/dead_identifier_history_visibility_invariant_test.rb),
-  [retention tests](../../test/jobs/dead_identifier_retention_test.rb), routes/serializers/export
-  paths and hold/whole-owner tests. The current seven-file history/retention collection passed
-  `96 runs, 776 assertions, 0 failures, 0 errors, 0 skips`; see
+- Check visibility invariant (former test path
+  `../../test/security/invariants/dead_identifier_history_visibility_invariant_test.rb`; removed
+  during Sphere ownership retirement on 2026-11-12), retention tests (former test path
+  `../../test/jobs/dead_identifier_retention_test.rb`; removed during Sphere ownership retirement on
+  2026-11-12), routes/serializers/export paths and hold/whole-owner tests. The current seven-file
+  history/retention collection passed `96 runs, 776 assertions, 0 failures, 0 errors, 0 skips`; see
   [`V3M7`](../../evidence/2026-10-12-p11a-history-matrix-V3M7.md). The integrated history,
   retention, HMAC and encryption collection passed
   `110 runs, 1066 assertions, 0 failures, 0 errors, 0 skips`; see

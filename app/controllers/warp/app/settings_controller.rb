@@ -10,6 +10,7 @@ module Warp
       inertia_share clear_history: -> { session[:inertia_clear_history] == true }
       # Reachable from the anonymous Warp landing, which links here before the visitor signs in.
       AUTHENTICATION_MODE = :open
+      layout "warp/app/inertia"
 
       public
 

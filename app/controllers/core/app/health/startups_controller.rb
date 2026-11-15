@@ -9,6 +9,9 @@ module Core
 
         AUTHENTICATION_MODE = :bare
         HEALTH_PROFILE = ::Health::Profiles::App
+        before_action :disable_health_response_cache
+
+        public
 
         def show
           render_probe(::Health::StartupCheck.call(profile: health_profile))

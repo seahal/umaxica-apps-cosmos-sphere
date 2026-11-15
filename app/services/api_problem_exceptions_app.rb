@@ -20,6 +20,8 @@ class ApiProblemExceptionsApp
   API_PATH_PREFIX = "/api/"
 
   class << self
+    public
+
     def call(env)
       new(env).call
     end
@@ -28,6 +30,8 @@ class ApiProblemExceptionsApp
   def initialize(env)
     @env = env
   end
+
+  public
 
   def call
     unless api_request?

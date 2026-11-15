@@ -8,6 +8,9 @@ module Core
 
       AUTHENTICATION_MODE = :bare
       HEALTH_PROFILE = ::Health::Profiles::Org
+      before_action :disable_health_response_cache
+
+      public
 
       def show
         render_snapshot(::Health::SnapshotCheck.call(profile: health_profile))

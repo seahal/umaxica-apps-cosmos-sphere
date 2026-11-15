@@ -6,6 +6,8 @@ module Core
     class RootsController < Core::Net::BareController
       AUTHENTICATION_MODE = :deny_all
 
+      public
+
       def index
         render plain: "Core::Net::Roots#index"
       end

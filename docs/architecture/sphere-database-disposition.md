@@ -71,8 +71,8 @@ and references remain untouched; this is a subsystem scope boundary inside `prim
 database-connection exclusion setting for DatabaseConsistency.
 
 The OperatorChronicle halt index is a legitimate partial unique index on two JSON expressions. Its
-real `JsonbKeysUniquenessValidator` now checks the same tuple and predicate on the writer. The local
-checker fork compares that declaration with the index in both directions; incorrect keys, columns,
-predicates and missing validation still fail. The index itself is preserved. The parent repository
-stores the ignored fork's changes as a
-[reproducible patch](../../patches/database-consistency-jsonb-keys-uniqueness.patch).
+real `JsonbKeysUniquenessValidator` now checks the same tuple and predicate on the writer. Its
+declaration publishes standard uniqueness metadata (the index's normalized expression terms as
+attributes and scope, and the partial predicate as `conditions`), so the released
+`database_consistency` gem from RubyGems matches it in both directions without a fork or patch
+(2026-11-15). The index itself is preserved.

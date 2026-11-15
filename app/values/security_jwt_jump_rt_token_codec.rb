@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 class SecurityJwtJumpRtTokenCodec
-  ALGORITHM = "ES384"
+  ALGORITHM = JitSecurityJwtJwk::ALGORITHM
   TOKEN_TYPE = "JWT"
   TOKEN_SUBJECT = "jump-redirect"
   SCHEMA = 1

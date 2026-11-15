@@ -11,6 +11,8 @@
 class ClientChronicleEvent < ChronicleRecord
   include ReferenceRecord
 
+  self.record_timestamps = false
+
   # Fixed IDs - do not modify these values
   ACCOUNT_RECOVERED = 1
   ACCOUNT_WITHDRAWN = 2
@@ -135,4 +137,5 @@ class ClientChronicleEvent < ChronicleRecord
   def self.ensure_defaults!
     insert_missing_fixed_ids!(DEFAULTS)
   end
+  public_class_method :ensure_defaults!
 end

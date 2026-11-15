@@ -12,6 +12,8 @@ module Core
       allow_browser versions: :modern
       layout false
 
+      public
+
       def index
       end
     end

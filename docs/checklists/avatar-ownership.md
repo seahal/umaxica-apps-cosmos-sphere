@@ -1,8 +1,9 @@
 # Avatar organization ownership acceptance
 
-> **Route status (2026-11-11):** Historical Base APP/ORG controller and test links below describe
-> removed routes. Avatar models, operations, and persistence remain for the next database review;
-> this checklist records the earlier transport acceptance and is not current route guidance.
+> **Sphere scope after the 2026-11-12 split:** Avatar models, operations, routes and persistence
+> were removed from Sphere; Governance owns this domain. This checklist is retained as historical
+> acceptance, not as current Sphere behavior or coverage. Former test paths are labeled inline. See
+> the [Sphere retirement evidence](../../evidence/2026-11-12-remove-non-sphere-databases-R7P3.md).
 
 Authority: approved A00–A16 and D-1–D-11 strategic decisions. The existing
 [ownership spec](../../specs/avatar-organization-ownership/spec.md) retains historical findings and
@@ -106,11 +107,13 @@ boundary while the remaining writer/cutover and cross-isolation acceptance stays
   deterministic period refusal and history preservation for this P7 slice, not the complete
   ownership-acceptance race, transfer cutover or dump/restore acceptance. Start at the concurrency
   tests (former reference: ../../test/operations/avatar_ownership_transfers_concurrency_test.rb),
-  [concrete-period tests](../../test/models/avatar_concrete_ownership_period_test.rb) and
-  [trigger tests](../../test/models/enforcement_triggers_test.rb). Approximately twenty draft
-  triggers is not a required count. The same run's no-delete database/role preflight also verified
-  20 disposable databases and 12 scoped HMAC roles after receipt-verified cleanup of stale worker
-  clones. Block runtime acceptance without isolation.
+  concrete-period tests (former test path
+  `../../test/models/avatar_concrete_ownership_period_test.rb`; removed during Sphere ownership
+  retirement on 2026-11-12) and trigger tests (former test path
+  `../../test/models/enforcement_triggers_test.rb`; removed during Sphere ownership retirement on
+  2026-11-12). Approximately twenty draft triggers is not a required count. The same run's no-delete
+  database/role preflight also verified 20 disposable databases and 12 scoped HMAC roles after
+  receipt-verified cleanup of stale worker clones. Block runtime acceptance without isolation.
 
 Current resume evidence reran the concrete-period, registry-concurrency and trigger-inventory
 selection against the run-owned four-worker manifest:
@@ -315,25 +318,26 @@ the independent-connection concurrency cases; it does not replace them or the cu
   readers and data must migrate before future removal; no automatic Phase G deletion or controller
   redesign. If existing evidence cannot settle domain semantics, mark this criterion BLOCKED with
   exact decision, not PASS, a guessed conversion or NOT_APPLICABLE.
-- Check Group policies/resolvers/provisioning and
-  [existing Group period tests](../../test/models/avatar_group_ownership_period_test.rb), then
-  concrete Group and transfer consequence tests. The registry acceptance regression in
-  `test/operations/avatar_ownership_transfers_test.rb` now proves that an ownership transfer removes
-  an owner-mismatched membership while preserving each Group's independent
-  `account_surface`/`account_public_id` context and a target-matched membership. This hold affects
-  P10b/P12b, not independent Grants or identifier history. Current `GroupManagement::Create` and
-  `AvatarGroupPolicy` compare/filter selected subject account separately from owning collective; the
-  app Avatar controller resolves that account as `ClientPersona`. The owning specification records
-  these concrete observations. Account identity must not be replaced by owner identity. The meaning
-  decision is therefore settled for the current contract: account context remains distinct from
-  concrete organization ownership. These observations do not establish data reconciliation, a
-  concrete account relationship, migrated consumers, or the full four-direction cutover; those
-  implementation and operational steps remain required for this criterion. The read-only transition
-  inventory also classifies a legacy or concrete Group history with a missing owner, invalid
-  interval, non-creation initial boundary, multiple open periods, or a gap as `conflict`/manual
-  review. The bounded Group backfill refuses that candidate and never invents a boundary. This
-  protects the pre-cutover migration boundary; it does not resolve the account meaning or establish
-  the cutover marker. The revision-scoped result is recorded in
+- Check Group policies/resolvers/provisioning and existing Group period tests (former test path
+  `../../test/models/avatar_group_ownership_period_test.rb`; removed during Sphere ownership
+  retirement on 2026-11-12), then concrete Group and transfer consequence tests. The registry
+  acceptance regression in `test/operations/avatar_ownership_transfers_test.rb` now proves that an
+  ownership transfer removes an owner-mismatched membership while preserving each Group's
+  independent `account_surface`/`account_public_id` context and a target-matched membership. This
+  hold affects P10b/P12b, not independent Grants or identifier history. Current
+  `GroupManagement::Create` and `AvatarGroupPolicy` compare/filter selected subject account
+  separately from owning collective; the app Avatar controller resolves that account as
+  `ClientPersona`. The owning specification records these concrete observations. Account identity
+  must not be replaced by owner identity. The meaning decision is therefore settled for the current
+  contract: account context remains distinct from concrete organization ownership. These
+  observations do not establish data reconciliation, a concrete account relationship, migrated
+  consumers, or the full four-direction cutover; those implementation and operational steps remain
+  required for this criterion. The read-only transition inventory also classifies a legacy or
+  concrete Group history with a missing owner, invalid interval, non-creation initial boundary,
+  multiple open periods, or a gap as `conflict`/manual review. The bounded Group backfill refuses
+  that candidate and never invents a boundary. This protects the pre-cutover migration boundary; it
+  does not resolve the account meaning or establish the cutover marker. The revision-scoped result
+  is recorded in
   [`evidence/2026-10-12-avatar-group-inventory-S7H2.md`](../../evidence/2026-10-12-avatar-group-inventory-S7H2.md).
 
 ## AV-9 — Observable retention deferral
@@ -345,14 +349,15 @@ the independent-connection concurrency cases; it does not replace them or the cu
 - Ownership during suspension/logical deletion remains valid. Unresolved attribute/handle/media
   deletion/anonymization policy is recorded separately; preserving history is not indefinite PII
   retention permission. Identifier dead history follows CONTACT-7/9 independently.
-- Check [retention job tests](../../test/jobs/retention_purge_job_test.rb) and the focused
-  [Avatar retention tests](../../test/jobs/avatar_retention_purge_test.rb). The implemented
-  `avatar_purge_deferrals` table records an idempotent `(avatar_id, reason_code)` observation and
-  increments it under a row lock; ownership history is never physically deleted by the purge job. An
-  eligible Avatar without concrete ownership history also remains intact, with an explicit
-  `retention_policy_pending` deferral; encrypted moniker history is preserved. The absence of
-  ownership periods does not authorize deletion. Personal-data retention duration and final
-  deletion/anonymization policy remain unresolved and are not inferred from this deferral mechanism.
+- Check [retention job tests](../../test/jobs/retention_purge_job_test.rb) and the focused Avatar
+  retention tests (former test path `../../test/jobs/avatar_retention_purge_test.rb`; removed during
+  Sphere ownership retirement on 2026-11-12). The implemented `avatar_purge_deferrals` table records
+  an idempotent `(avatar_id, reason_code)` observation and increments it under a row lock; ownership
+  history is never physically deleted by the purge job. An eligible Avatar without concrete
+  ownership history also remains intact, with an explicit `retention_policy_pending` deferral;
+  encrypted moniker history is preserved. The absence of ownership periods does not authorize
+  deletion. Personal-data retention duration and final deletion/anonymization policy remain
+  unresolved and are not inferred from this deferral mechanism.
 
 ## AV-10 — Explicit lifecycle catalog booleans
 
@@ -362,5 +367,6 @@ the independent-connection concurrency cases; it does not replace them or the cu
   value. False persists as a valid value; nil and empty boolean inputs are rejected before model
   insertion. PostgreSQL NOT NULL independently rejects validation-disabled NULL writes.
 - Current catalog values, lifecycle transition edges and projected existing-record behavior remain
-  unchanged. Check [catalog model tests](../../test/models/avatar_lifecycle_state_test.rb),
-  lifecycle transition tests and the Avatar authority lifecycle invariant.
+  unchanged. Check catalog model tests (former test path
+  `../../test/models/avatar_lifecycle_state_test.rb`; removed during Sphere ownership retirement on
+  2026-11-12), lifecycle transition tests and the Avatar authority lifecycle invariant.

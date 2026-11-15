@@ -36,7 +36,7 @@ class RuntimeAndValuesRound7PublicValueBoundariesTest < ActiveSupport::TestCase
   end
 
   test "Jump headers reject alternate algorithms types and unregistered metadata" do
-    valid = { "alg" => "ES384", "typ" => "JWT", "kid" => "public-key" }
+    valid = { "alg" => "PS256", "typ" => "JWT", "kid" => "public-key" }
 
     assert SecurityJwtJumpRtTokenCodec.valid_header?(valid)
     [nil, [], valid.merge("typ" => "at+jwt"), valid.merge("alg" => "none"),

@@ -40,29 +40,6 @@ class CoverageControllerPublicContractsTest < ActiveSupport::TestCase
     assert_equal "unmapped health status: :future_status", error.message
   end
 
-  test "navigation targets enforce scopes and reject arbitrary path input" do
-    routes = Rails.application.routes.url_helpers
-    [nil, "", 0, "HOME", "missing", "https://untrusted.example", "/sign", "x:y", "x\\y"].each do |input|
-      result = RedirectsNavigationTargetResolver.call(input, routes:, scope: :public)
-
-      assert_not result.ok?, input.inspect
-      assert_equal :nt, result.kind
-    end
-    %i(home signed_out).each do |key|
-      result = RedirectsNavigationTargetResolver.call(key, routes:, params: { ri: "jp" }, scope: :public)
-
-      assert_predicate result, :ok?
-      assert_equal((key == :home) ? "/?ri=jp" : "/sign/out?ri=jp", result.value)
-    end
-    assert_equal "scope_denied",
-                 RedirectsNavigationTargetResolver.call(:dashboard, routes:, scope: :public).failure_reason
-    assert_equal "scope_denied", RedirectsNavigationTargetResolver.call(:home, routes:, scope: :unknown).failure_reason
-    assert_equal "/", RedirectsNavigationTargetResolver.call("home", routes:, params: { ri: "" }).value
-    assert_equal "/sign/out", RedirectsNavigationTargetResolver.call(:signed_out, routes:).value
-    assert_equal "org", RedirectsNavigationTargetResolver.surface(surface: "org")
-    assert_equal "app", RedirectsNavigationTargetResolver.surface({})
-  end
-
   test "Chronicle error message truncation and safe categorical values preserve only allowed data" do
     [1023, 1024, 1025].each do |length|
       message = ("safe error. " * 100)[0, length]

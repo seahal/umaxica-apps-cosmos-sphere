@@ -47,16 +47,26 @@ class AuthenticationContextValue
     freeze
   end
 
+  public
+
   def normal? = key == NORMAL_KEY
 
+  public
+
   def standby? = key == STANDBY_KEY
+
+  public
 
   def permits?(capability) = capabilities.include?(capability.to_s)
 
   # Step-Up is an authentication-context capability, not a freshness question.
   # A Standby session is not eligible to perform Step-Up-protected
   # operations at all, however valid the Operator's Step-Up credential is.
+  public
+
   def step_up_permitted? = permits?(CAPABILITY_STEP_UP)
+
+  public
 
   def to_s = key
 
@@ -67,6 +77,8 @@ class AuthenticationContextValue
   # (step_up_permitted?), so an operation is withheld from it by giving that
   # operation a Step-Up gate. An unrecognised context still denies every rule
   # rather than falling through to Normal.
+  public
+
   def permits_rule?(_rule)
     normal? || standby?
   end
@@ -93,8 +105,10 @@ class AuthenticationContextValue
   UNKNOWN = new("unknown", capabilities: []).freeze
 
   def self.normal = REGISTRY.fetch(NORMAL_KEY)
+  public_class_method :normal
 
   def self.standby = REGISTRY.fetch(STANDBY_KEY)
+  public_class_method :standby
 
   # Strict lookup for issue-time call sites, which must never mint a session
   # under a context this build cannot enumerate.
@@ -106,6 +120,7 @@ class AuthenticationContextValue
             "Unknown authentication context: #{key.inspect} (expected one of #{KEYS.inspect})"
     end
   end
+  public_class_method :for
 
   # Lenient lookup for verification-time call sites reading an already-signed
   # token. A blank claim is a Normal session (the claim postdates existing
@@ -115,12 +130,14 @@ class AuthenticationContextValue
 
     REGISTRY.fetch(value.to_s, UNKNOWN)
   end
+  public_class_method :from_claim
 
   def self.from_claims(claims)
     return normal unless claims.is_a?(Hash)
 
     from_claim(claims[CLAIM] || claims[CLAIM.to_sym])
   end
+  public_class_method :from_claims
 
   # Session capabilities narrow the authorization scopes a token carries; they
   # never add one that the actor's ordinary scopes did not already grant.
@@ -129,6 +146,8 @@ class AuthenticationContextValue
   # the scarce operations are withheld by their Step-Up gates, so filtering the
   # scp claim would only split the boundary in two without narrowing anything
   # further. An unrecognised context keeps no capability-named scope.
+  public
+
   def constrain_scopes(scopes)
     return Array(scopes) unless unknown?
 

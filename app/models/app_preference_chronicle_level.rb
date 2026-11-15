@@ -11,6 +11,8 @@
 class AppPreferenceChronicleLevel < ChronicleRecord
   include ReferenceRecord
 
+  self.record_timestamps = false
+
   # Fixed IDs - do not modify these values
   NOTHING = 0
   INFO = 1
@@ -22,4 +24,5 @@ class AppPreferenceChronicleLevel < ChronicleRecord
   def self.ensure_defaults!
     insert_missing_fixed_ids!(DEFAULTS)
   end
+  public_class_method :ensure_defaults!
 end

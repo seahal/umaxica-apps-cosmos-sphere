@@ -5,10 +5,10 @@
 # auth_access tokens and OIDC access tokens that share the auth codec.
 #
 # UMAXICA Auth access tokens follow RFC 9068 token structure, claims, semantics, and validation
-# with one documented interoperability deviation: ES384 is the only supported
+# with one documented interoperability deviation: PS256 is the only supported
 # signing algorithm, and RS256 is intentionally not implemented.
 module SecurityJwtRfc9068AccessTokenProfile
-  ALGORITHM = "ES384"
+  ALGORITHM = JitSecurityJwtJwk::ALGORITHM
   TOKEN_TYPE = "at+jwt"
   REQUIRED_CLAIMS = %w(iss exp aud sub client_id iat jti).freeze
   RESOURCE_TYPE_SCOPE_PREFIX = "domain:"

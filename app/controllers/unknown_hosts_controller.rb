@@ -19,6 +19,8 @@ class UnknownHostsController < ApplicationController
   # diagnosing a misdirected request, never an end user. `unknown_host` reads alongside the
   # `unknown_fqdn` the availability gate returns, which is the neighbouring failure -- a Host that
   # does route but has no availability slot.
+  public
+
   def show
     render json: { error: "unknown_host" }, status: :not_found
   end

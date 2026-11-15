@@ -3,7 +3,7 @@
 
 require "jwt"
 
-# The RP's OIDC `state`: an ES384 JWS signed with the RP's own `oidc_client:<namespace>` key
+# The RP's OIDC `state`: a PS256 JWS signed with the RP's own `oidc_client:<namespace>` key
 # (D-149, D-150, D-151; `adr/rp-oidc-state-and-return-target.md`). It carries the path-only
 # `target_link_uri` and the `jti` that keys this browser's single pending entry. Signed, not
 # encrypted. Never carries `sid`, `code_verifier` or session secrets.
@@ -37,7 +37,7 @@ module OidcStateJwt
 
   def verify(client_id:, token:)
     _payload, header = JWT.decode(token.to_s, nil, false)
-    return refused("invalid_header") unless header.is_a?(Hash) && header["alg"] == "ES384" &&
+    return refused("invalid_header") unless header.is_a?(Hash) && header["alg"] == JitSecurityJwtJwk::ALGORITHM &&
       header["typ"] == TOKEN_TYPE && header["kid"].is_a?(String)
 
     key = JitSecurityJwtRegistry.public_key_for(issuer_id_for(client_id), header["kid"])
@@ -45,7 +45,7 @@ module OidcStateJwt
 
     payload, = JWT.decode(
       token.to_s, key, true,
-      algorithms: ["ES384"], required_claims: REQUIRED_CLAIMS,
+      algorithms: [JitSecurityJwtJwk::ALGORITHM], required_claims: REQUIRED_CLAIMS,
       verify_iss: true, iss: client_id.to_s, verify_aud: true, aud: audience_for(client_id),
       verify_expiration: true, verify_iat: { leeway: CLOCK_SKEW_LEEWAY_SECONDS }, leeway: 0,
     )

@@ -22,7 +22,7 @@ class CoverageRoundTwoBackchannelRequestsTest < ActionDispatch::IntegrationTest
       )
 
       assert_predicate enrollment, :success?
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       payload = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -32,7 +32,7 @@ class CoverageRoundTwoBackchannelRequestsTest < ActionDispatch::IntegrationTest
         "jti" => "logout-notice-#{connection}",
         "events" => { OidcOpLogoutTokenVerifier::EVENT => {} },
       }
-      token = JWT.encode(payload, key, "ES384", { kid: "external-op", typ: "logout+jwt" })
+      token = JWT.encode(payload, key, "PS256", { kid: "external-op", typ: "logout+jwt" })
       browser = open_session
       browser.host!(ENV.fetch(host_setting))
       browser.https!
@@ -67,7 +67,7 @@ class CoverageRoundTwoBackchannelRequestsTest < ActionDispatch::IntegrationTest
     )
 
     assert_predicate enrollment, :success?
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     claims = {
       "iss" => issuer,
       "aud" => [cell.client_id],
@@ -80,11 +80,11 @@ class CoverageRoundTwoBackchannelRequestsTest < ActionDispatch::IntegrationTest
     jwks = OidcOpJwksClient.for_resource_type("client")
     lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)
     [nil, "", "malformed", JWT.encode(
-      claims.merge("aud" => ["palm-app-jp"]), key, "ES384",
+      claims.merge("aud" => ["palm-app-jp"]), key, "PS256",
       { kid: "external-op", typ: "logout+jwt" },
     ),
      JWT.encode(
-       claims.merge("nonce" => "id-token-replay"), key, "ES384",
+       claims.merge("nonce" => "id-token-replay"), key, "PS256",
        { kid: "external-op", typ: "logout+jwt" },
      ),].each do |token|
       jwks.stub(:lookup, lookup) { post "/oidc/closures", params: { logout_token: token } }
@@ -99,7 +99,7 @@ class CoverageRoundTwoBackchannelRequestsTest < ActionDispatch::IntegrationTest
     host! ENV.fetch("PUBLIC_CORE_STAFF_URL")
     https!
     issuer = OidcIssuer.for_resource_type("operator")
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     claims = {
       "iss" => issuer,
       "aud" => ["core-org-jp"],
@@ -109,7 +109,7 @@ class CoverageRoundTwoBackchannelRequestsTest < ActionDispatch::IntegrationTest
       "jti" => "retry-jti",
       "events" => { OidcOpLogoutTokenVerifier::EVENT => {} },
     }
-    token = JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "logout+jwt" })
+    token = JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "logout+jwt" })
     jwks = OidcOpJwksClient.for_resource_type("operator")
     unavailable = OidcOpJwksClient::Lookup.new(status: :unavailable, key: nil, reason: "transport")
     jwks.stub(:lookup, unavailable) { post "/oidc/closures", params: { logout_token: token } }

@@ -9,6 +9,8 @@ module Core
           class RefreshesController < BaseController
             AUTHENTICATION_MODE = :bare
 
+            public
+
             def create
               refresh_core_browser_token!
             end

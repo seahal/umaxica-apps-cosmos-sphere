@@ -14,15 +14,15 @@ module Warp
         include ::SignOutInertiaPages
 
         AUTHENTICATION_MODE = :open
+        prepend_before_action :normalize_rp_logout_region!, if: -> { action_name == "create" }
+        ensure_fqdn_gate_first!
+        layout "warp/org/inertia"
         declare_authentication_mode! :open
         # The sign-out pages are regional HTML (Inertia) documents, so they run the surface's
         # ordinary callback chain -- `set_region` included, otherwise every link they generate
         # would drop `ri` (test/unit/security/ri_routing_contract_test.rb).
 
         before_action :authenticate_oidc_rp_session!, only: :create
-        helper_method :sign_out_completed_description
-        helper_method :sign_out_confirmation_form_path
-
         after_action :sign_out_notice_cache_headers!, only: %i(show edit)
 
         public

@@ -12,7 +12,7 @@ class JwtAnomalyAndRuntimeValuesTest < ActiveSupport::TestCase
     begin
       JitSecurityJwtAnomalyReporter.report_auth(
         resource_type: "staff", host: "host." * 60,
-        header: { "kid" => "key", "alg" => "ES384" },
+        header: { "kid" => "key", "alg" => "PS256" },
         payload: { "typ" => "at+jwt",
                    "iss" => "issuer",
                    "aud" => ["audience", 1, nil] + Array.new(

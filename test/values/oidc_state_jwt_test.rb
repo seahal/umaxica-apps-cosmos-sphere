@@ -13,6 +13,21 @@ class OidcStateJwtTest < ActiveSupport::TestCase
 
     assert_predicate result, :valid?
     assert_equal [jti, "/dashboard"], [result.jti, result.target_link_uri]
+    assert_equal "PS256", JWT.decode(state, nil, false).last.fetch("alg")
+  end
+
+  test "a state signed with ES384 is refused before public key lookup" do
+    state, = OidcStateJwt.issue(client_id: CLIENT_ID, target_link_uri: "/dashboard")
+    payload, header = JWT.decode(state, nil, false)
+    legacy_state = JWT.encode(
+      payload, OpenSSL::PKey::EC.generate("secp384r1"), "ES384",
+      { "typ" => OidcStateJwt::TOKEN_TYPE, "kid" => header.fetch("kid") },
+    )
+
+    result = OidcStateJwt.verify(client_id: CLIENT_ID, token: legacy_state)
+
+    assert_not_predicate result, :valid?
+    assert_equal "invalid_header", result.reason
   end
 
   test "another RP, a tampered payload or signature, and other algorithms are refused" do

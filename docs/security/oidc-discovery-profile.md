@@ -14,26 +14,27 @@ non-default choices in Acme's published OIDC metadata so reviewers do not mistak
 
 Source of truth: `app/values/oidc_discovery_document.rb`, `app/values/oidc_issuer.rb`.
 
-## ES384-only is a private profile, not strict OIDC conformance
+## PS256-only is a private profile, not strict OIDC conformance
 
 `id_token_signing_alg_values_supported` and `token_endpoint_auth_signing_alg_values_supported` are
-both `["ES384"]`. The OpenID Connect Core conformance profiles expect `RS256` support; Visa
+both `["PS256"]`. The OpenID Connect Core conformance profiles expect `RS256` support; Visa
 **intentionally does not** offer `RS256`.
 
 Auth access JWTs follow RFC 9068 in token structure, claims, semantics, and validation requirements.
-ES384 is the sole supported signing algorithm. UMAXICA intentionally does not implement the RFC 9068
+PS256 is the sole supported signing algorithm. UMAXICA intentionally does not implement the RFC 9068
 §2.1 requirement that conforming authorization servers and resource servers include RS256 among
-their supported signature algorithms. ES384 itself is permitted by RFC 9068; the deviation is the
-absence of RS256 support. Preference JWTs use a separate realm shape and keyring; see
+their supported signature algorithms. The deviation is the absence of RS256 support. Preference JWTs
+use a separate realm shape and keyring; see
 `adr/preference-realm-jwt-and-host-bound-browser-binding.md` and
 `adr/rfc9068-access-token-profile.md`.
 
 This is a deliberate private profile:
 
-- All ID Tokens and client assertions are EC P-384 / ES384.
-- JWKS publishes only EC P-384 keys (`kty=EC`, `crv=P-384`, `alg=ES384`, `use=sig`).
+- All first-party JWTs use PS256 and RSA keys with a modulus of at least 3072 bits.
+- JWKS publishes only public RSA keys (`kty=RSA`, `alg=PS256`, `use=sig`) with a modulus of at least
+  3072 bits.
 - Relying parties in this system are first-party (Sign / Core / Base / Palm) and are configured for
-  ES384, so the broad-compatibility argument for `RS256` does not apply.
+  PS256, so the broad-compatibility argument for `RS256` does not apply.
 
 The logout completion URI is not part of discovery. Discovery continues to publish
 `end_session_endpoint` as `https://<visa-surface-host>/oidc/logout`; browser completion returns to
@@ -85,3 +86,11 @@ discovery document is generated from the registered allowlist and advertises onl
 types and endpoints. UserInfo accepts Bearer credentials on GET or POST and applies scope-filtered
 claims. The old Acme vocabulary in the lower sections is historical; the current route and client
 registry are defined by the Visa OP ADR and live route tests.
+
+## Signing algorithm amendment (2026-11-13)
+
+The accepted Cosmos PS256 owner decision supersedes the ES384 references in the historical
+reconciliation above. First-party token issuers and verifiers use PS256 only; RSA public keys must
+be 3072 bits or larger. DPoP, WebAuthn and third-party identity signatures keep their separately
+specified algorithms. The Sphere repository does not contain the Access OP implementation, so live
+discovery metadata and Access sign-in remain unverified here.

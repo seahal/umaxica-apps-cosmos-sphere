@@ -11,7 +11,7 @@ module Jit
         self.fixture_table_names = []
 
         setup do
-          @key = OpenSSL::PKey::EC.generate("secp384r1")
+          @key = OpenSSL::PKey::RSA.generate(3072)
           @public_jwk = JitSecurityJwtJwk.export_public(@key, kid: "kid-1")
         end
 

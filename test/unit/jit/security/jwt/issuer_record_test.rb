@@ -11,9 +11,9 @@ module Jit
         self.fixture_table_names = []
 
         setup do
-          @active_key = OpenSSL::PKey::EC.generate("secp384r1")
-          @grace_key = OpenSSL::PKey::EC.generate("secp384r1")
-          @retired_key = OpenSSL::PKey::EC.generate("secp384r1")
+          @active_key = OpenSSL::PKey::RSA.generate(3072)
+          @grace_key = OpenSSL::PKey::RSA.generate(3072)
+          @retired_key = OpenSSL::PKey::RSA.generate(3072)
           @active_jwk = { "kid" => "active", "state" => "active" }
           @grace_jwk = { "kid" => "grace", "state" => "grace" }
           @retired_jwk = { "kid" => "retired", "state" => "retired" }

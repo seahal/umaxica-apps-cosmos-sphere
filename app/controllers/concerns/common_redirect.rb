@@ -17,6 +17,9 @@ module CommonRedirect
     # strip scheme remnants and spaces
     host.to_s.downcase.sub(%r{^https?://}i, "").split("/").first
   end
+  public_class_method :normalize_host
+
+  public
 
   def redirect_to_jump_url(
     url,
@@ -51,6 +54,8 @@ module CommonRedirect
            status: :unprocessable_content
   end
 
+  public
+
   def safe_jump_preserved_query_keys(url)
     uri = URI.parse(url.to_s)
     query = Rack::Utils.parse_nested_query(uri.query.to_s)
@@ -68,6 +73,8 @@ module CommonRedirect
     []
   end
 
+  public
+
   def oidc_authorize_host_allowed?(host)
     allowed_hosts =
       %w(PUBLIC_BASE_SERVICE_URL PUBLIC_BASE_STAFF_URL)
@@ -83,6 +90,8 @@ module CommonRedirect
     allowed_hosts.include?(CommonRedirect.normalize_host(host))
   end
 
+  public
+
   def safe_redirect_to(target, fallback: "/", **)
     result = RedirectsPathTargetResolver.call(target, source: :legacy_safe_redirect)
     safe_path = result.value if result.ok?
@@ -95,20 +104,28 @@ module CommonRedirect
     end
   end
 
+  public
+
   def safe_redirect_back_or_to(fallback, **)
     result = RedirectsPathTargetResolver.call(request.referer, source: :referer)
     safe_path = result.value if result.ok?
     redirect_to(safe_path || fallback, allow_other_host: false, **)
   end
 
+  public
+
   def safe_internal_path(target)
     result = RedirectsPathTargetResolver.call(target, source: :internal_path)
     result.value if result.ok?
   end
 
+  public
+
   def jump_rt_issuer_namespace
     JumpRtSurface.namespace_for_controller(self.class.name)
   end
+
+  public
 
   def log_jump_rt_issued(token:, namespace:, dst:, url:)
     req = request if respond_to?(:request, true)
@@ -139,12 +156,16 @@ module CommonRedirect
     )
   end
 
+  public
+
   def digest12(value)
     raw = value.to_s
     return nil if raw.blank?
 
     Digest::SHA256.hexdigest(raw)[0, 12]
   end
+
+  public
 
   def log_redirect_target_failure(result)
     return if result.ok?

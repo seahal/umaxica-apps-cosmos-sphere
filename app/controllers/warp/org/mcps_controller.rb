@@ -15,6 +15,8 @@ module Warp
 
       rate_limit_mcp_endpoint(realm: "warp", surface: "org")
 
+      public
+
       def create
         render_mcp_response
       end

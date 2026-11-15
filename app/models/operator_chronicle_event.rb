@@ -12,6 +12,8 @@
 class OperatorChronicleEvent < ChronicleRecord
   include ReferenceRecord
 
+  self.record_timestamps = false
+
   # Fixed IDs - do not modify these values
   LOGIN_SUCCESS = 1
   AUTHORIZATION_FAILED = 2
@@ -48,4 +50,5 @@ class OperatorChronicleEvent < ChronicleRecord
   def self.ensure_defaults!
     insert_missing_fixed_ids!(DEFAULTS)
   end
+  public_class_method :ensure_defaults!
 end

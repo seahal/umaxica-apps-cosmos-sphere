@@ -19,12 +19,12 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     end
 
   setup do
-    @private_key = OpenSSL::PKey::EC.generate("secp384r1")
+    @private_key = OpenSSL::PKey::RSA.generate(3072)
   end
 
-  test "issues ES384 jump rt jwt with expected claims" do
+  test "issues PS256 jump rt jwt with expected claims" do
     with_env(
-      "JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a",
+      "JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a",
     ) do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
@@ -35,13 +35,13 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
           jti: "jti-test",
         )
         JWT.decode(
-          token, @private_key.public_key, true, algorithms: ["ES384"], verify_iat: false,
+          token, @private_key.public_key, true, algorithms: ["PS256"], verify_iat: false,
                                                 verify_expiration: false, verify_not_before: false,
         )
         payload, header = JWT.decode(token, nil, false)
 
         assert_equal "JWT", header["typ"]
-        assert_equal "ES384", header["alg"]
+        assert_equal "PS256", header["alg"]
         assert_equal JitSecurityJwtRegistry.surface("BASE_APP").current_kid, header["kid"]
         assert_equal 1, payload["schema"]
         assert_equal "jump-redirect", payload["sub"]
@@ -55,7 +55,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
 
   test "rejects a case-variant algorithm header" do
     assert_not SecurityJwtJumpRtTokenCodec.valid_header?(
-      { "typ" => "JWT", "alg" => "eS384", "kid" => "kid-1" },
+      { "typ" => "JWT", "alg" => "pS256", "kid" => "kid-1" },
     )
   end
 
@@ -68,7 +68,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
 
   test "returns nil for url with invalid percent encoding" do
     with_env(
-      "JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a",
+      "JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a",
     ) do
       JumpRtKeyring.stub(:private_key, @private_key) do
         result = JumpRtIssuer.call(
@@ -85,7 +85,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   # Rack once raised on this query, which refused issuance by accident. Under the WHATWG contract
   # it is two ordinary pairs, so it is signed in order like any other query.
   test "signs a query whose bracketed keys Rack would treat as conflicting shapes" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",
@@ -140,7 +140,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
     hosts = HostSet.new(Origin.new(host: "sign.example.test"))
     boot_config = BootConfig.new(hosts, OpenStruct.new(ttl_seconds: 30, audience: "https://jump.umaxica.net"))
 
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       Rails.configuration.x.stub(:boot_config, boot_config) do
         JumpRtKeyring.stub(:private_key, @private_key) do
           token = JumpRtIssuer.call(
@@ -160,7 +160,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "refuses invalid destination kind" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(namespace: "BASE_APP", url: "https://target.example/", dst: "unknown")
 
@@ -180,7 +180,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
       ), destination.inspect
     end
 
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP", url: "https://target.example/", dst: "internal",
@@ -192,7 +192,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "issue ttl accepts one and thirty seconds and refuses zero and thirty one" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         [0, 31].each do |ttl|
           assert_nil JumpRtIssuer.call(
@@ -213,7 +213,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "normalized url utf16 length accepts 2047 and 2048 units and refuses 2049" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         [2_047, 2_048].each do |length|
           base = "https://target.example/"
@@ -233,7 +233,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "unicode path is percent encoded before applying the normalized url length limit" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP", url: "https://target.example/😀?q=a%20b&plus=a%2Bb", dst: "internal",
@@ -248,7 +248,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "url length is checked after dangerous query pairs are stripped" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         oversized_before_normalization = "https://target.example/?keep=1&rt=#{"x" * 3_000}"
         token = JumpRtIssuer.call(
@@ -265,7 +265,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   # remains below 4,095 bytes. The nearest reachable issue case verifies the hard ceiling and ASCII
   # compact serialization; exact 4,095/4,096/4,097 JWTs require violating the receiver's claim caps.
   test "maximum valid claims produce an ascii compact jwt within the 4096 byte bound" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         base = "https://target.example/"
         url = base + ("a" * (2_048 - base.length))
@@ -281,7 +281,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "refuses unsafe destination urls" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: "javascript:alert(1)", dst: "internal")
         assert_nil JumpRtIssuer.call(namespace: "BASE_APP", url: "https://user:pass@target.example/", dst: "internal")
@@ -292,7 +292,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "strips redirect-target query keys before signing the url" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",
@@ -307,7 +307,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "strips redirect uri by default before signing the url" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",
@@ -322,7 +322,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "preserves explicitly allowed redirect uri inside the signed url" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",
@@ -341,7 +341,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "keeps the order and repeated pairs of the remaining query when signing the url" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",
@@ -356,7 +356,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "strips nested and percent-encoded forms of redirect-target keys before signing the url" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",
@@ -371,7 +371,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "a preserved key keeps its position among the remaining pairs" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",
@@ -388,7 +388,7 @@ class JumpRtIssuerTest < ActiveSupport::TestCase
   end
 
   test "drops query entirely when only redirect-target keys are present" do
-    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-es384-test-a") do
+    with_env("JWT_BASE_APP_ACTIVE_KID" => "base-app-ps256-rsa3072-test-a") do
       JumpRtKeyring.stub(:private_key, @private_key) do
         token = JumpRtIssuer.call(
           namespace: "BASE_APP",

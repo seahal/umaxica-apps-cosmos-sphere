@@ -12,6 +12,9 @@ module Core
           include ::CoreBrowserApiBoundary
 
           AUTHENTICATION_MODE = :bare
+          before_action :enforce_api_acceptable_response_type!
+          before_action :enforce_api_request_media_type!
+          prepend_before_action :set_core_browser_api_no_store!
 
           protect_from_forgery using: :header_or_legacy_token, with: :exception
 

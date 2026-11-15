@@ -9,6 +9,14 @@ ownership decisions remain useful where they do not conflict with this ADR. The 
 credential scope clauses in [`cookie-domain-scope-by-surface.md`](cookie-domain-scope-by-surface.md)
 are also superseded.
 
+## Amendment (2026-11-13): PS256-only first-party JWTs
+
+The accepted Cosmos signing decision supersedes the ES384 algorithm below. Preference JWTs use PS256
+only, signed with RSA keys of at least 3072 bits. Their `typ`, seven claims, realm audience,
+lifetime, independent realm issuer records and lifecycle remain unchanged. Sphere's current key
+loader continues to load keys from the existing environment or credentials path; this amendment does
+not implement KMS signing.
+
 ## Decision
 
 Each preference realm issues one signed Preference JWT on the `umaxica.<realm>` cookie domain and

@@ -8,6 +8,8 @@ module Palm
 
       AUTHENTICATION_MODE = :bare
 
+      public
+
       def show
         show_xml
       end

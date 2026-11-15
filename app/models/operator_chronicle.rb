@@ -43,6 +43,14 @@
 class OperatorChronicle < ChronicleRecord
   include Retainable
 
+  attribute :discard_at, :datetime, default: -> { Retainable::SENTINEL }
+  attribute :purge_eligible_at, :datetime, default: -> { Retainable::SENTINEL }
+  validates :discard_at, presence: true
+  validates :purge_eligible_at, presence: true
+  validate :retention_order_valid
+  validate :retention_times_not_before_created_at, on: :update
+  Retainable.registry << self unless Retainable.registry.include?(self)
+
   attribute :level_id, default: OperatorChronicleLevel::NOTHING
 
   # Alias for backward compatibility
@@ -59,12 +67,17 @@ class OperatorChronicle < ChronicleRecord
   # subject_id/subject_type for cross-DB compatibility (no FK)
   validates :subject_id, presence: true
   validates :subject_type, presence: true
-  validates :context, jsonb_keys_uniqueness: {
-    keys: %w(transaction_public_id halt_generation).freeze,
-    predicate: { event_id: OperatorChronicleEvent::SIGN_FLOW_HALTED }.freeze,
-    writer: ChronicleRecord,
-    strict: ActiveRecord::RecordNotUnique,
-  }
+  # Attributes, scope and conditions are the partial unique index's normalized expression terms and
+  # predicate; the validator reads `context` itself.
+  validates_with JsonbKeysUniquenessValidator,
+                 attributes: ["((context ->> transaction_public_id))"],
+                 scope: "((context ->> halt_generation))",
+                 conditions: -> { where(event_id: OperatorChronicleEvent::SIGN_FLOW_HALTED) },
+                 source_attribute: :context,
+                 keys: %w(transaction_public_id halt_generation).freeze,
+                 predicate: { event_id: OperatorChronicleEvent::SIGN_FLOW_HALTED }.freeze,
+                 writer: ChronicleRecord,
+                 strict: ActiveRecord::RecordNotUnique
 
   validates :event_id, numericality: { only_integer: true }, allow_nil: true
   validates :level_id, numericality: { only_integer: true }, allow_nil: true
@@ -76,9 +89,13 @@ class OperatorChronicle < ChronicleRecord
 
   scope :recent_activity_first, -> { order(arel_table[:occurred_at].desc, arel_table[:created_at].desc) }
 
+  public
+
   def set_timestamp
     self.timestamp ||= Time.current
   end
+
+  public
 
   def event_id_must_exist
     return if event_id.blank?
@@ -97,6 +114,8 @@ class OperatorChronicle < ChronicleRecord
 
     errors.add(:event_id, "must reference a valid staff audit event")
   end
+
+  public
 
   def default_actor_to_subject
     return if actor_id.present? && actor_type.present?

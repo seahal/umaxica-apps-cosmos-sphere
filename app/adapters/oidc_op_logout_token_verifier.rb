@@ -5,7 +5,7 @@ require "jwt"
 
 # Verifies an OpenID Connect Back-Channel Logout Token for one RP cell (R5-WU10, one.md 6.4).
 #
-# Strict, separate from the Access and ID token verifiers: ES384 from the OP public JWKS only,
+# Strict, separate from the Access and ID token verifiers: PS256 from the OP public JWKS only,
 # `typ` logout+jwt, exact issuer and audience (this client), iat/exp within leeway, a JTI, a `sid`,
 # the back-channel logout event, and NO `nonce` (a nonce-bearing token is an ID Token replayed as a
 # logout). Keys and URLs never come from the token.
@@ -17,7 +17,7 @@ class OidcOpLogoutTokenVerifier
       def key_unavailable? = error == "key_unavailable"
     end
 
-  ALGORITHM = "ES384"
+  ALGORITHM = JitSecurityJwtJwk::ALGORITHM
   TOKEN_TYPE = "logout+jwt"
   EVENT = "http://schemas.openid.net/event/backchannel-logout"
   REQUIRED_CLAIMS = %w(iss aud iat exp jti sid events).freeze

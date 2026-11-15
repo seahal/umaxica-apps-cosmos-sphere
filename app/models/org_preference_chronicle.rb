@@ -43,6 +43,14 @@
 class OrgPreferenceChronicle < ChronicleRecord
   include Retainable
 
+  attribute :discard_at, :datetime, default: -> { Retainable::SENTINEL }
+  attribute :purge_eligible_at, :datetime, default: -> { Retainable::SENTINEL }
+  validates :discard_at, presence: true
+  validates :purge_eligible_at, presence: true
+  validate :retention_order_valid
+  validate :retention_times_not_before_created_at, on: :update
+  Retainable.registry << self unless Retainable.registry.include?(self)
+
   # Actor and subject identifiers are historical snapshots, never external database lookups.
   belongs_to :org_preference_chronicle_level, foreign_key: :level_id, inverse_of: :org_preference_chronicles
   belongs_to :org_preference_chronicle_event,

@@ -17,8 +17,11 @@ module Core
 
           AUTHENTICATION_MODE = :bare
           HEALTH_PROFILE = ::Health::Profiles::Org
-
+          before_action :disable_health_response_cache
+          before_action { response.set_header("Cache-Control", "no-store") }
           before_action :refuse_unless_machine_json_acceptable
+
+          public
 
           def show
             render_health_status(

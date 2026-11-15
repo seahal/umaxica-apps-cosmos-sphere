@@ -15,6 +15,8 @@ class BlankPublicIdentifierError < ApplicationError
     super(nil, :internal_server_error, record_class: @record_class)
   end
 
+  public
+
   def message
     "#{record_class} has a blank public_id and cannot be exposed to a client"
   end

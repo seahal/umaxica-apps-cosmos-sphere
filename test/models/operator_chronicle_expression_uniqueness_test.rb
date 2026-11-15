@@ -146,7 +146,10 @@ class OperatorChronicleExpressionUniquenessTest < ActiveSupport::TestCase
 
   test "validator configuration rejects absent keys invalid predicates and unrelated writer ownership" do
     options = {
-      attributes: [:context],
+      attributes: ["((context ->> transaction_public_id))"],
+      scope: "((context ->> halt_generation))",
+      conditions: -> { where(event_id: 18) },
+      source_attribute: :context,
       keys: %w(transaction_public_id halt_generation),
       predicate: { event_id: 18 },
       writer: ChronicleRecord,
@@ -165,7 +168,9 @@ class OperatorChronicleExpressionUniquenessTest < ActiveSupport::TestCase
 
   test "predicate configuration rejects a value whose Ruby type differs from its database column" do
     validator = JsonbKeysUniquenessValidator.new(
-      attributes: [:context], keys: %w(transaction_public_id halt_generation),
+      attributes: ["((context ->> transaction_public_id))"], scope: "((context ->> halt_generation))",
+      conditions: -> { where(event_id: 18) }, source_attribute: :context,
+      keys: %w(transaction_public_id halt_generation),
       predicate: { event_id: "18" }, writer: ChronicleRecord,
     )
 
@@ -174,7 +179,9 @@ class OperatorChronicleExpressionUniquenessTest < ActiveSupport::TestCase
 
   test "predicate configuration rejects a missing database column instead of treating it as nil" do
     validator = JsonbKeysUniquenessValidator.new(
-      attributes: [:context], keys: %w(transaction_public_id halt_generation),
+      attributes: ["((context ->> transaction_public_id))"], scope: "((context ->> halt_generation))",
+      conditions: -> { where(event_id: 18) }, source_attribute: :context,
+      keys: %w(transaction_public_id halt_generation),
       predicate: { nonexistent_event_column: nil }, writer: ChronicleRecord,
     )
 

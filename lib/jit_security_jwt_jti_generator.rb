@@ -20,6 +20,7 @@ module JitSecurityJwtJtiGenerator
     raw = SecureRandom.random_bytes(nbytes)
     Base64.urlsafe_encode64(raw, padding: false)
   end
+  public_class_method :generate
 
   def self.encoded_length(nbytes)
     return BYTE_LENGTH_MAPPING[nbytes] if BYTE_LENGTH_MAPPING.key?(nbytes)
@@ -35,4 +36,5 @@ module JitSecurityJwtJtiGenerator
       0
     end
   end
+  public_class_method :encoded_length
 end

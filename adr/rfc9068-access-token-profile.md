@@ -6,6 +6,15 @@ Accepted (2026-09-10). This profile applies to Auth access JWTs only. Preference
 separate realm contract in
 [`preference-realm-jwt-and-host-bound-browser-binding.md`](preference-realm-jwt-and-host-bound-browser-binding.md).
 
+## Amendment (2026-11-13): PS256-only first-party JWTs
+
+The accepted Cosmos signing decision and the 2026-11-13 owner cutover supersede this ADR's ES384
+algorithm text. Auth access JWTs and every other first-party JWT use PS256 only, with RSA keys of at
+least 3072 bits. RS256, PS384, ES384, `none`, and HMAC algorithms are rejected. The token shape,
+claims, validation order, issuer and audience rules below remain unchanged. Sphere has implemented
+its RP-side token families; the Access OP and cross-repository sign-in were not available for local
+verification.
+
 ## Context
 
 First-party Auth access JWTs used a private header `typ`, duplicated payload typing, a numeric

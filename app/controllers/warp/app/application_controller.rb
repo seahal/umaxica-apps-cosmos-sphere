@@ -18,11 +18,9 @@ module Warp
       include ::ActorSupport
 
       AUTHENTICATION_MODE = :deny_all
+      prepend_before_action(:enforce_fqdn_availability!)
       after_action :verify_private_action_authorized!
       after_action :apply_authenticated_page_cache_policy!
-      helper_method :current_resource, :browser_rp_authenticated?, :browser_rp_session_public_id,
-                    :current_session_public_id,
-                    :current_session, :logged_in?
       before_action :authenticate_browser_rp_safe_request!
       prepend_before_action :authenticate_browser_rp_unsafe_request!
       ensure_fqdn_gate_first!
@@ -39,7 +37,6 @@ module Warp
       rescue_from ApplicationError, with: :handle_application_error
       rescue_from ActionController::InvalidCrossOriginRequest, with: :handle_csrf_failure
       rescue_from ActionPolicy::Unauthorized, with: :handle_authorization_error
-      helper_method :current_actor, :current_session_public_id, :logged_in?
 
       before_action :verify_jump_return_rt!, if: :jump_return_rt_request?
       rate_limit(
@@ -57,6 +54,8 @@ module Warp
       before_action :set_current_observability
       prepend_around_action :with_actor_lifecycle
 
+      public
+
       def oidc_client_id
         RpDeploymentBindingValue.client_id("warp-app")
       end
@@ -71,13 +70,19 @@ module Warp
 
       public :browser_rp_client_id, :browser_rp_resource_type
 
+      public
+
       def oidc_sign_host
         ENV.fetch("PUBLIC_AUTH_SERVICE_URL")
       end
 
+      public
+
       def oidc_visa_authority_host
         Rails.configuration.x.boot_config.fetch(:hosts).visa_service.host
       end
+
+      public
 
       def oidc_acme_host
         oidc_visa_authority_host

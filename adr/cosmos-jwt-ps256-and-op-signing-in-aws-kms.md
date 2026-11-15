@@ -43,6 +43,12 @@ would add latency to a gateway whose value is having none. This is a deliberate 
 private key never leaves KMS": the Jump key is visible to whoever administers the Workers secrets,
 so restrict that access, rotate the key on any suspicion, and keep Jump's token lifetime short.
 
+Amended 2026-11-13 (owner): **the cutover is PS256-only, without an ES384 overlap.** No first-party
+JWT verifier accepts ES384 after this cutover; all keys are RSA with a minimum 3072-bit modulus. The
+Sphere implementation keeps its existing environment/credentials key-loading paths and does not
+implement KMS signing. Live Access sign-in and the external Jump gateway must be verified in their
+owning repositories before the cross-repository contract can be considered integrated.
+
 ## Context
 
 Every JWT is signed with ES384 today, and Discovery advertises only ES384 for both

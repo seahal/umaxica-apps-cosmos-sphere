@@ -152,9 +152,7 @@ gem "flipper-ui", github: "flippercloud/flipper", branch: "main"
 gem "pg_query", require: false
 
 group :development, :test do
-  # Keep the editable upstream source available for local checks and CI.
-  # FIXME: use rubygem's code.
-  gem "database_consistency", path: "vendor/fork/database_consistency", require: false
+  gem "database_consistency", require: false
   # Test coverage reporting.
   gem "simplecov", "~> 1.0", require: false
   # Minitest mock extraction.

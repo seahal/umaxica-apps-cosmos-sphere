@@ -15,16 +15,9 @@
 module SignOutInertiaPages
   extend ActiveSupport::Concern
 
-  # FIXME: Violates Umaxica/NoConcernInclusionHooks; move the declarations in this block into each class that includes this concern.
-  included do
-    # Captured at include time so the sign-out controller keeps naming pages from its own surface controller_path.
-    prefix = controller_path
-    # FIXME: do not use define_method!
-    define_method(:sign_out_page_prefix) { prefix }
-    private :sign_out_page_prefix
-  end
-
   private
+
+  def sign_out_page_prefix = controller_path
 
   def sign_out_page_component(name)
     "#{sign_out_page_prefix}/#{name}"

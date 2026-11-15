@@ -44,7 +44,7 @@ class CoreAccessRefusalRefreshRetentionTest < ActionDispatch::IntegrationTest
 
       assert_equal 200, browser.response.status
       csrf = browser.response.parsed_body.fetch("csrf_token")
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       payload = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -58,7 +58,7 @@ class CoreAccessRefusalRefreshRetentionTest < ActionDispatch::IntegrationTest
         "scope" => "openid profile",
         "authn_ctx" => "normal",
       }
-      access = JWT.encode(payload, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      access = JWT.encode(payload, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       token_response = {
         access_token: access,
         refresh_token: "external-session.rotated-secret",

@@ -11,7 +11,7 @@ module Jit
         self.fixture_table_names = []
 
         setup do
-          @key = OpenSSL::PKey::EC.generate("secp384r1")
+          @key = OpenSSL::PKey::RSA.generate(3072)
           @public_jwk = JitSecurityJwtJwk.export_public(@key, kid: "kid-1")
         end
 
@@ -19,6 +19,8 @@ module Jit
           assert_equal "kid-1", @public_jwk.fetch("kid")
           assert_equal JitSecurityJwtJwk::ALGORITHM, @public_jwk.fetch("alg")
           assert_equal "sig", @public_jwk.fetch("use")
+          assert_equal "RSA", @public_jwk.fetch("kty")
+          assert_empty %w(d p q dp dq qi oth k).select { |field| @public_jwk.key?(field) }
           assert_empty JitSecurityJwtJwk::PRIVATE_FIELDS & @public_jwk.keys
         end
 
@@ -43,20 +45,50 @@ module Jit
               JitSecurityJwtJwk.normalize_public(@public_jwk.merge("alg" => "HS256"))
             end
 
-          assert_match(/alg must be ES384/, error.message)
+          assert_match(/alg must be PS256/, error.message)
         end
 
         test "rejects incomplete public jwk" do
           error =
             assert_raises(JitSecurityJwtJwk::Error) do
-              JitSecurityJwtJwk.normalize_public(@public_jwk.except("x"))
+              JitSecurityJwtJwk.normalize_public(@public_jwk.except("n"))
             end
 
-          assert_match(/missing x/, error.message)
+          assert_match(/missing n/, error.message)
         end
 
         test "imports valid public jwk material" do
-          assert_kind_of OpenSSL::PKey::EC, JitSecurityJwtJwk.import_public_key(@public_jwk)
+          assert_kind_of OpenSSL::PKey::RSA, JitSecurityJwtJwk.import_public_key(@public_jwk)
+        end
+
+        test "rejects EC public keys and RSA keys below 3072 bits" do
+          ec_key = OpenSSL::PKey::EC.generate("secp384r1")
+          ec_jwk = JWT::JWK.new(ec_key, kid: "ec-kid").export.stringify_keys.except(*JitSecurityJwtJwk::PRIVATE_FIELDS).merge(
+            "alg" => "PS256", "use" => "sig",
+          )
+          undersized_key = OpenSSL::PKey::RSA.generate(2048)
+          undersized_jwk = JWT::JWK.new(undersized_key, kid: "short-rsa").export.stringify_keys.except(
+            *JitSecurityJwtJwk::PRIVATE_FIELDS,
+          ).merge("alg" => "PS256", "use" => "sig")
+
+          assert_raises(JitSecurityJwtJwk::Error) { JitSecurityJwtJwk.normalize_public(ec_jwk) }
+          error =
+            assert_raises(JitSecurityJwtJwk::Error) do
+              JitSecurityJwtJwk.normalize_public(undersized_jwk)
+            end
+          assert_match(/3072 bits/, error.message)
+        end
+
+        test "accepts RSA public keys at 3072 and 4096 bits" do
+          [@key, OpenSSL::PKey::RSA.generate(4096)].each do |key|
+            jwk = JWT::JWK.new(key, kid: "sized-rsa").export.stringify_keys.except(
+              *JitSecurityJwtJwk::PRIVATE_FIELDS,
+            ).merge("alg" => "PS256", "use" => "sig")
+
+            imported = JitSecurityJwtJwk.import_public_key(JitSecurityJwtJwk.normalize_public(jwk))
+
+            assert_operator imported.n.num_bits, :>=, 3072
+          end
         end
       end
     end

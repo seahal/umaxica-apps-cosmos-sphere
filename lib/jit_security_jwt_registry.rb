@@ -12,7 +12,7 @@ module JitSecurityJwtRegistry
   module_function
 
   ALGORITHM = JitSecurityJwtJwk::ALGORITHM
-  CURVE = JitSecurityJwtJwk::CURVE
+  MINIMUM_RSA_BITS = JitSecurityJwtJwk::MINIMUM_RSA_BITS
   REQUIRED_JWK_FIELDS = JitSecurityJwtJwk::REQUIRED_PUBLIC_FIELDS
   PRIVATE_JWK_FIELDS = JitSecurityJwtJwk::PRIVATE_FIELDS
   SURFACE_NAMESPACES = %w(

@@ -16,7 +16,7 @@ class PalmJumpSignEntryTest < ActionDispatch::IntegrationTest
     @original_jump_kid = ENV[@jump_kid_name]
     @original_gateway = ENV[@gateway_name]
 
-    key = Base64.strict_encode64(OpenSSL::PKey::EC.generate("secp384r1").to_der)
+    key = Base64.strict_encode64(OpenSSL::PKey::RSA.generate(3072).private_to_der)
     ENV[@jump_key_name] = key
     ENV[@jump_kid_name] = "palm-browser-test"
     ENV[@gateway_name] = "https://jump.umaxica.net"

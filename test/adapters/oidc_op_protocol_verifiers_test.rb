@@ -12,8 +12,8 @@ class OidcOpProtocolVerifiersTest < ActiveSupport::TestCase
   AUDIENCE = "core-app-jp"
 
   setup do
-    @private_key = OpenSSL::PKey::EC.generate("secp384r1")
-    @rotated_private_key = OpenSSL::PKey::EC.generate("secp384r1")
+    @private_key = OpenSSL::PKey::RSA.generate(3072)
+    @rotated_private_key = OpenSSL::PKey::RSA.generate(3072)
   end
 
   test "id token verifier names the failed check without disclosing token values" do
@@ -110,7 +110,7 @@ class OidcOpProtocolVerifiersTest < ActiveSupport::TestCase
     assert_equal 0, @jwks_fetches
   end
 
-  test "non ES384 OP tokens are refused before fetching keys" do
+  test "HMAC and unsigned OP tokens are refused before fetching keys" do
     cases = [
       [access_payload, OidcOpAccessTokenVerifier::TOKEN_TYPE, :access],
       [id_payload, OidcOpIdTokenVerifier::TOKEN_TYPE, :id],
@@ -118,19 +118,130 @@ class OidcOpProtocolVerifiersTest < ActiveSupport::TestCase
     ]
 
     cases.each do |payload, typ, kind|
-      token = JWT.encode(payload, "untrusted-key", "HS256", { kid: "unknown", typ: typ })
+      ["HS256", "none"].each do |algorithm|
+        secret = (algorithm == "none") ? nil : "untrusted-key"
+        token = JWT.encode(payload, secret, algorithm, { kid: "unknown", typ: typ })
+        verifier =
+          case kind
+          when :access then access_verifier(token: token)
+          when :id then id_verifier(token: token)
+          when :logout
+            OidcOpLogoutTokenVerifier.new(
+              logout_token: token, client_id: CLIENT_ID, issuer: ISSUER, jwks_client: jwks_client,
+            )
+          end
+
+        assert_not_predicate verifier.call, :success?, "#{kind} #{algorithm}"
+        assert_equal 0, @jwks_fetches, "#{kind} #{algorithm}"
+      end
+    end
+  end
+
+  test "ES384 signed tokens are refused for every OP token family before JWKS lookup" do
+    legacy_key = OpenSSL::PKey::EC.generate("secp384r1")
+    cases = [
+      [access_payload, OidcOpAccessTokenVerifier::TOKEN_TYPE, :access],
+      [id_payload, OidcOpIdTokenVerifier::TOKEN_TYPE, :id],
+      [access_payload, OidcOpLogoutTokenVerifier::TOKEN_TYPE, :logout],
+    ]
+
+    cases.each do |payload, typ, kind|
+      token = JWT.encode(payload, legacy_key, "ES384", { kid: "legacy-es384", typ: typ })
+      client = jwks_client(fetcher: -> { flunk("legacy algorithm reached JWKS lookup") })
       verifier =
         case kind
-        when :access then access_verifier(token: token)
+        when :access then access_verifier(token: token, fetcher: -> { flunk("legacy algorithm reached JWKS lookup") })
         when :id then id_verifier(token: token)
         when :logout
           OidcOpLogoutTokenVerifier.new(
-            logout_token: token, client_id: CLIENT_ID, issuer: ISSUER, jwks_client: jwks_client,
+            logout_token: token, client_id: CLIENT_ID, issuer: ISSUER, jwks_client: client,
+          )
+        end
+
+      result = verifier.call
+
+      assert_not_predicate result, :success?, kind.to_s
+      assert_equal "invalid_header", result.error if kind == :access
+    end
+
+    assert_equal 0, @jwks_fetches
+  end
+
+  test "RS256 and PS384 signatures and mismatched PS256 headers fail before JWKS lookup" do
+    cases = [
+      [access_payload, OidcOpAccessTokenVerifier::TOKEN_TYPE, :access],
+      [id_payload, OidcOpIdTokenVerifier::TOKEN_TYPE, :id],
+      [access_payload, OidcOpLogoutTokenVerifier::TOKEN_TYPE, :logout],
+    ]
+
+    cases.each do |payload, typ, kind|
+      ["RS256", "PS384"].each do |algorithm|
+        token = JWT.encode(payload, @private_key, algorithm, { kid: "rsa-#{algorithm.downcase}", typ: typ })
+        fetcher = -> { flunk("#{algorithm} reached JWKS lookup") }
+        verifier =
+          case kind
+          when :access then access_verifier(token: token, fetcher:)
+          when :id then id_verifier(token: token)
+          when :logout
+            OidcOpLogoutTokenVerifier.new(
+              logout_token: token, client_id: CLIENT_ID, issuer: ISSUER,
+              jwks_client: jwks_client(fetcher:),
+            )
+          end
+
+        assert_not_predicate verifier.call, :success?, "#{kind} #{algorithm}"
+      end
+
+      signed = JWT.encode(payload, @private_key, "PS256", { kid: "mismatched-header", typ: typ })
+      segments = signed.split(".")
+      header = JSON.parse(Base64.urlsafe_decode64(segments.fetch(0)))
+      header["alg"] = "RS256"
+      segments[0] = Base64.urlsafe_encode64(JSON.generate(header), padding: false)
+      mismatched = segments.join(".")
+      fetcher = -> { flunk("mismatched algorithm header reached JWKS lookup") }
+      verifier =
+        case kind
+        when :access then access_verifier(token: mismatched, fetcher:)
+        when :id then id_verifier(token: mismatched)
+        when :logout
+          OidcOpLogoutTokenVerifier.new(
+            logout_token: mismatched, client_id: CLIENT_ID, issuer: ISSUER,
+            jwks_client: jwks_client(fetcher:),
+          )
+        end
+
+      assert_not_predicate verifier.call, :success?, "#{kind} mismatched header"
+    end
+
+    assert_equal 0, @jwks_fetches
+  end
+
+  test "every OP token family rejects a valid PS256 signature from a 2048-bit JWKS key" do
+    undersized_key = OpenSSL::PKey::RSA.generate(2048)
+    undersized_jwk = JWT::JWK.new(undersized_key, kid: "undersized-rsa").export.stringify_keys.except(
+      *JitSecurityJwtJwk::PRIVATE_FIELDS,
+    ).merge("alg" => "PS256", "use" => "sig")
+    fetcher = -> { { "keys" => [undersized_jwk] } }
+    cases = [
+      [encode(access_payload, key: undersized_key, kid: "undersized-rsa"), :access],
+      [encode(id_payload, key: undersized_key, kid: "undersized-rsa", typ: OidcOpIdTokenVerifier::TOKEN_TYPE), :id],
+      [encode(access_payload, key: undersized_key, kid: "undersized-rsa", typ: OidcOpLogoutTokenVerifier::TOKEN_TYPE),
+       :logout,],
+    ]
+
+    cases.each do |token, kind|
+      verifier =
+        case kind
+        when :access then access_verifier(token:, fetcher:)
+        when :id then id_verifier(token:, fetcher:)
+        when :logout
+          OidcOpLogoutTokenVerifier.new(
+            logout_token: token, client_id: CLIENT_ID, issuer: ISSUER,
+            jwks_client: jwks_client(fetcher:),
           )
         end
 
       assert_not_predicate verifier.call, :success?, kind.to_s
-      assert_equal 0, @jwks_fetches, kind.to_s
     end
   end
 
@@ -271,7 +382,7 @@ class OidcOpProtocolVerifiersTest < ActiveSupport::TestCase
     )
     old_token = encode(access_payload)
     new_token = encode(access_payload, key: @rotated_private_key, kid: "access-b")
-    forged_token = encode(access_payload, key: OpenSSL::PKey::EC.generate("secp384r1"), kid: "access-a")
+    forged_token = encode(access_payload, key: OpenSSL::PKey::RSA.generate(3072), kid: "access-a")
 
     assert_predicate verify_with(client, old_token), :success?
     now[0] += OidcJwksRefetchLimiter::WINDOW + 1.second
@@ -322,7 +433,7 @@ class OidcOpProtocolVerifiersTest < ActiveSupport::TestCase
     )
   end
 
-  def id_verifier(token:)
+  def id_verifier(token:, fetcher: nil)
     OidcOpIdTokenVerifier.new(
       id_token: token,
       client_id: CLIENT_ID,
@@ -331,7 +442,7 @@ class OidcOpProtocolVerifiersTest < ActiveSupport::TestCase
       expected_nonce: "nonce-1",
       expected_max_age: 60,
       expected_resource_type: "client",
-      jwks_client: jwks_client,
+      jwks_client: jwks_client(fetcher:),
     )
   end
 

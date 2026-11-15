@@ -12,6 +12,8 @@
 class OperatorChronicleLevel < ChronicleRecord
   include ReferenceRecord
 
+  self.record_timestamps = false
+
   # Fixed IDs - do not modify these values
   NOTHING = 1
   DEFAULTS = [NOTHING].freeze

@@ -42,6 +42,7 @@ class OidcRegistryAndMcpPublicContractTest < ActiveSupport::TestCase
     assert_raises(OidcClientRegistry::ClientNotFound) { OidcClientRegistry.find!("unregistered") }
     assert_raises(KeyError) { OidcClientStoresStaticClientStore.backchannel_logout_uri("unregistered") }
     assert_raises(ArgumentError) { OidcIssuer.for_resource_type("unknown") }
+    assert_raises(ArgumentError) { OidcIssuer.host_for_resource_type("unknown") }
     assert_raises(ArgumentError) { OidcIssuer.jwt_issuer_id_for_resource_type("unknown") }
     assert_equal OidcIssuer.for_resource_type("operator"), OidcIssuer.for_resource_type("staff")
     assert_equal "https://example.com", OidcIssuer.absolute_url(" https://example.com/ ")
@@ -66,6 +67,7 @@ class OidcRegistryAndMcpPublicContractTest < ActiveSupport::TestCase
     assert_equal "opaque-subject", payload["step_up_sub"]
     assert_equal now.to_i + 300, payload["exp"]
     assert_equal "oidc-client-assertion+jwt", header["typ"]
+    assert_equal "PS256", header["alg"]
     assert_equal header, JitSecurityJwtRegistry.parse_header(token)
     assert_empty JitSecurityJwtRegistry.parse_header("malformed")
     issuer = JitSecurityJwtRegistry.oidc_client("CORE_APP_JP")

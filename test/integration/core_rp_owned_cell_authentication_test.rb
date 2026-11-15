@@ -27,7 +27,7 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
       )
 
       assert_predicate enrollment, :success?
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       payload = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -42,7 +42,7 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
         "authn_ctx" => "normal",
       }
       browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-        JWT.encode(payload, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+        JWT.encode(payload, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
       jwks = OidcOpJwksClient.for_resource_type(resource_type)
       lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)
@@ -97,7 +97,7 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
     )
 
     assert_predicate enrollment, :success?
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     payload = {
       "iss" => issuer,
       "aud" => [cell.client_id],
@@ -112,7 +112,7 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
       "authn_ctx" => "normal",
     }
     cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-      JWT.encode(payload, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      JWT.encode(payload, key, "PS256", { kid: "external-op", typ: "at+jwt" })
     cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
     jwks = OidcOpJwksClient.for_resource_type("client")
     lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)
@@ -141,7 +141,7 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
     )
 
     assert_predicate enrollment, :success?
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     payload = {
       "iss" => issuer,
       "aud" => [cell.client_id],
@@ -156,7 +156,7 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
       "authn_ctx" => "normal",
     }
     cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-      JWT.encode(payload, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      JWT.encode(payload, key, "PS256", { kid: "external-op", typ: "at+jwt" })
     cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
     jwks = OidcOpJwksClient.for_resource_type("operator")
     lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)
@@ -204,7 +204,7 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
       handoff, = JWT.decode(jump.fetch("rt"), nil, false)
       authorization = Rack::Utils.parse_query(URI.parse(handoff.fetch("url")).query)
       now = Time.current.to_i
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       identity = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -224,8 +224,8 @@ class CoreRpOwnedCellAuthenticationTest < ActionDispatch::IntegrationTest
         "scope" => "openid profile", "authn_ctx" => "normal",
       )
       response = {
-        id_token: JWT.encode(identity, key, "ES384", { kid: "external-op", typ: "id-token+jwt" }),
-        access_token: JWT.encode(access, key, "ES384", { kid: "external-op", typ: "at+jwt" }),
+        id_token: JWT.encode(identity, key, "PS256", { kid: "external-op", typ: "id-token+jwt" }),
+        access_token: JWT.encode(access, key, "PS256", { kid: "external-op", typ: "at+jwt" }),
         refresh_token: "opaque-remote-refresh-#{connection}",
         expires_in: 300,
         refresh_token_expires_in: 600,

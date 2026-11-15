@@ -9,7 +9,7 @@ class OidcAdaptersPublicJwksAndRevocationBoundariesTest < ActiveSupport::TestCas
     @now = Time.current
     @clock = -> { @now }
     @uri = "https://op-boundary.example.test/.well-known/jwks.json"
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @jwk = JitSecurityJwtJwk.export_public(@key, kid: "known")
   end
 
@@ -50,7 +50,7 @@ class OidcAdaptersPublicJwksAndRevocationBoundariesTest < ActiveSupport::TestCas
   test "malformed JWKS documents remain unavailable instead of becoming trusted empty key sets" do
     documents = [nil, [], {}, { "keys" => nil }, { "keys" => [] }, { "keys" => [nil] },
                  { "keys" => [{ "kid" => "" }] }, { "keys" => [@jwk.merge("d" => "private")] },
-                 { "keys" => [@jwk, @jwk] }, { "keys" => [@jwk.merge("x" => "broken")] },]
+                 { "keys" => [@jwk, @jwk] }, { "keys" => [@jwk.merge("n" => "broken")] },]
     documents.each do |document|
       limiter = OidcJwksRefetchLimiter::LocalWindow.new(clock: @clock)
       client = OidcOpJwksClient.new(jwks_uri: @uri, fetcher: -> { document }, clock: @clock, limiter:)

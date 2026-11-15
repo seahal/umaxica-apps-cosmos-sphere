@@ -63,9 +63,14 @@
     "vite-plugin-ruby": "^5.2.6",
     "vitest": "5.1.0"
   },
+  "overrides": {
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "6.1.5"
+    }
+  },
   "engines": {
     "bun": ">=1.4.0",
-    "node": ">=24.19.0 <25"
+    "node": ">=26.13.1 <27"
   },
   "packageManager": "bun@1.4.0"
 }

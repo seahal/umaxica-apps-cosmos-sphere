@@ -7,6 +7,14 @@ class PublicIdTest < ActiveSupport::TestCase
   # Define a dummy model for testing
   class DummyModel < ApplicationRecord
     include PublicId
+
+    before_create :generate_public_id
+    before_validation :generate_public_id, on: :create
+    before_validation :refresh_generated_public_id_after_collision, on: :create
+    around_create :retry_public_id_collision
+    validate :public_id_immutable_after_create, on: :update
+    validates :public_id, presence: true, length: { is: PublicId::GENERATION_SIZE }, uniqueness: true
+
     # This model is not backed by a real table, so we fake whatever ActiveRecord needs.
     # The dummy_models table does not exist in the test database, but we can temporarily
     # create it via ActiveRecord::Base.connection.create_table or reuse an existing table

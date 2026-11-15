@@ -54,7 +54,7 @@ class CoverageRoundFourCredentialFailureRequestsTest < ActionDispatch::Integrati
     )
 
     assert_predicate enrollment, :success?
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     claims = {
       "iss" => issuer,
       "aud" => [cell.client_id],
@@ -68,7 +68,7 @@ class CoverageRoundFourCredentialFailureRequestsTest < ActionDispatch::Integrati
       "scope" => "openid profile",
       "authn_ctx" => "normal",
     }
-    access = JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+    access = JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
     cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] = access
     cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
     jwks = OidcOpJwksClient.for_resource_type("operator")

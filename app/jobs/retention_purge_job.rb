@@ -12,6 +12,8 @@ class RetentionPurgeJob < ApplicationJob
     AppPreferenceChronicle, OrgPreferenceChronicle, ClientChronicle, OperatorChronicle,
   ].freeze
 
+  public
+
   def perform(batch_size: DEFAULT_BATCH_SIZE)
     limit = normalized_batch_size(batch_size)
     unless limit&.between?(1, MAX_BATCH_SIZE)

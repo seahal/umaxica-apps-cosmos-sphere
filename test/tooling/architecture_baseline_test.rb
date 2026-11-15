@@ -8,10 +8,9 @@ require_relative "../../lib/architecture_baseline"
 
 # Ratchet for the Umaxica architecture cops.
 #
-# `.rubocop_todo.yml` keeps `bin/rubocop` green by excluding files that are already in debt, which
-# alone would let a new violation slip into one of those files unnoticed. This test measures the
-# repository with the excludes ignored and compares against the recorded per-file counts, so a debt
-# file may only improve. Regenerate both artifacts with `bin/rails architecture:baseline`.
+# The recorded per-file counts reject any new violation, including one added to a file that already
+# carries debt. RuboCop itself runs without exclusions. Regenerate the count inventory with
+# `bin/rails architecture:baseline` after reducing violations.
 class ArchitectureBaselineTest < ActiveSupport::TestCase
   def test_no_file_exceeds_its_recorded_architecture_debt
     measured = ArchitectureBaseline.measure
@@ -19,23 +18,17 @@ class ArchitectureBaselineTest < ActiveSupport::TestCase
 
     ArchitectureBaseline::COPS.each do |cop|
       recorded_files = recorded.fetch(cop)
+      measured_files = measured.fetch(cop)
 
-      measured.fetch(cop).each do |path, count|
+      assert_empty measured_files, "#{cop} must have no outstanding offenses."
+
+      measured_files.each do |path, count|
         allowed = recorded_files.fetch(path, 0)
 
         assert_operator count, :<=, allowed,
                         "#{path} has #{count} #{cop} offenses but the baseline allows #{allowed}. " \
                         "Fix the new violation; do not regenerate the baseline to hide it."
       end
-    end
-  end
-
-  def test_baseline_and_rubocop_todo_describe_the_same_files
-    recorded = ArchitectureBaseline.recorded
-    todo = YAML.load_file(ArchitectureBaseline::TODO_PATH, aliases: false)
-
-    ArchitectureBaseline::COPS.each do |cop|
-      assert_equal recorded.fetch(cop).keys.sort, todo.fetch(cop).fetch("Exclude").sort, cop
     end
   end
 

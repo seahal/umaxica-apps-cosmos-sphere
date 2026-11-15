@@ -20,12 +20,10 @@ module Palm
       include ::ActorSupport
 
       AUTHENTICATION_MODE = :deny_all
+      prepend_before_action(:enforce_fqdn_availability!)
 
       after_action :verify_private_action_authorized!
       after_action :apply_authenticated_page_cache_policy!
-      helper_method :current_resource, :browser_rp_authenticated?, :browser_rp_session_public_id,
-                    :current_session_public_id,
-                    :current_session, :logged_in?
       before_action :authenticate_browser_rp_safe_request!
       prepend_before_action :authenticate_browser_rp_unsafe_request!
       layout "palm/app/application"
@@ -42,8 +40,6 @@ module Palm
       rescue_from ApplicationError, with: :handle_application_error
       rescue_from ActionController::InvalidCrossOriginRequest, with: :handle_csrf_failure
       rescue_from ActionPolicy::Unauthorized, with: :handle_authorization_error
-      helper_method :current_actor, :current_session_public_id, :logged_in?
-
       # Surface-wide default web request limit (defense-in-depth baseline).
       # RateLimit stays an effect-free helper; the limit and its numeric
       # value are declared here on the inheriting controller.

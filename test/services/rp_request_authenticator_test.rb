@@ -9,7 +9,7 @@ class RpRequestAuthenticatorTest < ActiveSupport::TestCase
 
   setup do
     @cell = RpCellBinding.fetch("rp_core_app")
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @enrollment = RpCallbackCommitter.call(
       cell: @cell, issuer: ISSUER, subject: "subject-a", sid: "sid-1",
       absolute_expires_at: 1.hour.from_now,
@@ -31,8 +31,8 @@ class RpRequestAuthenticatorTest < ActiveSupport::TestCase
 
   test "a local session alone never authenticates: the Access JWT must verify" do
     forged = JWT.encode(
-      payload, OpenSSL::PKey::EC.generate("secp384r1"), "ES384",
-      { "kid" => "k1", "alg" => "ES384", "typ" => "at+jwt" },
+      payload, OpenSSL::PKey::RSA.generate(3072), "PS256",
+      { "kid" => "k1", "alg" => "PS256", "typ" => "at+jwt" },
     )
 
     assert_equal :invalid, authenticate(token: forged).status
@@ -97,7 +97,7 @@ class RpRequestAuthenticatorTest < ActiveSupport::TestCase
         "jti" => "writer-expiry",
         "scope" => "openid",
         "authn_ctx" => "normal", },
-      @key, "ES384", { "kid" => "k1", "typ" => "at+jwt" },
+      @key, "PS256", { "kid" => "k1", "typ" => "at+jwt" },
     )
     keys = OidcOpJwksClient.new(
       jwks_uri: "#{ISSUER}/.well-known/jwks.json",
@@ -131,7 +131,7 @@ class RpRequestAuthenticatorTest < ActiveSupport::TestCase
   end
 
   def token(claims)
-    JWT.encode(claims, @key, "ES384", { "kid" => "k1", "alg" => "ES384", "typ" => "at+jwt" })
+    JWT.encode(claims, @key, "PS256", { "kid" => "k1", "alg" => "PS256", "typ" => "at+jwt" })
   end
 
   def payload

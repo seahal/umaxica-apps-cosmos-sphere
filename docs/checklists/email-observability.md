@@ -1,5 +1,11 @@
 # Email observability acceptance
 
+> **Sphere scope after the 2026-11-12 split:** Account OTP delivery and the app/com/org surface
+> mailers were removed with their owning features. This checklist's all-surface delivery criteria
+> are historical for Sphere; its former mailer-test path is not current coverage. Remaining generic
+> logging and instrumentation checks describe only the code still present. See the
+> [Sphere retirement evidence](../../evidence/2026-11-12-remove-non-sphere-databases-R7P3.md).
+
 Authority: O00–O13's approved local remediation, with the existing
 [remediation ADR](../../adr/otp-observability-secret-exposure-remediation.md),
 [owning plan](../../specs/otp-observability-secret-exposure-remediation/plan.md),
@@ -43,10 +49,11 @@ older production/Sentry/broader-review obligations: those remain separately owne
   surface mailers and OutboundEmailSuspensionInterceptor. The local logger policy and delivery
   contract are represented by
   [the ActionMailer policy test](../../test/unit/security/action_mailer_logging_policy_test.rb),
-  existing [surface mailer tests](../../test/mailers/email/surface_mailers_test.rb), and the
-  interceptor tests. Perform direct safe boot and synthetic capture; all-surface
-  success/suspension/failure/retry behavior coverage remains a current-checkout investigation, not a
-  permanent PASS. The current local policy and full-gate result are recorded in
+  existing surface mailer tests (former test path
+  `../../test/mailers/email/surface_mailers_test.rb`; removed during Sphere ownership retirement on
+  2026-11-12), and the interceptor tests. Perform direct safe boot and synthetic capture;
+  all-surface success/suspension/failure/retry behavior coverage remains a current-checkout
+  investigation, not a permanent PASS. The current local policy and full-gate result are recorded in
   [`O9P4`](../../evidence/2026-10-12-observability-env-and-gate-O9P4.md). Do not add setup-only
   Minitest cases or send real mail to prove configuration.
 

@@ -1,6 +1,8 @@
-> **Route status (2026-11-11):** This checklist describes former Auth/Base authentication routes.
-> Their controller trees and tests were removed with those surfaces. Remaining state models are
-> reserved for the database/model review; this document is historical, not current route guidance.
+> **Sphere scope after the 2026-11-12 split:** The account sign-up and Auth/Base browser-binding
+> flows in this checklist were removed from Sphere. The retained Core, Warp and Palm relying-party
+> sign-in flow is separate. Former test paths below are historical references, not current test
+> coverage. See the
+> [Sphere retirement evidence](../../evidence/2026-11-12-remove-non-sphere-databases-R7P3.md).
 
 # Authentication flow integrity acceptance
 
@@ -127,13 +129,14 @@ APP MFA coverage is not evidence for ORG.
   effect and cannot return it to ACTIVE or another terminal. Infrastructure failure alone does not
   mean phase violation. Missing/forged/unowned bindings cannot halt an arbitrary current flow
   (FLOW-4).
-- Check public HTTP plus locked transitions and audit, existing
-  [state-machine tests](../../test/services/sign_up/state_machine_test.rb) and phase tests. Race
-  testing must demonstrate atomic lock/reload/check/transition; a released-lock precheck followed by
-  termination is not proof. The signed-instance codec contract is covered by sign-in binding codec
-  tests (former reference: ../../test/services/sign_in_flow_binding_codec_test.rb). Full terminal
-  consumer and independent-connection race coverage remains a planned acceptance item until actual
-  evidence is recorded.
+- Check public HTTP plus locked transitions and audit, existing state-machine tests (former test
+  path `../../test/services/sign_up/state_machine_test.rb`; removed during Sphere ownership
+  retirement on 2026-11-12) and phase tests. Race testing must demonstrate atomic
+  lock/reload/check/transition; a released-lock precheck followed by termination is not proof. The
+  signed-instance codec contract is covered by sign-in binding codec tests (former reference:
+  ../../test/services/sign_in_flow_binding_codec_test.rb). Full terminal consumer and
+  independent-connection race coverage remains a planned acceptance item until actual evidence is
+  recorded.
 
 ## FLOW-4 — Original A cannot mutate replacement B
 

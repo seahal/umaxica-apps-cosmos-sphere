@@ -9,7 +9,7 @@ class OidcOpAccessTokenVerifier
       def success? = success
     end
 
-  ALGORITHM = "ES384"
+  ALGORITHM = JitSecurityJwtJwk::ALGORITHM
   TOKEN_TYPE = "at+jwt"
   REQUIRED_CLAIMS = %w(
     iss aud exp nbf iat sub sid client_id jti scope authn_ctx

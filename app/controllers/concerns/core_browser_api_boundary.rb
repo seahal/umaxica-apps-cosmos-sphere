@@ -8,14 +8,6 @@ module CoreBrowserApiBoundary
   include ApiContentNegotiation
   include RpCellLocalSession
 
-  # FIXME: Violates Umaxica/NoConcernInclusionHooks; move the declarations in this block into each class that includes this concern.
-  included do
-    # Every endpoint on this boundary answers per-subject state derived from a credential cookie, and
-    # the session endpoint hands out a CSRF token. None of it may sit in a shared cache, so the
-    # directive belongs to the boundary rather than to whichever action remembers to set it.
-    prepend_before_action :set_core_browser_api_no_store!
-  end
-
   private
 
   def set_core_browser_api_no_store!

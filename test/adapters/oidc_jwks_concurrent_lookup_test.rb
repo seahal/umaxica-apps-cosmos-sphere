@@ -22,7 +22,7 @@ class OidcJwksConcurrentLookupTest < ActiveSupport::TestCase
   end
 
   test "concurrent cold lookups of a recently published kid fetch once per client" do
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     limiter = RecentSuccessfulFetch.new
     fetches = 0
     client = OidcOpJwksClient.new(
@@ -44,8 +44,7 @@ class OidcJwksConcurrentLookupTest < ActiveSupport::TestCase
 
     assert results.all?(&:found?)
     assert_equal 1, fetches
-    assert_equal key.public_key.to_octet_string(:uncompressed),
-                 results.first.key.public_key.to_octet_string(:uncompressed)
+    assert_equal key.public_key.to_der, results.first.key.public_key.to_der
     assert_predicate client.lookup("known"), :found?
     assert_equal 1, fetches
   ensure

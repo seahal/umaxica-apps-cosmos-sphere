@@ -8,13 +8,23 @@ class ApplicationPolicy < ActionPolicy::Base
   alias_rule :edit?, to: :update?
   alias_rule :new?, to: :create?
 
+  public
+
   def index? = false
+
+  public
 
   def show? = false
 
+  public
+
   def create? = false
 
+  public
+
   def update? = false
+
+  public
 
   def destroy? = false
 

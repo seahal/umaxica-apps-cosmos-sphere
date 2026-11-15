@@ -7,13 +7,19 @@ class JitSecurityJwtKeySource
     @credentials = credentials
   end
 
+  public
+
   def fetch(name, default = nil)
     @env.fetch(name.to_s, default)
   end
 
+  public
+
   def value(name)
     @env[name.to_s].presence || @credentials.option(name)
   end
+
+  public
 
   def csv(name)
     split_csv(@env[name.to_s])

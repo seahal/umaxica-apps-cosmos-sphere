@@ -22,7 +22,7 @@ class CoreRpCookieSurfaceContractTest < ActionDispatch::IntegrationTest
       )
 
       assert_predicate enrollment, :success?
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       payload = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -45,7 +45,7 @@ class CoreRpCookieSurfaceContractTest < ActionDispatch::IntegrationTest
         payload.merge("client_id" => "palm-app-jp"),
       ].each do |mismatched|
         browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-          JWT.encode(mismatched, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+          JWT.encode(mismatched, key, "PS256", { kid: "external-op", typ: "at+jwt" })
         browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
         jwks.stub(:lookup, lookup) do
           browser.get("/api/v0/session", headers: { "Accept" => "application/json" })

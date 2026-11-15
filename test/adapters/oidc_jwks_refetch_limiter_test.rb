@@ -31,7 +31,7 @@ class OidcJwksRefetchLimiterTest < ActiveSupport::TestCase
   end
 
   setup do
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @fetches = 0
   end
 
@@ -115,7 +115,7 @@ class OidcJwksRefetchLimiterTest < ActiveSupport::TestCase
     valkey = CountingUnavailableValkey.new
     client = client_with(limiter: OidcJwksRefetchLimiter.new(connection: valkey))
     other_issuer = JWT.encode(
-      { "iss" => "https://other.example", "aud" => ["c"] }, @key, "ES384", { "kid" => "k1", "typ" => "at+jwt" },
+      { "iss" => "https://other.example", "aud" => ["c"] }, @key, "PS256", { "kid" => "k1", "typ" => "at+jwt" },
     )
     wrong_algorithm = JWT.encode(
       { "iss" => "https://op.example", "aud" => ["c"] }, "untrusted-key", "HS256",

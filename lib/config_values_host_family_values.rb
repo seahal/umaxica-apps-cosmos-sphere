@@ -15,6 +15,8 @@ end
 ConfigValuesHostFamilyValues = ConfigValues::HostFamilyValues
 
 class << ConfigValues::HostFamilyValues
+  public
+
   def build(env:, production:)
     ConfigValues::HostFamilyValues.new(**host_family_origins(env:, production:)).freeze
   end

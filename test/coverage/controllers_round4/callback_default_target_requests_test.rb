@@ -33,7 +33,7 @@ class CoverageRoundFourCallbackDefaultTargetRequestsTest < ActionDispatch::Integ
       end
       cell = RpCellBinding.fetch(connection)
       issuer = OidcIssuer.for_resource_type(resource_type)
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       identity = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -48,11 +48,11 @@ class CoverageRoundFourCallbackDefaultTargetRequestsTest < ActionDispatch::Integ
         "act" => resource_type,
         "auth_time" => 1.minute.ago.to_i,
       }
-      id_token = JWT.encode(identity, key, "ES384", { kid: "external-op", typ: "id-token+jwt" })
+      id_token = JWT.encode(identity, key, "PS256", { kid: "external-op", typ: "id-token+jwt" })
       access_claims = identity.except("nonce", "typ", "act").merge(
         "client_id" => cell.client_id, "scope" => "openid profile", "authn_ctx" => "normal",
       )
-      access = JWT.encode(access_claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      access = JWT.encode(access_claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       tokens = {
         id_token:,
         access_token: access,

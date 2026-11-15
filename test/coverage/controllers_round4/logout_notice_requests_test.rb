@@ -25,7 +25,7 @@ class CoverageRoundFourLogoutNoticeRequestsTest < ActionDispatch::IntegrationTes
       )
 
       assert_predicate enrollment, :success?
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       claims = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -39,7 +39,7 @@ class CoverageRoundFourLogoutNoticeRequestsTest < ActionDispatch::IntegrationTes
         "scope" => "openid profile",
         "authn_ctx" => "normal",
       }
-      access = JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      access = JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] = access
       browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
       jwks = OidcOpJwksClient.for_resource_type(resource_type)
@@ -69,7 +69,7 @@ class CoverageRoundFourLogoutNoticeRequestsTest < ActionDispatch::IntegrationTes
     )
 
     assert_predicate enrollment, :success?
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     claims = {
       "iss" => issuer,
       "aud" => [cell.client_id],
@@ -84,7 +84,7 @@ class CoverageRoundFourLogoutNoticeRequestsTest < ActionDispatch::IntegrationTes
       "authn_ctx" => "normal",
     }
     browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-      JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+      JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
     browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
     jwks = OidcOpJwksClient.for_resource_type("client")
     lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)
@@ -145,7 +145,7 @@ class CoverageRoundFourLogoutNoticeRequestsTest < ActionDispatch::IntegrationTes
       )
 
       assert_predicate enrollment, :success?
-      key = OpenSSL::PKey::EC.generate("secp384r1")
+      key = OpenSSL::PKey::RSA.generate(3072)
       claims = {
         "iss" => issuer,
         "aud" => [cell.client_id],
@@ -160,7 +160,7 @@ class CoverageRoundFourLogoutNoticeRequestsTest < ActionDispatch::IntegrationTes
         "authn_ctx" => "normal",
       }
       browser.cookies[OidcRpBrowserCredentialContract::ACCESS_COOKIE] =
-        JWT.encode(claims, key, "ES384", { kid: "external-op", typ: "at+jwt" })
+        JWT.encode(claims, key, "PS256", { kid: "external-op", typ: "at+jwt" })
       browser.cookies[OidcRpBrowserCredentialContract::SESSION_COOKIE] = enrollment.session.public_id
       jwks = OidcOpJwksClient.for_resource_type("client")
       lookup = OidcOpJwksClient::Lookup.new(status: :found, key:, reason: nil)

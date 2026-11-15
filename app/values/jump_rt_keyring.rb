@@ -20,11 +20,8 @@ module JumpRtKeyring
   def decode_private_key(value)
     return nil if value.blank?
 
-    raw = value.to_s
-    return OpenSSL::PKey.read(raw) if raw.include?("BEGIN")
-
-    OpenSSL::PKey::EC.new(Base64.decode64(raw))
-  rescue OpenSSL::PKey::PKeyError, ArgumentError
+    JitSecurityJwtKeyMaterial.decode_private_key(value)
+  rescue JitSecurityJwtKeyMaterial::Error
     nil
   end
 end

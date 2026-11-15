@@ -33,6 +33,7 @@ class ApplicationRecord < ActiveRecord::Base
   def self.clear_fixed_id_seed_cache!
     FIXED_ID_SEED_CACHE.clear
   end
+  public_class_method :clear_fixed_id_seed_cache!
 
   # Guarantees the fixed-id rows a reference table depends on (its DEFAULTS /
   # enum constants) exist, without duplicating any that are already present.
@@ -91,6 +92,7 @@ class ApplicationRecord < ActiveRecord::Base
 
     FIXED_ID_SEED_CACHE[seed_key] = true
   end
+  public_class_method :insert_missing_fixed_ids!
 
   def self.pluck_fixed_ids(fixed_ids)
     if defined?(Prosopite)

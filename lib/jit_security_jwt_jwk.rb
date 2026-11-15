@@ -7,9 +7,9 @@ require "openssl"
 module JitSecurityJwtJwk
   module_function
 
-  ALGORITHM = "ES384"
-  CURVE = "P-384"
-  REQUIRED_PUBLIC_FIELDS = %w(kty crv kid alg use x y).freeze
+  ALGORITHM = "PS256"
+  MINIMUM_RSA_BITS = 3072
+  REQUIRED_PUBLIC_FIELDS = %w(kty kid alg use n e).freeze
   PRIVATE_FIELDS = %w(d p q dp dq qi oth k).freeze
 
   Error = Class.new(StandardError)
@@ -32,11 +32,16 @@ module JitSecurityJwtJwk
     raise Error, "public JWK is missing #{missing.join(", ")}" if missing.present?
     raise Error, "public JWK alg must be #{ALGORITHM}" unless jwk["alg"] == ALGORITHM
     raise Error, "public JWK use must be sig" unless jwk["use"] == "sig"
-    raise Error, "public JWK kty must be EC" unless jwk["kty"] == "EC"
-    raise Error, "public JWK crv must be #{CURVE}" unless jwk["crv"] == CURVE
+    raise Error, "public JWK kty must be RSA" unless jwk["kty"] == "RSA"
+
+    import_public_key(jwk)
   end
 
   def export_public(key, kid:)
+    unless key.is_a?(OpenSSL::PKey::RSA) && key.n.num_bits >= MINIMUM_RSA_BITS
+      raise Error, "signing key must be RSA with at least #{MINIMUM_RSA_BITS} bits"
+    end
+
     JWT::JWK.new(key, kid: kid).export.stringify_keys.except(*PRIVATE_FIELDS).merge(
       "alg" => ALGORITHM,
       "use" => "sig",
@@ -44,7 +49,13 @@ module JitSecurityJwtJwk
   end
 
   def import_public_key(jwk)
-    JWT::JWK.import(jwk.except("state")).public_key
+    key = JWT::JWK.import(jwk.except("state")).public_key
+    raise Error, "public JWK key must be RSA" unless key.is_a?(OpenSSL::PKey::RSA)
+    unless key.n.num_bits >= MINIMUM_RSA_BITS
+      raise Error, "public JWK RSA modulus must be at least #{MINIMUM_RSA_BITS} bits"
+    end
+
+    key
   rescue JWT::JWKError, OpenSSL::PKey::PKeyError, ArgumentError => e
     raise Error, "contains invalid public JWK material: #{e.class.name}"
   end

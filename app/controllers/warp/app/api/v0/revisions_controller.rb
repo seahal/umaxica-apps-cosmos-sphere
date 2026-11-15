@@ -16,8 +16,11 @@ module Warp
           include ::MachineJsonNegotiation
 
           AUTHENTICATION_MODE = :bare
+          before_action { response.set_header("Cache-Control", "no-store") }
 
           before_action :refuse_unless_machine_json_acceptable
+
+          public
 
           def show
             render_revision_json

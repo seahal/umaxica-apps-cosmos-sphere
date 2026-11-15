@@ -67,8 +67,9 @@ exercise raw insertion, update, deletion and concurrency. A checker pass alone d
 JSON expression semantics, validated historical rows, or coverage of bundled engine models. Neither
 a local empty rebuild nor a test upgrade establishes production data readiness.
 
-The local DatabaseConsistency extension recognizes only simple PostgreSQL `column ->> 'key'`
-expression tuples and the real validator's explicit predicate. It compares exact key/column tuples
-and predicate literals, including their case; unsupported expressions remain findings. The reverse
-check also fails when JSON-key validation lacks an equivalent unique index. No new checker option,
-model exemption or connection filter is used. See [the dependency patch](../../patches/README.md).
+DatabaseConsistency is the released gem from RubyGems (no fork, no patch). `OperatorChronicle`'s
+`JsonbKeysUniquenessValidator` declares the partial index's normalized expression terms as
+attributes and scope and its predicate as `conditions`, which the released checker compares with the
+index; removing the validator or changing the predicate makes the check fail
+(`test/tooling/database_consistency_jsonb_uniqueness_test.rb`). No checker option, model exemption
+or connection filter is used.

@@ -10,11 +10,14 @@ class RedirectsPathTargetResolver
   def self.call(value, source: :raw_pt)
     new(value, source: source).call
   end
+  public_class_method :call
 
   def initialize(value, source:)
     @value = value
     @source = source
   end
+
+  public
 
   def call
     return failure(:blank) unless value.is_a?(String) && value.present?

@@ -14,7 +14,7 @@ class OidcJwksSelfFetchNegativeCacheTest < ActiveSupport::TestCase
   end
 
   setup do
-    @key = OpenSSL::PKey::EC.generate("secp384r1")
+    @key = OpenSSL::PKey::RSA.generate(3072)
     @now = Time.zone.parse("2026-10-25 12:00:00")
     @fetches = 0
     @failing = true
@@ -93,7 +93,7 @@ class OidcJwksSelfFetchNegativeCacheTest < ActiveSupport::TestCase
         raise OidcOpJwksClient::FetchError, "unreachable" if @failing
 
         { "keys" => [JitSecurityJwtJwk.export_public(@key, kid: "known"),
-                     JitSecurityJwtJwk.export_public(OpenSSL::PKey::EC.generate("secp384r1"), kid: "other"),] }
+                     JitSecurityJwtJwk.export_public(OpenSSL::PKey::RSA.generate(3072), kid: "other"),] }
       },
     )
   end

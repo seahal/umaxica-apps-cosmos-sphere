@@ -11,7 +11,7 @@ class ResolversAndAuthValuesRound5RpAnchorIssuerBindingTest < ActiveSupport::Tes
     enrollment = RpCallbackCommitter.call(
       cell:, issuer:, subject: "round5-subject", sid: "round5-session", absolute_expires_at: 1.hour.from_now,
     )
-    key = OpenSSL::PKey::EC.generate("secp384r1")
+    key = OpenSSL::PKey::RSA.generate(3072)
     now = Time.current.to_i
     payload = {
       "iss" => issuer,
@@ -26,7 +26,7 @@ class ResolversAndAuthValuesRound5RpAnchorIssuerBindingTest < ActiveSupport::Tes
       "scope" => "openid",
       "authn_ctx" => "normal",
     }
-    access_token = JWT.encode(payload, key, "ES384", { "kid" => "round5-key", "typ" => "at+jwt" })
+    access_token = JWT.encode(payload, key, "PS256", { "kid" => "round5-key", "typ" => "at+jwt" })
     limiter = OidcJwksRefetchLimiter::LocalWindow.new(clock: -> { Time.current })
     keys = OidcOpJwksClient.new(
       jwks_uri: "#{issuer}/.well-known/jwks.json",

@@ -9,6 +9,8 @@ module Core
           AUTHENTICATION_MODE = :bare
           rescue_from SphereOwnerDataUnavailableError, with: :render_owner_data_unavailable
 
+          public
+
           def show
             authenticated = authenticate_core_browser_cookie!
             return if performed?

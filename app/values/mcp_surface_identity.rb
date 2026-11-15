@@ -26,6 +26,8 @@ class McpSurfaceIdentity
   # Health profiles are keyed by surface, not by realm: every realm probes the same surface
   # dependency allowlist. Listing all three explicitly keeps this exhaustive; an unsupported value
   # cannot reach here because the constructor already rejects it.
+  public
+
   def health_profile
     case surface
     when "app" then ::Health::Profiles::App
@@ -36,18 +38,26 @@ class McpSurfaceIdentity
   end
 
   # Name reported to MCP clients as the server identity.
+  public
+
   def server_name
     "umaxica-#{realm}-#{surface}"
   end
+
+  public
 
   def as_public_json
     { realm: realm, surface: surface }
   end
 
+  public
+
   def ==(other)
     other.is_a?(self.class) && other.realm == realm && other.surface == surface
   end
   alias eql? ==
+
+  public
 
   def hash
     [self.class, realm, surface].hash

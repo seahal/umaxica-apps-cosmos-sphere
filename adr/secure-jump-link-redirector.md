@@ -13,6 +13,14 @@ redirect aliases.
 This Rails app also no longer hosts the Jump redirect endpoint. Redirects leave the app through the
 external Jump gateway origin, for example `https://jump.umaxica.net/`.
 
+## Amendment (2026-11-13): PS256-only Jump tokens
+
+The accepted Cosmos signing decision supersedes the ES384 return-token algorithm in the earlier
+decision below. Rails-issued and Jump-issued first-party Jump tokens use PS256 only, and
+verification keys are public RSA keys of at least 3072 bits. Issuer, audience, purpose, TTL, URL,
+and fail-closed requirements remain unchanged. This repository does not contain the external Jump
+gateway, so live interoperability remains unverified.
+
 ## Decision
 
 Rails issues only signed, short-lived Jump redirect tokens.
@@ -29,7 +37,7 @@ The external Jump gateway verifies the inbound Rails-issued token against the is
 For an internal return, the gateway issues its own signed return token and redirects back to the
 app. The app verifies that returned token with `JumpRtReturnVerifier` against the Jump public JWKS
 only (`https://jump.umaxica.net/.well-known/jwks.json` derived from the configured Jump origin).
-Return tokens are ES384, at most 30 seconds, with 5 seconds of clock leeway. JWKS fetch failures
+Return tokens are PS256, at most 30 seconds, with 5 seconds of clock leeway. JWKS fetch failures
 fail closed. Rails must not hold the Jump gateway private key.
 
 This Rails app must not expose `jump_*` route helpers, DB-backed `JumpLink` models, or

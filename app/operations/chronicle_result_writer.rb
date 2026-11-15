@@ -16,6 +16,8 @@ class ChronicleResultWriter < ChronicleApplicationService
     @error = error
   end
 
+  public
+
   def call
     # The intent row carries the pre-operation state; a completed operation may add what it observed
     # (for example how many sessions it revoked) under the same sanitized changeset.

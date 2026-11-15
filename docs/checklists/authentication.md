@@ -1,11 +1,9 @@
 # Authentication
 
-> **Scope after the 2026-11-10 hard reset:** Only Edit (`org`) Browser RP authentication remains
-> served by this repository. AUTH-1, AUTH-3, AUTH-9–13, AUTH-15, and AUTH-17 still describe retained
-> browser-RP boundaries. Other items below describe retired Auth/Base/identity workflows and are
-> retained as traceability, not as active route requirements. See the accepted
-> [surface hard-reset spec](../../specs/sphere-operator-tools-hard-reset/spec.md) and the
-> [Browser RP checklist](browser-rp.md).
+> **Sphere scope after the 2026-11-12 split:** Core, Warp and Palm Browser RP authentication remain
+> served by this repository. Base/Auth and account-identity workflows below are historical where
+> their surfaces or data sources were removed. Former test paths are not current coverage. See the
+> [Sphere retirement evidence](../../evidence/2026-11-12-remove-non-sphere-databases-R7P3.md).
 
 These are durable requirements for their stated scope, not current verification results.
 
@@ -226,16 +224,18 @@ These are durable requirements for their stated scope, not current verification 
   can cancel an attached, Base-confirmed and redeemed admission. Immediately before, at and after
   the stored curfew, the binding, admitted ceremony, OIDC transaction, sign-in/sign-up flows and
   browser cookies remain unchanged. With Sign In available, curfew cancellation retains its existing
-  behavior. See
-  [`acceptance_wu29_sign_entry_sentry_blocked_test.rb`](../../test/integration/acceptance_wu29_sign_entry_sentry_blocked_test.rb)
-  and [`admission_curfew_test.rb`](../../test/integration/admission_curfew_test.rb).
-- AUTH-42: Base app/org, Palm app and Warp app/org roots render for signed-out visitors and refuse a
+  behavior. See acceptance_wu29_sign_entry_sentry_blocked_test.rb (former test path
+  `../../test/integration/acceptance_wu29_sign_entry_sentry_blocked_test.rb`; removed during Sphere
+  ownership retirement on 2026-11-12) and admission_curfew_test.rb (former test path
+  `../../test/integration/admission_curfew_test.rb`; removed during Sphere ownership retirement on
+  2026-11-12).
+- AUTH-42: Core app/org, Palm app and Warp app/org roots render for signed-out visitors and refuse a
   valid signed-in RP session with 403, no redirect and `private, no-store`; invalid or expired
   sessions are treated as signed out. Their successful OIDC callbacks use their own Dashboard when
   no validated `target_link_uri` is present, while a validated target wins. Core app/org keep their
   root usable in both states and use `/` as their callback landing because they have no Rails
-  Dashboard and share screens with TanStack Start. Base and Palm signed-out Dashboard requests
-  redirect to `/sign` with the Dashboard target; Warp retains its 404. See
+  Dashboard and share screens with TanStack Start. Palm signed-out Dashboard requests redirect to
+  `/sign` with the Dashboard target; Warp retains its 404. See
   [Home and Dashboard boundary](../../adr/home-dashboard-authentication-boundary.md).
 
 Sources:
